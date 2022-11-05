@@ -15,11 +15,13 @@ pub mod prelude {
     pub use log::*;
     pub use seeded_dice_roller::*;
     pub use serde::{Deserialize, Serialize};
+    pub use smart_default::SmartDefault;
+    pub use std::fmt::Display;
 }
 use prelude::*;
 
 /// A list of settings used to configure generation.
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct GenerationSettings {
     /// A list of settings used to configure the [Universe] generation.
     pub universe: Option<UniverseSettings>,

@@ -88,19 +88,20 @@ dependencies = [
 
 [[package]]
 name = "planet_generator"
-version = "0.1.0"
+version = "0.0.1-pre-alpha"
 dependencies = [
  "log",
  "seeded_dice_roller",
  "serde",
  "simple_logger",
+ "smart-default",
 ]
 
 [[package]]
 name = "ppv-lite86"
-version = "0.2.16"
+version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb9f9e6e233e5c4a35559a617bf40a4ec447db2e84c20b55a6f83167b7e57872"
+checksum = "5b40af805b3121feab8a3c29f04d8ad262fa8e0561883e7653e024ae4479e6de"
 
 [[package]]
 name = "proc-macro2"
@@ -170,13 +171,16 @@ dependencies = [
 
 [[package]]
 name = "seeded_dice_roller"
-version = "0.1.0"
-source = "git+https://github.com/lmagitem/seeded-dice-roller.git#94ba83f7e732fe7808ea335c136560affa970b8a"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8d9d4b49cfe0908b67274706b078a44761fd3d03befe61215fa0932204ea590"
 dependencies = [
  "log",
  "rand",
  "rand_pcg",
  "rand_seeder",
+ "serde",
+ "smart-default",
 ]
 
 [[package]]
@@ -210,6 +214,17 @@ dependencies = [
  "log",
  "time",
  "windows-sys",
+]
+
+[[package]]
+name = "smart-default"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "133659a15339456eeeb07572eb02a91c91e9815e9cbc89566944d2c8d3efdbf6"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

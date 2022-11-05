@@ -1,12 +1,13 @@
 [package]
 name = "planet_generator"
-version = "0.1.0"
+version = "0.0.1-pre-alpha"
 edition = "2021"
 description = "Generates data for galaxies, sectors, solar systems, planets and their inhabitants."
 license = "MIT"
 
 [dependencies]
-seeded_dice_roller = { git = "https://github.com/lmagitem/seeded-dice-roller.git" }
+seeded_dice_roller = "0.1.1"
 log = "0.4.17"
 simple_logger = "4.0.0"
 serde = { version = "1.0.147", features = ["derive"] }
+smart-default = "0.6.0"

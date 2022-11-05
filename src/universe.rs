@@ -3,15 +3,72 @@ use crate::prelude::*;
 const OUR_UNIVERSES_ERA: StelliferousEra = StelliferousEra::MiddleStelliferous;
 /// The current age of the universe.
 const OUR_UNIVERSES_AGE: f32 = 13.8;
+/// The time in billions of years when the Ancient Stelliferous Era starts.
+const MIN_ANCIENT_STELLIFEROUS: f32 = 0.4;
+/// The time in billions of years when the Early Stelliferous Era starts.
+const MIN_EARLY_STELLIFEROUS: f32 = 0.5;
+/// The time in billions of years when the Middle Stelliferous Era starts.
+const MIN_MIDDLE_STELLIFEROUS: f32 = 5.0;
+/// The time in billions of years when the Late Stelliferous Era starts.
+const MIN_LATE_STELLIFEROUS: f32 = 50.0;
+/// The time in billions of years when the End Stelliferous Era starts.
+const MIN_END_STELLIFEROUS: f32 = 2000.0;
+/// The time in billions of years when the End Stelliferous Era ends.
+const MAX_END_STELLIFEROUS: f32 = 100000.0;
+/// An array containing the data used to calculate a universe's age.
+const POSSIBLE_ERAS: [PossibleEra; 5] = [
+    PossibleEra {
+        era: StelliferousEra::AncientStelliferous,
+        min: MIN_ANCIENT_STELLIFEROUS,
+        max: MIN_EARLY_STELLIFEROUS,
+        weight: 1,
+    },
+    PossibleEra {
+        era: StelliferousEra::EarlyStelliferous,
+        min: MIN_EARLY_STELLIFEROUS,
+        max: MIN_MIDDLE_STELLIFEROUS,
+        weight: 40,
+    },
+    PossibleEra {
+        era: StelliferousEra::MiddleStelliferous,
+        min: MIN_MIDDLE_STELLIFEROUS,
+        max: MIN_LATE_STELLIFEROUS,
+        weight: 218,
+    },
+    PossibleEra {
+        era: StelliferousEra::LateStelliferous,
+        min: MIN_LATE_STELLIFEROUS,
+        max: MIN_END_STELLIFEROUS,
+        weight: 40,
+    },
+    PossibleEra {
+        era: StelliferousEra::EndStelliferous,
+        min: MIN_END_STELLIFEROUS,
+        max: MAX_END_STELLIFEROUS,
+        weight: 1,
+    },
+];
 
 /// A list of settings used to configure the [Universe] generation.
-#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct UniverseSettings {
-    /// The specific universe [StelliferousEra] to use if any. Will be overwritten if **fixed_age** or **use_ours** is set.
+    /// The specific universe [StelliferousEra] to use if any. Will be overwritten if the age or **use_ours** is set.
     pub fixed_era: Option<StelliferousEra>,
+    /// Asks to generate a universe's [StelliferousEra] randomly, but only using eras that are older than the given one. Will be overwritten
+    /// if the age or **use_ours** is set.
+    pub era_before: Option<StelliferousEra>,
+    /// Asks to generate a universe's [StelliferousEra] randomly, but only using eras that are younger than the given one. Will be
+    /// overwritten if the age or **use_ours** is set.
+    pub era_after: Option<StelliferousEra>,
     /// The specific universe age to use if any, in billions of years. **Must be higher or equal to 0.4 and lower than 100000.**
-    /// Will overwrite **fixed_era** if set, and be overwritten if **use_ours** is set.
+    /// Will overwrite the era if set, and be overwritten if **use_ours** is set.
     pub fixed_age: Option<f32>,
+    /// Asks to generate a universe's age randomly, but with an age at least older than the given one. **Must be higher or equal to 0.4
+    /// and lower than 100000.** Will overwrite the era if set, and be overwritten if **use_ours** is set.
+    pub age_before: Option<f32>,
+    /// Asks to generate a universe's age randomly, but with an age at least younger than the given one. **Must be higher or equal to 0.4
+    /// and lower than 100000.** Will overwrite the era if set, and be overwritten if **use_ours** is set.
+    pub age_after: Option<f32>,
     /// Skip the universe generation and just uses a copy of ours. Will overwrite **fixed_era** and **fixed_age** if set.
     pub use_ours: bool,
 }
@@ -21,7 +78,9 @@ pub struct UniverseSettings {
 /// Massive stars use up their fuel very rapidly, in as little as a few million years. Eventually, the only luminous stars remaining will
 /// be white dwarf stars. By the end of this era, bright stars as we know them will be gone, their nuclear fuel exhausted, and only white
 /// dwarfs, brown dwarfs, neutron stars and black holes will remain.
-#[derive(Debug, PartialEq, PartialOrd, Clone, Copy, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
+)]
 pub enum StelliferousEra {
     /// A period between the Primordial and Stelliferous eras. With the birth and death of the first Population III stars, the first
     /// mini-galaxies and Population II stars begin to appear alongside elements heavier than helium. Galaxies allow small bubbles of
@@ -34,6 +93,7 @@ pub enum StelliferousEra {
     /// accompanied by planets.
     EarlyStelliferous,
     /// The part of the Stelliferous era we live in. There is a wide range of galaxies consisting of a wide range of stars.
+    #[default]
     MiddleStelliferous,
     /// Local galactic groups will have merged into single giant galaxies. All galaxies outside of one's own cluster will disappear below
     /// the cosmological horizon - the only things that a member of a galaxy will be able to see are the stars and objects within its own
@@ -46,8 +106,22 @@ pub enum StelliferousEra {
     EndStelliferous,
 }
 
+impl Display for StelliferousEra {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut name = String::new();
+        match self {
+            StelliferousEra::AncientStelliferous => name.push_str("Ancient Stelliferous"),
+            StelliferousEra::EarlyStelliferous => name.push_str("Early Stelliferous"),
+            StelliferousEra::MiddleStelliferous => name.push_str("Middle Stelliferous"),
+            StelliferousEra::LateStelliferous => name.push_str("Late Stelliferous"),
+            StelliferousEra::EndStelliferous => name.push_str("End Stelliferous"),
+        }
+        write!(f, "{}", name)
+    }
+}
+
 /// Data allowing us to model the universe.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Universe {
     /// In which part of the Stelliferous Era the universe is currently.
     pub era: StelliferousEra,
@@ -55,108 +129,235 @@ pub struct Universe {
     pub age: f32,
 }
 
+impl Display for Universe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Universe {{ age: {} billion years, era: {} }}",
+            self.age, self.era
+        )
+    }
+}
+
+/// Data used to calculate a universe's age.
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+struct PossibleEra {
+    /// The era this object represents.
+    era: StelliferousEra,
+    /// When the era begins.
+    min: f32,
+    /// When the era ends.
+    max: f32,
+    /// How often should we get this era as result during generation?
+    weight: u32,
+}
+
 impl Universe {
-    /// Generates a brand new universe using the given seed and [GenerationSettings].
+    /// Generates a brand new universe using the given seed and [GenerationSettings]. If an appropriate age or era cannot be generated from
+    /// the given settings, our own universe's age and/or era will be used.
     pub fn generate(seed: String, settings: GenerationSettings) -> Self {
-        let era = Self::generate_era(settings, &seed);
-        let age = Self::generate_age(settings, seed, era);
+        let mut age = Self::generate_age(settings, seed);
+        let mut era = Self::get_era_from_age(age);
+        if !Self::are_age_and_era_valid(era, age) {
+            age = OUR_UNIVERSES_AGE;
+            era = OUR_UNIVERSES_ERA;
+        }
         let universe = Universe { era, age };
-        trace!("generate - created the following {:?}", universe);
+        trace!("generated the following {}", universe);
         universe
     }
 
-    /// Returns an era to use in a [Universe], either using the one given in **settings** or generating one using the given **seed**.
-    fn generate_era(settings: GenerationSettings, seed: &String) -> StelliferousEra {
-        let era;
-        match settings.universe {
-            Some(sub_set) => {
-                if sub_set.use_ours {
-                    era = OUR_UNIVERSES_ERA;
-                } else if sub_set.fixed_age.is_some() {
-                    let age = sub_set.fixed_age.unwrap();
-                    if age < 0.4 {
-                        panic!("Received a fixed age lower than 0.4.")
-                    } else if age < 0.5 {
-                        era = StelliferousEra::AncientStelliferous;
-                    } else if age < 5.0 {
-                        era = StelliferousEra::EarlyStelliferous;
-                    } else if age < 50.0 {
-                        era = StelliferousEra::MiddleStelliferous;
-                    } else if age < 2000.0 {
-                        era = StelliferousEra::LateStelliferous;
-                    } else {
-                        era = StelliferousEra::EndStelliferous;
-                    }
-                } else if sub_set.fixed_era.is_some() {
-                    era = sub_set.fixed_era.unwrap();
-                } else {
-                    era = Self::calculate_era(seed);
-                }
-            }
-            None => era = Self::calculate_era(seed),
-        };
-        era
-    }
-
-    /// Generates a random era using the given **seed**.
-    fn calculate_era(seed: &String) -> StelliferousEra {
-        trace!("calculate_era - about to generate an era");
-        let era = SeededDiceRoller::new(seed.as_str(), "uni_era")
-            .get_result(&CopyableRollToProcess {
-                possible_results: SeededDiceRoller::to_copyable_possible_results(vec![
-                    StelliferousEra::AncientStelliferous,
-                    StelliferousEra::EarlyStelliferous,
-                    StelliferousEra::MiddleStelliferous,
-                    StelliferousEra::LateStelliferous,
-                    StelliferousEra::EndStelliferous,
-                ]),
-                roll_method: RollMethod::GaussianRoll(7),
-            })
-            .expect("Should return a proper era.");
-        era
-    }
-
-    /// Returns an age to use in a [Universe], either using the one given in **settings** or generating one using the given **seed**.
-    fn generate_age(settings: GenerationSettings, seed: String, era: StelliferousEra) -> f32 {
+    /// Generates an age to use in a [Universe] while following the given [GenerationSettings].
+    fn generate_age(settings: GenerationSettings, seed: String) -> f32 {
         let age;
         match settings.universe {
             Some(sub_set) => {
                 if sub_set.use_ours {
                     age = OUR_UNIVERSES_AGE;
                 } else if sub_set.fixed_age.is_some() {
-                    age = sub_set.fixed_age.unwrap();
+                    age = sub_set.fixed_age.expect("Fixed age should have been set.");
                 } else {
-                    age = Self::calculate_age(seed, era);
+                    age = Self::calculate_age(settings, seed);
                 }
             }
-            None => age = Self::calculate_age(seed, era),
+            None => age = Self::calculate_age(settings, seed),
         };
         age
     }
 
-    /// Generates the age of a [Universe] using the given **era** and **seed**.
-    fn calculate_age(seed: String, era: StelliferousEra) -> f32 {
-        trace!("calculate_era - about to generate an age for {:#?}", era);
+    /// Generates the age of a [Universe] using the given [GenerationSettings] and **seed**.
+    fn calculate_age(settings: GenerationSettings, seed: String) -> f32 {
         let age: f32;
         let mut rng = SeededDiceRoller::new(seed.as_str(), "uni_age");
-        match era {
-            StelliferousEra::AncientStelliferous => {
-                age = (rng.roll(1, 10, 39) as f32) / 100.0;
-            }
-            StelliferousEra::EarlyStelliferous => {
-                age = (rng.roll(1, 450, 49) as f32) / 100.0;
-            }
-            StelliferousEra::MiddleStelliferous => {
-                age = (rng.roll(1, 4500, 499) as f32) / 100.0;
-            }
-            StelliferousEra::LateStelliferous => {
-                age = (rng.roll(1, 19500, 499) as f32) / 10.0;
-            }
-            StelliferousEra::EndStelliferous => {
-                age = (rng.roll(2, 50, 0) * 1000) as f32;
-            }
+        let (mut min, mut max) = Self::get_min_and_max_age(settings);
+        let possible_eras = Self::filter_unwanted_eras(min, max);
+
+        if let Some(era) = Self::generate_era(&mut rng, possible_eras) {
+            min = min.max(era.min);
+            max = max.min(era.max);
+
+            max = max - min;
+            age = (rng.roll(1, (max * 100.0) as u32, (min * 100.0) as i32) as f32) / 100.0;
+        } else {
+            age = OUR_UNIVERSES_AGE;
         }
         age
+    }
+
+    /// Uses the given [GenerationSettings] to get the min and max universe age to use.
+    fn get_min_and_max_age(settings: GenerationSettings) -> (f32, f32) {
+        let mut min: f32 = MIN_ANCIENT_STELLIFEROUS;
+        let mut max: f32 = MAX_END_STELLIFEROUS;
+        if let Some(sub_set) = settings.universe {
+            if let Some(era_after) = sub_set.era_after {
+                match era_after {
+                    StelliferousEra::AncientStelliferous => {
+                        min = min.max(MIN_EARLY_STELLIFEROUS);
+                    }
+                    StelliferousEra::EarlyStelliferous => {
+                        min = min.max(MIN_MIDDLE_STELLIFEROUS);
+                    }
+                    StelliferousEra::MiddleStelliferous => {
+                        min = min.max(MIN_LATE_STELLIFEROUS);
+                    }
+                    StelliferousEra::LateStelliferous => {
+                        min = min.max(MIN_END_STELLIFEROUS);
+                    }
+                    StelliferousEra::EndStelliferous => {
+                        min = min.max(MAX_END_STELLIFEROUS);
+                    }
+                }
+            }
+            if let Some(era_before) = sub_set.era_before {
+                match era_before {
+                    StelliferousEra::AncientStelliferous => {
+                        max = max.min(MIN_ANCIENT_STELLIFEROUS);
+                    }
+                    StelliferousEra::EarlyStelliferous => {
+                        max = max.min(MIN_EARLY_STELLIFEROUS);
+                    }
+                    StelliferousEra::MiddleStelliferous => {
+                        max = max.min(MIN_MIDDLE_STELLIFEROUS);
+                    }
+                    StelliferousEra::LateStelliferous => {
+                        max = max.min(MIN_LATE_STELLIFEROUS);
+                    }
+                    StelliferousEra::EndStelliferous => {
+                        max = max.min(MIN_END_STELLIFEROUS);
+                    }
+                }
+            }
+            if let Some(fixed_era) = sub_set.fixed_era {
+                match fixed_era {
+                    StelliferousEra::AncientStelliferous => {
+                        min = min.max(MIN_ANCIENT_STELLIFEROUS);
+                        max = max.min(MIN_EARLY_STELLIFEROUS);
+                    }
+                    StelliferousEra::EarlyStelliferous => {
+                        min = min.max(MIN_EARLY_STELLIFEROUS);
+                        max = max.min(MIN_MIDDLE_STELLIFEROUS);
+                    }
+                    StelliferousEra::MiddleStelliferous => {
+                        min = min.max(MIN_MIDDLE_STELLIFEROUS);
+                        max = max.min(MIN_LATE_STELLIFEROUS);
+                    }
+                    StelliferousEra::LateStelliferous => {
+                        min = min.max(MIN_LATE_STELLIFEROUS);
+                        max = max.min(MIN_END_STELLIFEROUS);
+                    }
+                    StelliferousEra::EndStelliferous => {
+                        min = min.max(MIN_END_STELLIFEROUS);
+                        max = max.min(MAX_END_STELLIFEROUS);
+                    }
+                }
+            }
+            if let Some(age_after) = sub_set.age_after {
+                min = min.max(age_after);
+            }
+            if let Some(age_before) = sub_set.age_before {
+                max = max.min(age_before);
+            }
+        }
+        (min, max)
+    }
+
+    /// Removes every [PossibleEra] that is before or after the **min** and **max** times.
+    fn filter_unwanted_eras(min: f32, max: f32) -> Vec<PossibleEra> {
+        let mut possible_eras: Vec<PossibleEra> = Vec::new();
+        POSSIBLE_ERAS.iter().for_each(|era| {
+            if min < era.max && max > era.min {
+                possible_eras.push(*era)
+            }
+        });
+        possible_eras
+    }
+
+    /// Rolls for a [PossibleEra] between the give possible choices.
+    fn generate_era(
+        rng: &mut SeededDiceRoller,
+        possible_eras: Vec<PossibleEra>,
+    ) -> Option<PossibleEra> {
+        rng.get_result(&CopyableRollToProcess {
+            possible_results: possible_eras
+                .iter()
+                .map(|era| CopyableWeightedResult {
+                    result: *era,
+                    weight: era.weight,
+                })
+                .collect(),
+            roll_method: RollMethod::SimpleRoll,
+        })
+    }
+
+    /// Checks if the given **age** and **era** match each other. Panics if the age isn't valid.
+    fn are_age_and_era_valid(era: StelliferousEra, age: f32) -> bool {
+        let mut result = false;
+        assert!(age >= MIN_ANCIENT_STELLIFEROUS && age < MAX_END_STELLIFEROUS);
+        match era {
+            StelliferousEra::AncientStelliferous => {
+                if age >= MIN_ANCIENT_STELLIFEROUS && age < MIN_EARLY_STELLIFEROUS {
+                    result = true
+                }
+            }
+            StelliferousEra::EarlyStelliferous => {
+                if age >= MIN_EARLY_STELLIFEROUS && age < MIN_MIDDLE_STELLIFEROUS {
+                    result = true
+                }
+            }
+            StelliferousEra::MiddleStelliferous => {
+                if age >= MIN_MIDDLE_STELLIFEROUS && age < MIN_LATE_STELLIFEROUS {
+                    result = true
+                }
+            }
+            StelliferousEra::LateStelliferous => {
+                if age >= MIN_LATE_STELLIFEROUS && age < MIN_END_STELLIFEROUS {
+                    result = true
+                }
+            }
+            StelliferousEra::EndStelliferous => {
+                if age >= MIN_END_STELLIFEROUS && age < MAX_END_STELLIFEROUS {
+                    result = true
+                }
+            }
+        }
+        result
+    }
+
+    /// Returns the [StelliferousEra] matching the given age.
+    fn get_era_from_age(age: f32) -> StelliferousEra {
+        let mut result = StelliferousEra::MiddleStelliferous;
+        if age >= MIN_ANCIENT_STELLIFEROUS && age < MIN_EARLY_STELLIFEROUS {
+            result = StelliferousEra::AncientStelliferous
+        } else if age >= MIN_EARLY_STELLIFEROUS && age < MIN_MIDDLE_STELLIFEROUS {
+            result = StelliferousEra::EarlyStelliferous
+        } else if age >= MIN_MIDDLE_STELLIFEROUS && age < MIN_LATE_STELLIFEROUS {
+            result = StelliferousEra::MiddleStelliferous
+        } else if age >= MIN_LATE_STELLIFEROUS && age < MIN_END_STELLIFEROUS {
+            result = StelliferousEra::LateStelliferous
+        } else if age >= MIN_END_STELLIFEROUS && age < MAX_END_STELLIFEROUS {
+            result = StelliferousEra::EndStelliferous
+        }
+        result
     }
 }
 
@@ -175,15 +376,7 @@ mod tests {
             );
             let era = universe.era;
             let age = universe.age;
-            match era {
-                StelliferousEra::AncientStelliferous => assert_eq!(age >= 0.4 && age < 0.5, true),
-                StelliferousEra::EarlyStelliferous => assert_eq!(age >= 0.5 && age < 5.0, true),
-                StelliferousEra::MiddleStelliferous => assert_eq!(age >= 5.0 && age < 50.0, true),
-                StelliferousEra::LateStelliferous => assert_eq!(age >= 50.0 && age < 2000.0, true),
-                StelliferousEra::EndStelliferous => {
-                    assert_eq!(age >= 2000.0 && age < 100000.0, true)
-                }
-            }
+            assert_eq!(Universe::are_age_and_era_valid(era, age), true);
         }
     }
 
@@ -202,6 +395,10 @@ mod tests {
             );
             assert_eq!(universe.era, OUR_UNIVERSES_ERA);
             assert_eq!(universe.age, OUR_UNIVERSES_AGE);
+            assert_eq!(
+                Universe::are_age_and_era_valid(universe.era, universe.age),
+                true
+            );
         }
     }
 
@@ -227,13 +424,18 @@ mod tests {
                 },
             );
             assert_eq!(universe.era, era);
+            assert_eq!(
+                Universe::are_age_and_era_valid(universe.era, universe.age),
+                true
+            );
         }
     }
 
     #[test]
     fn generate_a_universe_with_specific_age() {
         for i in 0..100 {
-            let age = SeededDiceRoller::new(&i.to_string(), "test").gen_f32() % 99999.6 + 0.4;
+            let age = SeededDiceRoller::new(&i.to_string(), "test").gen_f32() % 99999.6
+                + MIN_ANCIENT_STELLIFEROUS;
             let universe = Universe::generate(
                 String::from(i.to_string()),
                 GenerationSettings {
@@ -245,6 +447,25 @@ mod tests {
                 },
             );
             assert_eq!(universe.age, age);
+            assert_eq!(
+                Universe::are_age_and_era_valid(universe.era, universe.age),
+                true
+            );
         }
+    }
+
+    #[test]
+    fn generate_a_universe_with_an_era_greater_or_lower_than() {
+        // todo
+    }
+
+    #[test]
+    fn generate_a_universe_with_an_age_greater_or_lower_than() {
+        // todo
+    }
+
+    #[test]
+    fn generate_a_universe_with_conflicting_settings() {
+        // todo
     }
 }
