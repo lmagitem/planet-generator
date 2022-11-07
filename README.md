@@ -8,31 +8,31 @@ As I am not an astrophysician myself and my limited knowledge on the matter isn'
 ## Roadmap
 This is the current roadmap of the library:
 - [x] Universe generation
-	- [x] Age
-	- [x] Era
+    - [x] Age
+    - [x] Era
 - [ ] Galaxy generation
-	- [ ] Neighborhood
-	- [ ] Age
-	- [ ] Shape
+    - [ ] Neighborhood
+    - [ ] Age
+    - [ ] Shape
 - [ ] Sector and subsector generation
-	- [ ] Location
-	- [ ] Density
+    - [ ] Location
+    - [ ] Density
 - [ ] Star system generation
-	- [ ] Stars generation
-		- [ ] Age
-		- [ ] Spectral type
-		- [ ] Luminosity
-	- [ ] Filling orbits
-	- [ ] Planet generation
-	- [ ] Resources
-	- [ ] Life presence
-	- [ ] Points of interest
+    - [ ] Stars generation
+        - [ ] Age
+        - [ ] Spectral type
+        - [ ] Luminosity
+    - [ ] Filling orbits
+- [ ] Planet generation
+    - [ ] Resources
+    - [ ] Life presence
+    - [ ] Points of interest
+    - [ ] Map generation
 - [ ] Species generation
-	- [ ] Add species using the given settings
-	- [ ] Spawn species using conditions found in specific systems
-	- [ ] Writing the species' history
-	- [ ] Filling the various systems with appropriate life
-- [ ] Map generation
+    - [ ] Add species using the given settings
+    - [ ] Spawn species using conditions found in specific systems
+    - [ ] Writing the species' history
+    - [ ] Filling the various systems with appropriate life
 
 ## Contribute
 I'll be happy to receive issues asking for new features or bug fixes. Also feel free to point out where code could be improved (either in performance, readability, documentation, following best practices...) and/or make pull requests yourselves.
