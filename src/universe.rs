@@ -1,4 +1,5 @@
 use crate::prelude::*;
+
 /// The stelliferous era we currently live in.
 const OUR_UNIVERSES_ERA: StelliferousEra = StelliferousEra::MiddleStelliferous;
 /// The current age of the universe.
@@ -49,96 +50,6 @@ const POSSIBLE_ERAS: [PossibleEra; 5] = [
     },
 ];
 
-/// A list of settings used to configure the [Universe] generation.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
-pub struct UniverseSettings {
-    /// The specific universe [StelliferousEra] to use if any. Will be overwritten if the age or **use_ours** is set.
-    pub fixed_era: Option<StelliferousEra>,
-    /// Asks to generate a universe's [StelliferousEra] randomly, but only using eras that are older than the given one. Will be overwritten
-    /// if the age or **use_ours** is set.
-    pub era_before: Option<StelliferousEra>,
-    /// Asks to generate a universe's [StelliferousEra] randomly, but only using eras that are younger than the given one. Will be
-    /// overwritten if the age or **use_ours** is set.
-    pub era_after: Option<StelliferousEra>,
-    /// The specific universe age to use if any, in billions of years. **Must be higher or equal to 0.4 and lower than 100000.**
-    /// Will overwrite the era if set, and be overwritten if **use_ours** is set.
-    pub fixed_age: Option<f32>,
-    /// Asks to generate a universe's age randomly, but with an age at least older than the given one. **Must be higher or equal to 0.4
-    /// and lower than 100000.** Will overwrite the era if set, and be overwritten if **use_ours** is set.
-    pub age_before: Option<f32>,
-    /// Asks to generate a universe's age randomly, but with an age at least younger than the given one. **Must be higher or equal to 0.4
-    /// and lower than 100000.** Will overwrite the era if set, and be overwritten if **use_ours** is set.
-    pub age_after: Option<f32>,
-    /// Skip the universe generation and just uses a copy of ours. Will overwrite **fixed_era** and **fixed_age** if set.
-    pub use_ours: bool,
-}
-
-/// The Stelliferous Era is the span of time after the Big Bang and the Primordial Era in which matter is arranged in the form of stars,
-/// galaxies, and galaxy clusters, and most energy is produced in stars. Stars are the most dominant objects of the universe in this era.
-/// Massive stars use up their fuel very rapidly, in as little as a few million years. Eventually, the only luminous stars remaining will
-/// be white dwarf stars. By the end of this era, bright stars as we know them will be gone, their nuclear fuel exhausted, and only white
-/// dwarfs, brown dwarfs, neutron stars and black holes will remain.
-#[derive(
-    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
-)]
-pub enum StelliferousEra {
-    /// A period between the Primordial and Stelliferous eras. With the birth and death of the first Population III stars, the first
-    /// mini-galaxies and Population II stars begin to appear alongside elements heavier than helium. Galaxies allow small bubbles of
-    /// ionized gas to exist and expand, but most of the universe is still made of an extremely dense and opaque neutral hydrogen cloud
-    /// which would make impossible to see outside of one's galaxy.
-    AncientStelliferous,
-    /// The majority of the universe reionizes more or less 1 billion years after the Big Bang, light can now travel freely across the
-    /// whole universe. The mini-galaxies created previously begin to merge and form mature galaxies, which may interact with each others
-    /// by colliding, being engulfed, etc. The first Population I stars appear, which contain heavier elements and are more likely to be
-    /// accompanied by planets.
-    EarlyStelliferous,
-    /// The part of the Stelliferous era we live in. There is a wide range of galaxies consisting of a wide range of stars.
-    #[default]
-    MiddleStelliferous,
-    /// Local galactic groups will have merged into single giant galaxies. All galaxies outside of one's own cluster will disappear below
-    /// the cosmological horizon - the only things that a member of a galaxy will be able to see are the stars and objects within its own
-    /// galaxy. As the Late Stelliferous progresses, the general luminosity of galaxies will also diminish as the less massive red dwarfs
-    /// begin to die as white dwarfs.
-    LateStelliferous,
-    /// All other galaxies outside one's own will no longer be detectable by any means. As this era progresses, stars will exhaust their
-    /// fuel and cool off. All stars not massive enough to become a neutron star or a black hole will turn into white dwarfs and slowly cool
-    /// until they're black dwarfs. By the end of the End Stelliferous, all stars will have burned out and star formation will end.
-    EndStelliferous,
-}
-
-impl Display for StelliferousEra {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut name = String::new();
-        match self {
-            StelliferousEra::AncientStelliferous => name.push_str("Ancient Stelliferous"),
-            StelliferousEra::EarlyStelliferous => name.push_str("Early Stelliferous"),
-            StelliferousEra::MiddleStelliferous => name.push_str("Middle Stelliferous"),
-            StelliferousEra::LateStelliferous => name.push_str("Late Stelliferous"),
-            StelliferousEra::EndStelliferous => name.push_str("End Stelliferous"),
-        }
-        write!(f, "{}", name)
-    }
-}
-
-/// Data allowing us to model the universe.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
-pub struct Universe {
-    /// In which part of the Stelliferous Era the universe is currently.
-    pub era: StelliferousEra,
-    /// The time passed since the big bang, in billions of years.
-    pub age: f32,
-}
-
-impl Display for Universe {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Universe {{ age: {} billion years, era: {} }}",
-            self.age, self.era
-        )
-    }
-}
-
 /// Data used to calculate a universe's age.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 struct PossibleEra {
@@ -152,10 +63,35 @@ struct PossibleEra {
     weight: u32,
 }
 
+/// Data allowing us to model the universe.
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
+pub struct Universe {
+    /// In which part of the Stelliferous Era the universe is currently.
+    pub era: StelliferousEra,
+    /// The time passed since the big bang, in billions of years.
+    #[default = 13.8]
+    pub age: f32,
+}
+
+impl Display for Universe {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "A {} billion years old Universe in the {} era",
+            self.age, self.era
+        )
+    }
+}
+
 impl Universe {
     /// Generates a brand new universe using the given seed and [GenerationSettings]. If an appropriate age or era cannot be generated from
     /// the given settings, our own universe's age and/or era will be used.
-    pub fn generate(seed: String, settings: GenerationSettings) -> Self {
+    pub fn generate(seed: &String, settings: GenerationSettings) -> Self {
+        trace!(
+            "seed: {}, settings: {}",
+            seed,
+            settings.universe.unwrap_or_default()
+        );
         let mut age = Self::generate_age(settings, seed);
         let mut era = Self::get_era_from_age(age);
         if !Self::are_age_and_era_valid(era, age) {
@@ -163,12 +99,12 @@ impl Universe {
             era = OUR_UNIVERSES_ERA;
         }
         let universe = Universe { era, age };
-        trace!("generated the following {}", universe);
+        trace!("generated: {}", universe);
         universe
     }
 
     /// Generates an age to use in a [Universe] while following the given [GenerationSettings].
-    fn generate_age(settings: GenerationSettings, seed: String) -> f32 {
+    fn generate_age(settings: GenerationSettings, seed: &String) -> f32 {
         let age;
         match settings.universe {
             Some(sub_set) => {
@@ -186,7 +122,7 @@ impl Universe {
     }
 
     /// Generates the age of a [Universe] using the given [GenerationSettings] and **seed**.
-    fn calculate_age(settings: GenerationSettings, seed: String) -> f32 {
+    fn calculate_age(settings: GenerationSettings, seed: &String) -> f32 {
         let age: f32;
         let mut rng = SeededDiceRoller::new(seed.as_str(), "uni_age");
         let (mut min, mut max) = Self::get_min_and_max_age(settings);
@@ -373,7 +309,7 @@ mod tests {
     fn generate_a_universe() {
         for i in 0..10000 {
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     ..Default::default()
                 },
@@ -388,7 +324,7 @@ mod tests {
     fn generate_our_universe() {
         for i in 0..100 {
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         use_ours: true,
@@ -415,7 +351,7 @@ mod tests {
                 _ => StelliferousEra::EndStelliferous,
             };
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         fixed_era: Some(era),
@@ -435,7 +371,7 @@ mod tests {
             let age = SeededDiceRoller::new(&i.to_string(), "t").gen_f32() % 99999.6
                 + MIN_ANCIENT_STELLIFEROUS;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         fixed_age: Some(age),
@@ -456,7 +392,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         era_after: Some(era),
@@ -473,7 +409,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         era_before: Some(era),
@@ -494,7 +430,7 @@ mod tests {
                 .round()
                 / 100.0;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         age_after: Some(age),
@@ -513,7 +449,7 @@ mod tests {
                 .round()
                 / 100.0;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         age_before: Some(age),
@@ -541,7 +477,7 @@ mod tests {
                 .round()
                 / 100.0;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         age_before: Some(age_before),
@@ -566,7 +502,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         era_after: Some(era_after),
@@ -597,7 +533,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(
-                String::from(i.to_string()),
+                &String::from(i.to_string()),
                 GenerationSettings {
                     universe: Some(UniverseSettings {
                         era_after: Some(era_after),
