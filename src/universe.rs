@@ -84,14 +84,10 @@ impl Display for Universe {
 }
 
 impl Universe {
-    /// Generates a brand new universe using the given seed and [GenerationSettings]. If an appropriate age or era cannot be generated from
+    /// Generates a brand new [Universe] using the given seed and [GenerationSettings]. If an appropriate age or era cannot be generated from
     /// the given settings, our own universe's age and/or era will be used.
-    pub fn generate(seed: &String, settings: GenerationSettings) -> Self {
-        trace!(
-            "seed: {}, settings: {}",
-            seed,
-            settings.universe.unwrap_or_default()
-        );
+    pub fn generate(seed: &String, settings: &GenerationSettings) -> Self {
+        trace!("seed: {}, settings: {}", seed, settings.universe);
         let mut age = Self::generate_age(settings, seed);
         let mut era = Self::get_era_from_age(age);
         if !Self::are_age_and_era_valid(era, age) {
@@ -104,25 +100,23 @@ impl Universe {
     }
 
     /// Generates an age to use in a [Universe] while following the given [GenerationSettings].
-    fn generate_age(settings: GenerationSettings, seed: &String) -> f32 {
+    fn generate_age(settings: &GenerationSettings, seed: &String) -> f32 {
         let age;
-        match settings.universe {
-            Some(sub_set) => {
-                if sub_set.use_ours {
-                    age = OUR_UNIVERSES_AGE;
-                } else if sub_set.fixed_age.is_some() {
-                    age = sub_set.fixed_age.expect("Fixed age should have been set.");
-                } else {
-                    age = Self::calculate_age(settings, seed);
-                }
-            }
-            None => age = Self::calculate_age(settings, seed),
-        };
+        if settings.universe.use_ours {
+            age = OUR_UNIVERSES_AGE;
+        } else if settings.universe.fixed_age.is_some() {
+            age = settings
+                .universe
+                .fixed_age
+                .expect("Fixed age should have been set.");
+        } else {
+            age = Self::calculate_age(settings, seed);
+        }
         age
     }
 
     /// Generates the age of a [Universe] using the given [GenerationSettings] and **seed**.
-    fn calculate_age(settings: GenerationSettings, seed: &String) -> f32 {
+    fn calculate_age(settings: &GenerationSettings, seed: &String) -> f32 {
         let age: f32;
         let mut rng = SeededDiceRoller::new(seed.as_str(), "uni_age");
         let (mut min, mut max) = Self::get_min_and_max_age(settings);
@@ -136,7 +130,8 @@ impl Universe {
             if ((max * 100.0) as u32) == 0 {
                 age = (max + min * 100.0).round() / 100.0;
             } else {
-                age = (rng.roll(1, (max * 100.0) as u32, (min * 100.0) as i32) as f32) / 100.0;
+                age = (rng.roll(1, (max * 100.0) as u32, (min * 100.0) as i32) as f32).round()
+                    / 100.0;
             }
         } else {
             age = OUR_UNIVERSES_AGE;
@@ -145,78 +140,76 @@ impl Universe {
     }
 
     /// Uses the given [GenerationSettings] to get the min and max universe age to use.
-    fn get_min_and_max_age(settings: GenerationSettings) -> (f32, f32) {
+    fn get_min_and_max_age(settings: &GenerationSettings) -> (f32, f32) {
         let mut min: f32 = MIN_ANCIENT_STELLIFEROUS;
         let mut max: f32 = MAX_END_STELLIFEROUS;
-        if let Some(sub_set) = settings.universe {
-            if let Some(era_after) = sub_set.era_after {
-                match era_after {
-                    StelliferousEra::AncientStelliferous => {
-                        min = min.max(MIN_EARLY_STELLIFEROUS);
-                    }
-                    StelliferousEra::EarlyStelliferous => {
-                        min = min.max(MIN_MIDDLE_STELLIFEROUS);
-                    }
-                    StelliferousEra::MiddleStelliferous => {
-                        min = min.max(MIN_LATE_STELLIFEROUS);
-                    }
-                    StelliferousEra::LateStelliferous => {
-                        min = min.max(MIN_END_STELLIFEROUS);
-                    }
-                    StelliferousEra::EndStelliferous => {
-                        min = min.max(MAX_END_STELLIFEROUS);
-                    }
+        if let Some(era_after) = settings.universe.era_after {
+            match era_after {
+                StelliferousEra::AncientStelliferous => {
+                    min = min.max(MIN_EARLY_STELLIFEROUS);
+                }
+                StelliferousEra::EarlyStelliferous => {
+                    min = min.max(MIN_MIDDLE_STELLIFEROUS);
+                }
+                StelliferousEra::MiddleStelliferous => {
+                    min = min.max(MIN_LATE_STELLIFEROUS);
+                }
+                StelliferousEra::LateStelliferous => {
+                    min = min.max(MIN_END_STELLIFEROUS);
+                }
+                StelliferousEra::EndStelliferous => {
+                    min = min.max(MAX_END_STELLIFEROUS);
                 }
             }
-            if let Some(era_before) = sub_set.era_before {
-                match era_before {
-                    StelliferousEra::AncientStelliferous => {
-                        max = max.min(MIN_ANCIENT_STELLIFEROUS);
-                    }
-                    StelliferousEra::EarlyStelliferous => {
-                        max = max.min(MIN_EARLY_STELLIFEROUS);
-                    }
-                    StelliferousEra::MiddleStelliferous => {
-                        max = max.min(MIN_MIDDLE_STELLIFEROUS);
-                    }
-                    StelliferousEra::LateStelliferous => {
-                        max = max.min(MIN_LATE_STELLIFEROUS);
-                    }
-                    StelliferousEra::EndStelliferous => {
-                        max = max.min(MIN_END_STELLIFEROUS);
-                    }
+        }
+        if let Some(era_before) = settings.universe.era_before {
+            match era_before {
+                StelliferousEra::AncientStelliferous => {
+                    max = max.min(MIN_ANCIENT_STELLIFEROUS);
+                }
+                StelliferousEra::EarlyStelliferous => {
+                    max = max.min(MIN_EARLY_STELLIFEROUS);
+                }
+                StelliferousEra::MiddleStelliferous => {
+                    max = max.min(MIN_MIDDLE_STELLIFEROUS);
+                }
+                StelliferousEra::LateStelliferous => {
+                    max = max.min(MIN_LATE_STELLIFEROUS);
+                }
+                StelliferousEra::EndStelliferous => {
+                    max = max.min(MIN_END_STELLIFEROUS);
                 }
             }
-            if let Some(fixed_era) = sub_set.fixed_era {
-                match fixed_era {
-                    StelliferousEra::AncientStelliferous => {
-                        min = min.max(MIN_ANCIENT_STELLIFEROUS);
-                        max = max.min(MIN_EARLY_STELLIFEROUS);
-                    }
-                    StelliferousEra::EarlyStelliferous => {
-                        min = min.max(MIN_EARLY_STELLIFEROUS);
-                        max = max.min(MIN_MIDDLE_STELLIFEROUS);
-                    }
-                    StelliferousEra::MiddleStelliferous => {
-                        min = min.max(MIN_MIDDLE_STELLIFEROUS);
-                        max = max.min(MIN_LATE_STELLIFEROUS);
-                    }
-                    StelliferousEra::LateStelliferous => {
-                        min = min.max(MIN_LATE_STELLIFEROUS);
-                        max = max.min(MIN_END_STELLIFEROUS);
-                    }
-                    StelliferousEra::EndStelliferous => {
-                        min = min.max(MIN_END_STELLIFEROUS);
-                        max = max.min(MAX_END_STELLIFEROUS);
-                    }
+        }
+        if let Some(fixed_era) = settings.universe.fixed_era {
+            match fixed_era {
+                StelliferousEra::AncientStelliferous => {
+                    min = min.max(MIN_ANCIENT_STELLIFEROUS);
+                    max = max.min(MIN_EARLY_STELLIFEROUS);
+                }
+                StelliferousEra::EarlyStelliferous => {
+                    min = min.max(MIN_EARLY_STELLIFEROUS);
+                    max = max.min(MIN_MIDDLE_STELLIFEROUS);
+                }
+                StelliferousEra::MiddleStelliferous => {
+                    min = min.max(MIN_MIDDLE_STELLIFEROUS);
+                    max = max.min(MIN_LATE_STELLIFEROUS);
+                }
+                StelliferousEra::LateStelliferous => {
+                    min = min.max(MIN_LATE_STELLIFEROUS);
+                    max = max.min(MIN_END_STELLIFEROUS);
+                }
+                StelliferousEra::EndStelliferous => {
+                    min = min.max(MIN_END_STELLIFEROUS);
+                    max = max.min(MAX_END_STELLIFEROUS);
                 }
             }
-            if let Some(age_after) = sub_set.age_after {
-                min = min.max(age_after);
-            }
-            if let Some(age_before) = sub_set.age_before {
-                max = max.min(age_before);
-            }
+        }
+        if let Some(age_after) = settings.universe.age_after {
+            min = min.max(age_after);
+        }
+        if let Some(age_before) = settings.universe.age_before {
+            max = max.min(age_before);
         }
         (min, max)
     }
@@ -310,7 +303,7 @@ mod tests {
         for i in 0..10000 {
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
+                &GenerationSettings {
                     ..Default::default()
                 },
             );
@@ -325,11 +318,11 @@ mod tests {
         for i in 0..100 {
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         use_ours: true,
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -352,11 +345,11 @@ mod tests {
             };
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         fixed_era: Some(era),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -372,11 +365,11 @@ mod tests {
                 + MIN_ANCIENT_STELLIFEROUS;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         fixed_age: Some(age),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -393,11 +386,11 @@ mod tests {
             .era;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         era_after: Some(era),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -410,11 +403,11 @@ mod tests {
             .era;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         era_before: Some(era),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -431,11 +424,11 @@ mod tests {
                 / 100.0;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         age_after: Some(age),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -450,11 +443,11 @@ mod tests {
                 / 100.0;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         age_before: Some(age),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -478,12 +471,12 @@ mod tests {
                 / 100.0;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         age_before: Some(age_before),
                         age_after: Some(age_after),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -503,12 +496,12 @@ mod tests {
             .era;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         era_after: Some(era_after),
                         era_before: Some(era_before),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );
@@ -534,14 +527,14 @@ mod tests {
             .era;
             let universe = Universe::generate(
                 &String::from(i.to_string()),
-                GenerationSettings {
-                    universe: Some(UniverseSettings {
+                &GenerationSettings {
+                    universe: UniverseSettings {
                         era_after: Some(era_after),
                         era_before: Some(era_before),
                         age_before: Some(age_before),
                         age_after: Some(age_after),
                         ..Default::default()
-                    }),
+                    },
                     ..Default::default()
                 },
             );

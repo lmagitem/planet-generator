@@ -1,5 +1,45 @@
 use crate::prelude::*;
 
+/// A list of settings used to configure the [Galaxy] generation.
+#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+pub struct GalaxySettings {
+    /// The specific [GalacticNeighborhoodDensity] if any.
+    pub fixed_neighborhood: Option<GalacticNeighborhoodDensity>,
+    /// The specific [GalaxyCategory] if any.
+    pub fixed_category: Option<GalaxyCategory>,
+    /// The specific [GalaxySubCategory] if any.
+    pub fixed_sub_category: Option<GalaxySubCategory>,
+    /// A list of specific [GalaxySpecialTrait]s to use, if any.
+    pub fixed_special_traits: Option<Vec<GalaxySpecialTrait>>,
+    /// A list of [GalaxySpecialTrait]s forbidden to use in galaxy generation.
+    pub forbidden_special_traits: Option<Vec<GalaxySpecialTrait>>,
+    /// The specific age to use for galaxy generation, if any.
+    pub fixed_age: Option<f32>,
+    /// Skip the galaxy generation and just uses a copy of ours.
+    pub use_ours: bool,
+}
+
+impl Display for GalaxySettings {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{{ fixed_era: {}, era_before: {}, era_after: {}, fixed_age: {}, age_before: {}, age_after: {}, use_ours: {} }}",
+        if self.fixed_neighborhood.is_some() { format!("{}", self.fixed_neighborhood.unwrap()) } else { String::from("None") },
+        if self.fixed_category.is_some() { format!("{}", self.fixed_category.unwrap()) } else { String::from("None") },
+        if self.fixed_sub_category.is_some() { format!("{}", self.fixed_sub_category.unwrap()) } else { String::from("None") },
+        if self.fixed_special_traits.is_some() { format!("{}", self.fixed_special_traits.as_ref().unwrap()
+        .iter()
+        .map(|t| format!("{}", t))
+        .collect::<Vec<String>>()
+        .join(", ")) } else { String::from("None") },
+        if self.forbidden_special_traits.is_some() { format!("{}", self.forbidden_special_traits.as_ref().unwrap()
+        .iter()
+        .map(|t| format!("{}", t))
+        .collect::<Vec<String>>()
+        .join(", ")) } else { String::from("None") },
+        if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { String::from("None") },
+        self.use_ours)
+    }
+}
+
 /// Defines the density of a galactic neighborhood. The first associated number indicates how many major galaxies we find in that
 /// neighborhood, the second indicates how many galaxies are dominant ones. Major galaxies within 2 megaparsecs (or 5 to 10 megaparsecs for
 /// giant and dominant galaxies) tend to be gravitationally bound to each others.
@@ -8,10 +48,10 @@ use crate::prelude::*;
 )]
 pub enum GalacticNeighborhoodDensity {
     /// The emptiest parts of the universe, covers a diameter far greater than the other densities. Contains 0 to 3 major galaxies.
-    Void(#[default = 1] u8, #[default = 0] u8),
+    Void(#[default = 1] u8),
     /// A zone filled with a "regular" amount of galaxies. Contains 1 to 5 major galaxies.
     #[default]
-    Group(#[default = 2] u8, #[default = 0] u8),
+    Group(#[default = 2] u8),
     /// The most crowded parts of the universe. Galaxies within this neighborhood usualy revolve around a huge dominant one. Space between
     /// galaxies is filled with super-hot plasma and a large number of intergalactic stars. Contains 5 to 20+ major galaxies.
     Cluster(#[default = 8] u8, #[default = 1] u8),
@@ -20,26 +60,8 @@ pub enum GalacticNeighborhoodDensity {
 impl Display for GalacticNeighborhoodDensity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GalacticNeighborhoodDensity::Void(m, d) => write!(
-                f,
-                "Void with {} major{}galaxies",
-                m - d,
-                if d > &0 {
-                    format!(" and {} dominant ", d)
-                } else {
-                    String::from(" ")
-                }
-            ),
-            GalacticNeighborhoodDensity::Group(m, d) => write!(
-                f,
-                "Group of {} major{}galaxies",
-                m - d,
-                if d > &0 {
-                    format!(" and {} dominant ", d)
-                } else {
-                    String::from(" ")
-                }
-            ),
+            GalacticNeighborhoodDensity::Void(m) => write!(f, "Void with {} major galaxies", m),
+            GalacticNeighborhoodDensity::Group(m) => write!(f, "Group of {} major galaxies", m),
             GalacticNeighborhoodDensity::Cluster(m, d) => write!(
                 f,
                 "Cluster of {} major{}galaxies",
@@ -322,8 +344,143 @@ impl Display for GalacticNeighborhood {
 }
 
 impl GalacticNeighborhood {
-    pub fn generate(universe: Universe, seed: &String, settings: GenerationSettings) -> Self {
-        let density = GalacticNeighborhoodDensity::Group(2, 0);
+    /// Generates a brand new [GalacticNeighborhood] using the given seed and [GenerationSettings].
+    pub fn generate(universe: Universe, seed: &String, settings: &GenerationSettings) -> Self {
+        let density;
+
+        if let Some(fixed_neighborhood) = settings.galaxy.fixed_neighborhood {
+            density = fixed_neighborhood;
+        } else if settings.galaxy.use_ours {
+            density = GalacticNeighborhoodDensity::Group(2);
+        } else {
+            let mut rng = SeededDiceRoller::new(seed.as_str(), "gal_den");
+            let is_group = rng.roll(1, 4, 0) != 4;
+
+            if is_group {
+                let galaxies = rng.roll(1, 6, -1) as u8;
+                if galaxies == 0 {
+                    density = GalacticNeighborhoodDensity::Void(rng.roll(1, 4, -1) as u8);
+                } else {
+                    density = GalacticNeighborhoodDensity::Group(galaxies);
+                }
+            } else {
+                let mut galaxies = 0 as u8;
+                let mut dominant = 0;
+                let mut roll = 0;
+                let mut turn = 0;
+
+                while roll == 10 || turn < 2 {
+                    roll = rng.roll(1, 10, 0) as u8;
+                    galaxies += if roll == 1 { 0 } else { roll };
+                    dominant += if roll == 1 { 1 } else { 0 };
+                    turn += 1;
+                }
+
+                density = GalacticNeighborhoodDensity::Cluster(galaxies, dominant);
+            }
+        };
+
         Self { universe, density }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generate_a_galactic_neighborhood() {
+        for i in 0..10000 {
+            let settings = GenerationSettings {
+                ..Default::default()
+            };
+            let seed = String::from(&i.to_string());
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&seed, &settings),
+                &seed,
+                &settings,
+            );
+            match neighborhood.density {
+                GalacticNeighborhoodDensity::Void(galaxies) => assert!(galaxies < 4),
+                GalacticNeighborhoodDensity::Group(galaxies) => {
+                    assert!(galaxies > 0 && galaxies < 6)
+                }
+                GalacticNeighborhoodDensity::Cluster(galaxies, dominant) => {
+                    assert!(galaxies > 0 || dominant > 0)
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn generate_our_galactic_neighborhood() {
+        for i in 0..100 {
+            let settings = GenerationSettings {
+                universe: UniverseSettings {
+                    use_ours: true,
+                    ..Default::default()
+                },
+                galaxy: GalaxySettings {
+                    use_ours: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let seed = String::from(&i.to_string());
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&seed, &settings),
+                &seed,
+                &settings,
+            );
+            assert_eq!(neighborhood.density, GalacticNeighborhoodDensity::Group(2));
+        }
+    }
+
+    #[test]
+    fn generate_a_galactic_neighborhood_with_specific_density() {
+        for i in 0..1000 {
+            let mut rng = SeededDiceRoller::new(&String::from(i.to_string()), "t");
+            let fixed_neighborhood = rng
+                .get_result(&CopyableRollToProcess {
+                    possible_results: SeededDiceRoller::to_copyable_possible_results(vec![
+                        GalacticNeighborhoodDensity::Void(0),
+                        GalacticNeighborhoodDensity::Void(1),
+                        GalacticNeighborhoodDensity::Void(2),
+                        GalacticNeighborhoodDensity::Void(3),
+                        GalacticNeighborhoodDensity::Group(1),
+                        GalacticNeighborhoodDensity::Group(2),
+                        GalacticNeighborhoodDensity::Group(3),
+                        GalacticNeighborhoodDensity::Group(4),
+                        GalacticNeighborhoodDensity::Group(5),
+                        GalacticNeighborhoodDensity::Cluster(1, 0),
+                        GalacticNeighborhoodDensity::Cluster(2, 0),
+                        GalacticNeighborhoodDensity::Cluster(3, 0),
+                        GalacticNeighborhoodDensity::Cluster(4, 0),
+                        GalacticNeighborhoodDensity::Cluster(5, 0),
+                        GalacticNeighborhoodDensity::Cluster(6, 0),
+                        GalacticNeighborhoodDensity::Cluster(7, 0),
+                        GalacticNeighborhoodDensity::Cluster(1, 1),
+                        GalacticNeighborhoodDensity::Cluster(2, 1),
+                        GalacticNeighborhoodDensity::Cluster(3, 1),
+                    ]),
+                    roll_method: RollMethod::SimpleRoll,
+                })
+                .expect("Should return a density as result");
+
+            let settings = &GenerationSettings {
+                galaxy: GalaxySettings {
+                    fixed_neighborhood: Some(fixed_neighborhood),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let seed = String::from(&i.to_string());
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&seed, &settings),
+                &seed,
+                &settings,
+            );
+            assert_eq!(neighborhood.density, fixed_neighborhood);
+        }
     }
 }

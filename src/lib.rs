@@ -33,10 +33,12 @@ pub mod prelude {
 use prelude::*;
 
 /// A list of settings used to configure generation.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct GenerationSettings {
     /// A list of settings used to configure the [Universe] generation.
-    pub universe: Option<UniverseSettings>,
+    pub universe: UniverseSettings,
+    /// A list of settings used to configure the [Galaxy] generation.
+    pub galaxy: GalaxySettings,
 }
 
 /// Data object filled with the results of a generation.
@@ -75,11 +77,11 @@ impl Generator {
     /// Generates a full blown universe with multiple galaxies, sectors, systems, planets and the species living in those following the
     /// given [GenerationSettings], in a deterministic way thanks to the given **seed**.
     pub fn generate(seed: &String, settings: GenerationSettings) -> GeneratedUniverse {
-        let universe = Universe::generate(seed, settings);
-        let galactic_neighborhood = GalacticNeighborhood::generate(universe, seed, settings);
+        let universe = Universe::generate(seed, &settings);
+        let galactic_neighborhood = GalacticNeighborhood::generate(universe, seed, &settings);
         let mut galaxies: Vec<Galaxy> = Vec::new();
 
-        galaxies.push(Galaxy::generate(galactic_neighborhood, seed, settings));
+        galaxies.push(Galaxy::generate(galactic_neighborhood, seed, &settings));
 
         GeneratedUniverse {
             universe,
