@@ -35,7 +35,7 @@ This is the current roadmap of the library:
     - [ ] Filling the various systems with appropriate life
 
 ## Contribute
-I'll be happy to receive issues asking for new features or bug fixes. Also feel free to point out where code could be improved (either in performance, readability, documentation, following best practices...) and/or make pull requests yourselves.
+I'd be happy to receive issues asking for new features or bug fixes. Also feel free to point out where code could be improved (either in performance, readability, documentation, following best practices...) and/or make pull requests yourselves.
 
 ###### License:
 Licensed under [MIT license](https://github.com/lmagitem/seeded-dice-roller/blob/master/LICENSE.md).
