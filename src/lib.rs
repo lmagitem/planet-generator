@@ -81,7 +81,7 @@ impl Generator {
         let galactic_neighborhood = GalacticNeighborhood::generate(universe, seed, &settings);
         let mut galaxies: Vec<Galaxy> = Vec::new();
 
-        galaxies.push(Galaxy::generate(galactic_neighborhood, seed, &settings));
+        galaxies.push(Galaxy::generate(galactic_neighborhood, 0, seed, &settings));
 
         GeneratedUniverse {
             universe,

@@ -168,6 +168,8 @@ impl Display for GalaxyCategory {
 pub enum GalaxySubCategory {
     /// Small congregation of star clusters without discernable order.
     DwarfAmorphous,
+    /// A galaxy that has a highly unconventional form. It could be because of a previous interaction with another galaxy that ended badly.
+    Amorphous,
     /// Small galaxy that shows traits similar to those of a spiral galaxy but with higher star formation rates.
     DwarfSpiral,
     /// Flat spiral galaxy that have an almost non-existent galactic bulge.
@@ -199,6 +201,7 @@ impl Display for GalaxySubCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             GalaxySubCategory::DwarfAmorphous => write!(f, "Dwarf Amorphous"),
+            GalaxySubCategory::Amorphous => write!(f, "Amorphous"),
             GalaxySubCategory::DwarfSpiral => write!(f, "Dwarf Spiral"),
             GalaxySubCategory::FlatSpiral => write!(f, "Flat Spiral"),
             GalaxySubCategory::BarredSpiral => write!(f, "Barred Spiral"),
