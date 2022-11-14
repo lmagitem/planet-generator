@@ -266,10 +266,10 @@ pub enum GalaxySpecialTrait {
     DoubleNuclei,
     /// This galaxy's stars are much more densely packed than those in galaxies of similar type. The associated number represents the
     /// percentage of density this galaxy has when compared with a standard galaxy of the same type.
-    Compact(#[default = 150] i8),
+    Compact(#[default = 150] u8),
     /// This galaxy's stars are much less densely packed than those in galaxies of similar type. The associated number represents the
     /// percentage of density this galaxy has when compared with a standard galaxy of the same type.
-    Expansive(#[default = 50] i8),
+    Expansive(#[default = 50] u8),
     /// This galaxy has a sizeable stellar population outside the core and disk/ellipse, often with large numbers of globular clusters.
     ExtendedHalo,
     /// This galaxy's stars have lower metallicity than expected in a standard galaxy of the same type.
@@ -299,9 +299,9 @@ pub enum GalaxySpecialTrait {
     /// This galaxy is very old, which means that it has slowed or even stopped star formation long ago and has older stellar populations.
     Older,
     /// This galaxy is less massive than expected for one of its type. The associated number represents that difference as a percentage.
-    SubSize(#[default = 50] i8),
+    SubSize(#[default = 50] u8),
     /// This galaxy is more massive than expected for one of its type. The associated number represents that difference as a percentage.
-    SuperSize(#[default = 150] i8),
+    SuperSize(#[default = 150] u16),
 }
 
 impl Display for GalaxySpecialTrait {

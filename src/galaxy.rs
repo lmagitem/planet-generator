@@ -72,12 +72,20 @@ impl Galaxy {
         let age = generate_age(neighborhood, index, seed, settings);
         let is_dominant = is_galaxy_dominant(neighborhood, index);
         let is_major = is_galaxy_major(neighborhood, index);
-        let mut category =
-            generate_category(neighborhood, index, is_dominant, is_major, seed, settings);
+        let mut category = generate_category(
+            neighborhood,
+            index,
+            age,
+            is_dominant,
+            is_major,
+            seed,
+            settings,
+        );
         let sub_category = generate_sub_category(
             neighborhood,
             category,
             index,
+            age,
             is_dominant,
             is_major,
             seed,
@@ -86,7 +94,10 @@ impl Galaxy {
         if settings.galaxy.fixed_category.is_none() {
             category = get_category_with_size(category, sub_category, index, seed, settings);
         }
-        let special_traits = generate_special_traits(category, sub_category, seed, settings);
+        let special_traits =
+            generate_special_traits(neighborhood, category, sub_category, index, seed, settings);
+        // !todo Think about "use_ours", our galaxy but during different era? which index "use_ours", what are the following galaxies?
+        // !todo Generate a number of indexes according to the number of galaxies in a group
         Self {
             neighborhood,
             name,
@@ -107,8 +118,8 @@ fn generate_age(
     seed: &String,
     settings: &GenerationSettings,
 ) -> f32 {
-    let age;
     let mut age_rng = SeededDiceRoller::new(seed.as_str(), &format!("gal_{}_age", index));
+    let age;
     let fixed_age = get_fixed_age(settings);
 
     age = if fixed_age > neighborhood.universe.age {
@@ -116,7 +127,12 @@ fn generate_age(
     } else {
         neighborhood.universe.age
             - (if neighborhood.universe.era != StelliferousEra::AncientStelliferous {
-                (age_rng.roll(1, 36, 24) as f32) / 100.0
+                let randomize = (age_rng.roll(1, 36, 24) as f32) / 100.0;
+                if age_rng.roll(1, 10, 0) == 0 {
+                    neighborhood.universe.age / age_rng.roll(1, 9, 1) as f32 + randomize
+                } else {
+                    randomize
+                }
             } else {
                 (age_rng.roll(1, 16, 19) as f32) / 100.0
             })
@@ -128,13 +144,14 @@ fn generate_age(
 fn generate_category(
     neighborhood: GalacticNeighborhood,
     index: u8,
+    age: f32,
     is_dominant: bool,
     is_major: bool,
     seed: &String,
     settings: &GenerationSettings,
 ) -> GalaxyCategory {
-    let category;
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_cat", index));
+    let category;
     if let Some(fixed_category) = settings.galaxy.fixed_category {
         category = fixed_category;
     } else {
@@ -150,19 +167,25 @@ fn generate_category(
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: 1,
+                                    weight: if age < 1.0 {
+                                        13
+                                    } else if age < 5.0 {
+                                        4
+                                    } else {
+                                        1
+                                    },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Spiral(0, 0),
-                                    weight: 8,
+                                    weight: if age < 50.0 { 8 } else { 3 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Lenticular(0, 0),
-                                    weight: 4,
+                                    weight: if age < 50.0 { 4 } else { 7 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Elliptical(0),
-                                    weight: 1,
+                                    weight: if age < 50.0 { 1 } else { 4 },
                                 },
                             ],
                             roll_method: RollMethod::SimpleRoll,
@@ -193,23 +216,35 @@ fn generate_category(
                             possible_results: vec![
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Intergalactic(0, 0, 0),
-                                    weight: 1,
+                                    weight: if age < 5.0 { 3 } else { 1 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: 2,
+                                    weight: if age < 1.0 {
+                                        13
+                                    } else if age < 5.0 {
+                                        5
+                                    } else {
+                                        2
+                                    },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Spiral(0, 0),
-                                    weight: 9,
+                                    weight: if age < 50.0 { 9 } else { 3 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Lenticular(0, 0),
-                                    weight: 5,
+                                    weight: if age < 50.0 { 5 } else { 8 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Elliptical(0),
-                                    weight: 3,
+                                    weight: if age < 5.0 {
+                                        1
+                                    } else if age < 50.0 {
+                                        3
+                                    } else {
+                                        9
+                                    },
                                 },
                             ],
                             roll_method: RollMethod::SimpleRoll,
@@ -246,19 +281,31 @@ fn generate_category(
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: 2,
+                                    weight: if age < 1.0 {
+                                        13
+                                    } else if age < 5.0 {
+                                        5
+                                    } else {
+                                        2
+                                    },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Spiral(0, 0),
-                                    weight: 4,
+                                    weight: if age < 50.0 { 4 } else { 2 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Lenticular(0, 0),
-                                    weight: 11,
+                                    weight: if age < 5.0 { 5 } else { 11 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Elliptical(0),
-                                    weight: 4,
+                                    weight: if age < 5.0 {
+                                        1
+                                    } else if age < 50.0 {
+                                        4
+                                    } else {
+                                        16
+                                    },
                                 },
                             ],
                             roll_method: RollMethod::SimpleRoll,
@@ -296,8 +343,8 @@ fn get_category_with_size(
     seed: &String,
     settings: &GenerationSettings,
 ) -> GalaxyCategory {
-    let category_with_size;
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_cws", index));
+    let category_with_size;
 
     match sub_category {
         GalaxySubCategory::DwarfAmorphous => {
@@ -466,13 +513,14 @@ fn generate_sub_category(
     neighborhood: GalacticNeighborhood,
     category: GalaxyCategory,
     index: u8,
+    age: f32,
     is_dominant: bool,
     is_major: bool,
     seed: &String,
     settings: &GenerationSettings,
 ) -> GalaxySubCategory {
-    let sub_category;
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_sbc", index));
+    let sub_category;
 
     if let Some(fixed_sub_category) = settings.galaxy.fixed_sub_category {
         sub_category = fixed_sub_category;
@@ -489,19 +537,37 @@ fn generate_sub_category(
                             possible_results: vec![
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::DwarfAmorphous,
-                                    weight: 4,
+                                    weight: if age < 5.0 { 7 } else { 4 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::DwarfSpiral,
-                                    weight: 2,
+                                    weight: if age < 5.0 {
+                                        1
+                                    } else if age < 50.0 {
+                                        4
+                                    } else {
+                                        2
+                                    },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::DwarfLenticular,
-                                    weight: 2,
+                                    weight: if age < 5.0 {
+                                        1
+                                    } else if age < 50.0 {
+                                        2
+                                    } else {
+                                        4
+                                    },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::DwarfElliptical,
-                                    weight: 2,
+                                    weight: if age < 5.0 {
+                                        1
+                                    } else if age < 50.0 {
+                                        2
+                                    } else {
+                                        6
+                                    },
                                 },
                             ],
                             roll_method: RollMethod::SimpleRoll,
@@ -520,7 +586,7 @@ fn generate_sub_category(
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::BarredSpiral,
-                                    weight: 7,
+                                    weight: if age > 5.0 && age < 50.0 { 7 } else { 3 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::ClassicSpiral,
@@ -582,11 +648,11 @@ fn generate_sub_category(
                         possible_results: vec![
                             CopyableWeightedResult {
                                 result: GalaxySubCategory::CommonElliptical,
-                                weight: 6,
+                                weight: if age < 50.0 { 6 } else { 3 },
                             },
                             CopyableWeightedResult {
                                 result: GalaxySubCategory::GiantElliptical,
-                                weight: 3,
+                                weight: if age < 50.0 { 3 } else { 6 },
                             },
                         ],
                         roll_method: RollMethod::SimpleRoll,
@@ -601,13 +667,512 @@ fn generate_sub_category(
 
 /// Fills the size parameters of a [Galaxy] category while following the given [GenerationSettings].
 fn generate_special_traits(
+    neighborhood: GalacticNeighborhood,
     category: GalaxyCategory,
     sub_category: GalaxySubCategory,
+    index: u8,
     seed: &String,
     settings: &GenerationSettings,
 ) -> Vec<GalaxySpecialTrait> {
-    // !todo
-    vec![]
+    let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_spe", index));
+    let mut special_traits = vec![];
+
+    if let Some(fixed_traits) = settings.clone().galaxy.fixed_special_traits {
+        special_traits = fixed_traits;
+    } else {
+        let number_of_random_traits = get_number_of_random_traits(index, seed);
+        let mut all_special_traits = get_full_list_of_traits(neighborhood,category,sub_category,index,seed);
+        all_special_traits = remove_forbidden_traits(settings, &all_special_traits);
+
+        // !todo Add expected ones according to category/sub-category old/young
+
+        special_traits = add_random_traits(
+            number_of_random_traits,
+            all_special_traits,
+            &mut special_traits,
+            index,
+            seed,
+        );
+    }
+
+    if special_traits.len() < 1 {
+        special_traits.push(GalaxySpecialTrait::NoPeculiarity);
+    }
+    special_traits
+}
+
+/// Returns the complete list of traits a galaxy might have.
+fn get_full_list_of_traits(
+    neighborhood: GalacticNeighborhood,
+    category: GalaxyCategory,
+    sub_category: GalaxySubCategory,
+    index: u8,
+    seed: &String,
+) -> Vec<CopyableWeightedResult<GalaxySpecialTrait>> {
+    let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_gsp", index));
+    let all_special_traits: Vec<CopyableWeightedResult<GalaxySpecialTrait>> = vec![
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::NoPeculiarity,
+            weight: if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                1
+            } else {
+                4
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::ActiveNucleus,
+            weight: if discriminant(&category) == discriminant(&GalaxyCategory::Elliptical(0))
+                || discriminant(&category) == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                10
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::DoubleNuclei,
+            weight: 1,
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Compact(
+                rng.get_result(&CopyableRollToProcess {
+                    possible_results: vec![
+                        CopyableWeightedResult {
+                            result: 200,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 150,
+                            weight: 3,
+                        },
+                        CopyableWeightedResult {
+                            result: 120,
+                            weight: 6,
+                        },
+                    ],
+                    roll_method: RollMethod::SimpleRoll,
+                })
+                .expect("Should return a density."),
+            ),
+            weight: if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                20
+            } else if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                3
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Dusty,
+            weight: if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                2
+            } else if discriminant(&category) == discriminant(&GalaxyCategory::Lenticular(0, 0))
+                || discriminant(&category) == discriminant(&GalaxyCategory::Spiral(0, 0))
+            {
+                20
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Expansive(
+                rng.get_result(&CopyableRollToProcess {
+                    possible_results: vec![
+                        CopyableWeightedResult {
+                            result: 20,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 50,
+                            weight: 3,
+                        },
+                        CopyableWeightedResult {
+                            result: 75,
+                            weight: 6,
+                        },
+                    ],
+                    roll_method: RollMethod::SimpleRoll,
+                })
+                .expect("Should return a density."),
+            ),
+            weight: if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                2
+            } else if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                7
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::ExtendedHalo,
+            weight: if discriminant(&neighborhood.density)
+                == discriminant(&GalacticNeighborhoodDensity::Cluster(0, 0))
+                || discriminant(&category) == discriminant(&GalaxyCategory::Lenticular(0, 0))
+                || discriminant(&category) == discriminant(&GalaxyCategory::Spiral(0, 0))
+            {
+                10
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::GasPoor,
+            weight: if discriminant(&category) == discriminant(&GalaxyCategory::Lenticular(0, 0)) {
+                10
+            } else if discriminant(&category) == discriminant(&GalaxyCategory::Elliptical(0)) {
+                15
+            } else if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                3
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::GasRich,
+            weight: if discriminant(&category) == discriminant(&GalaxyCategory::Irregular(0, 0, 0))
+            {
+                20
+            } else if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                10
+            } else if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                2
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Interacting,
+            weight: if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                7
+            } else if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+                || sub_category == GalaxySubCategory::GiantLenticular
+                || sub_category == GalaxySubCategory::GiantElliptical
+                || discriminant(&category) == discriminant(&GalaxyCategory::Irregular(0, 0, 0))
+            {
+                10
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::MetalPoor,
+            weight: if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                20
+            } else if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                3
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Older,
+            weight: if discriminant(&category) == discriminant(&GalaxyCategory::Irregular(0, 0, 0))
+                || discriminant(&category) == discriminant(&GalaxyCategory::Intergalactic(0, 0, 0))
+                || discriminant(&category) == discriminant(&GalaxyCategory::Intracluster(0, 0, 0))
+                || sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                20
+            } else {
+                10
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Satellites(
+                rng.get_result(&CopyableRollToProcess {
+                    possible_results: vec![
+                        CopyableWeightedResult {
+                            result: GalaxySatellites::MuchMore,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: GalaxySatellites::More,
+                            weight: 3,
+                        },
+                        CopyableWeightedResult {
+                            result: GalaxySatellites::Less,
+                            weight: 3,
+                        },
+                        CopyableWeightedResult {
+                            result: GalaxySatellites::MuchLess,
+                            weight: 2,
+                        },
+                        CopyableWeightedResult {
+                            result: GalaxySatellites::None,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: GalaxySatellites::Special,
+                            weight: 1,
+                        },
+                    ],
+                    roll_method: RollMethod::SimpleRoll,
+                })
+                .expect("Should return a galaxy satellites qualifier."),
+            ),
+            weight: if discriminant(&category) == discriminant(&GalaxyCategory::Spiral(0, 0))
+                && sub_category != GalaxySubCategory::DwarfSpiral
+            {
+                10
+            } else if discriminant(&category) == discriminant(&GalaxyCategory::Elliptical(0))
+                && sub_category != GalaxySubCategory::GiantElliptical
+            {
+                8
+            } else if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                10
+            } else if sub_category != GalaxySubCategory::GiantElliptical
+                || sub_category != GalaxySubCategory::GiantLenticular
+            {
+                23
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Starburst,
+            weight: if sub_category == GalaxySubCategory::Amorphous {
+                20
+            } else if discriminant(&category) == discriminant(&GalaxyCategory::Spiral(0, 0))
+                || sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                5
+            } else {
+                2
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::SubSize(
+                rng.get_result(&CopyableRollToProcess {
+                    possible_results: vec![
+                        CopyableWeightedResult {
+                            result: 20,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 30,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 50,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 75,
+                            weight: 1,
+                        },
+                    ],
+                    roll_method: RollMethod::SimpleRoll,
+                })
+                .expect("Should return a percentage of mass."),
+            ),
+            weight: if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                10
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::SuperSize(
+                rng.get_result(&CopyableRollToProcess {
+                    possible_results: vec![
+                        CopyableWeightedResult {
+                            result: 150,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 200,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 300,
+                            weight: 1,
+                        },
+                        CopyableWeightedResult {
+                            result: 500,
+                            weight: 1,
+                        },
+                    ],
+                    roll_method: RollMethod::SimpleRoll,
+                })
+                .expect("Should return a percentage of mass."),
+            ),
+            weight: if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+            {
+                25
+            } else if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::Amorphous
+            {
+                2
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Younger,
+            weight: if discriminant(&category)
+                == discriminant(&GalaxyCategory::DominantElliptical(0))
+                || sub_category != GalaxySubCategory::GiantElliptical
+                || sub_category != GalaxySubCategory::GiantLenticular
+            {
+                2
+            } else {
+                5
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Dead,
+            weight: 1,
+        },
+        // This galaxy has lost too much of its gas while interacting with other galaxies and is no longer able to produce new stars.
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Dormant,
+            weight: if discriminant(&neighborhood.density)
+                == discriminant(&GalacticNeighborhoodDensity::Cluster(0, 0))
+            {
+                3
+            } else if discriminant(&neighborhood.density)
+                == discriminant(&GalacticNeighborhoodDensity::Group(0))
+            {
+                2
+            } else {
+                1
+            },
+        },
+        CopyableWeightedResult {
+            result: GalaxySpecialTrait::Tail,
+            weight: if sub_category == GalaxySubCategory::DwarfAmorphous
+                || sub_category == GalaxySubCategory::DwarfElliptical
+                || sub_category == GalaxySubCategory::DwarfLenticular
+                || sub_category == GalaxySubCategory::DwarfSpiral
+            {
+                3
+            } else {
+                1
+            },
+        },
+    ];
+    all_special_traits
+}
+
+/// Removes any eventual traits marked as forbidden in the [GenerationSettings].
+fn remove_forbidden_traits(
+    settings: &GenerationSettings,
+    all_special_traits: &Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
+) -> Vec<CopyableWeightedResult<GalaxySpecialTrait>> {
+    if let Some(traits_to_remove) = settings.clone().galaxy.forbidden_special_traits {
+        let mut temp_special_traits = vec![];
+        all_special_traits.iter().for_each(|t| {
+            if traits_to_remove
+                .iter()
+                .find(|to_remove| discriminant(*to_remove) == discriminant(&t.result))
+                .is_none()
+            {
+                temp_special_traits.push(*t);
+            }
+        });
+        temp_special_traits
+    } else {
+        all_special_traits.to_vec()
+    }
+}
+
+/// Adds **number_of_random_traits** traits from the given **special_traits**
+fn add_random_traits(
+    to_add: i32,
+    mut possible_traits: Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
+    list_to_fill: &mut Vec<GalaxySpecialTrait>,
+    index: u8,
+    seed: &String,
+) -> Vec<GalaxySpecialTrait> {
+    let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_art", index));
+    let mut turn = 0;
+    while turn < to_add {
+        let entry_found = rng.get_result(&CopyableRollToProcess {
+            possible_results: possible_traits.clone(),
+            roll_method: RollMethod::SimpleRoll,
+        });
+        if let Some(possible_trait) = entry_found {
+            if list_to_fill
+                .iter()
+                .find(|current_trait| discriminant(&possible_trait) == discriminant(current_trait))
+                .is_none()
+            {
+                // !todo If opposites (ex: gaspoor/gasrich) they cancel each others
+
+                turn += 1;
+                list_to_fill.push(possible_trait);
+                let index = possible_traits
+                    .iter()
+                    .position(|r| r.result == possible_trait)
+                    .expect("Should contain the trait we found earlier");
+                possible_traits.remove(index);
+            }
+        }
+    }
+    list_to_fill.to_vec()
+}
+
+/// Calculates the number of random traits this galaxy will have.
+fn get_number_of_random_traits(index: u8, seed: &String) -> i32 {
+    let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_srt", index));
+    let mut number_of_random_traits = 0;
+    let mut roll = 0;
+    let mut turn = 0;
+    while roll == 50 || turn < 1 {
+        roll = rng.roll(1, 50, 0) as u8;
+        number_of_random_traits += if roll == 1 { 0 } else { 1 };
+        turn += 1;
+    }
+    number_of_random_traits
 }
 
 /// Retreives an age to use in [Galaxy] generation from the given [GenerationSettings].
@@ -659,7 +1224,6 @@ mod tests {
     #[test]
     fn generate_a_galaxy_with_proper_size() {
         for i in 0..10000 {
-            let mut rng = SeededDiceRoller::new(&String::from(i.to_string()), "t");
             let settings = &GenerationSettings {
                 galaxy: GalaxySettings {
                     ..Default::default()

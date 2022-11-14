@@ -29,6 +29,7 @@ pub mod prelude {
     pub use serde::{Deserialize, Serialize};
     pub use smart_default::SmartDefault;
     pub use std::fmt::Display;
+    pub use std::mem::discriminant;
 }
 use prelude::*;
 
