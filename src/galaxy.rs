@@ -282,7 +282,7 @@ fn generate_category(
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Irregular(0, 0, 0),
                                     weight: if age < 1.0 {
-                                        13
+                                        20
                                     } else if age < 5.0 {
                                         5
                                     } else {
@@ -537,7 +537,7 @@ fn generate_sub_category(
                             possible_results: vec![
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::DwarfAmorphous,
-                                    weight: if age < 5.0 { 7 } else { 4 },
+                                    weight: if age < 5.0 { 10 } else { 4 },
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::DwarfSpiral,
@@ -674,18 +674,18 @@ fn generate_special_traits(
     seed: &String,
     settings: &GenerationSettings,
 ) -> Vec<GalaxySpecialTrait> {
-    let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_spe", index));
     let mut special_traits = vec![];
 
     if let Some(fixed_traits) = settings.clone().galaxy.fixed_special_traits {
         special_traits = fixed_traits;
     } else {
         let number_of_random_traits = get_number_of_random_traits(index, seed);
-        let mut all_special_traits = get_full_list_of_traits(neighborhood,category,sub_category,index,seed);
+
+        let mut all_special_traits =
+            get_full_list_of_traits(neighborhood, category, sub_category, index, seed);
         all_special_traits = remove_forbidden_traits(settings, &all_special_traits);
 
-        // !todo Add expected ones according to category/sub-category old/young
-
+        special_traits = add_age_related_traits(neighborhood, &mut special_traits, index, seed);
         special_traits = add_random_traits(
             number_of_random_traits,
             all_special_traits,
@@ -1125,7 +1125,31 @@ fn remove_forbidden_traits(
     }
 }
 
-/// Adds **number_of_random_traits** traits from the given **special_traits**
+/// Adds [GalaxySpecialTrait]s to the given **list_to_fill** according to the universe's age.
+fn add_age_related_traits(
+    neighborhood: GalacticNeighborhood,
+    list_to_fill: &mut Vec<GalaxySpecialTrait>,
+    index: u8,
+    seed: &String,
+) -> Vec<GalaxySpecialTrait> {
+    let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_spa", index));
+    match neighborhood.universe.era {
+        StelliferousEra::AncientStelliferous | StelliferousEra::EarlyStelliferous => {
+            if neighborhood.universe.age < 1.5 || rng.roll(1, 3, 0) == 1 {
+                list_to_fill.push(GalaxySpecialTrait::Younger);
+            }
+        }
+        StelliferousEra::MiddleStelliferous => (),
+        StelliferousEra::LateStelliferous | StelliferousEra::EndStelliferous => {
+            if neighborhood.universe.age > 1500.0 || rng.roll(1, 3, 0) == 1 {
+                list_to_fill.push(GalaxySpecialTrait::Older);
+            }
+        }
+    }
+    list_to_fill.to_vec()
+}
+
+/// Adds **to_add** traits from the given list of **possible_traits** to an existing **list_to_fill**.
 fn add_random_traits(
     to_add: i32,
     mut possible_traits: Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
