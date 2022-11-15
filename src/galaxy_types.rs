@@ -60,17 +60,28 @@ pub enum GalacticNeighborhoodDensity {
 impl Display for GalacticNeighborhoodDensity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GalacticNeighborhoodDensity::Void(m) => write!(f, "Void with {} major galaxies", m),
-            GalacticNeighborhoodDensity::Group(m) => write!(f, "Group of {} major galaxies", m),
+            GalacticNeighborhoodDensity::Void(m) => write!(
+                f,
+                "Void with {} major galax{}",
+                m,
+                if *m == 1 { "y" } else { "ies" }
+            ),
+            GalacticNeighborhoodDensity::Group(m) => write!(
+                f,
+                "Group with {} major galax{}",
+                m,
+                if *m == 1 { "y" } else { "ies" }
+            ),
             GalacticNeighborhoodDensity::Cluster(m, d) => write!(
                 f,
-                "Cluster of {} major{}galaxies",
+                "Cluster with {} major{}galax{}",
                 m - d,
                 if d > &0 {
                     format!(" and {} dominant ", d)
                 } else {
                     String::from(" ")
-                }
+                },
+                if m + d == 1 { "y" } else { "ies" }
             ),
         }
     }
@@ -362,9 +373,25 @@ impl GalacticNeighborhood {
             if is_group {
                 let galaxies = rng.roll(1, 6, -1) as u8;
                 if galaxies == 0 {
-                    density = GalacticNeighborhoodDensity::Void(rng.roll(1, 4, -1) as u8);
+                    density = GalacticNeighborhoodDensity::Void(
+                        if universe.era == StelliferousEra::LateStelliferous {
+                            rng.roll(1, 2, 0) as u8
+                        } else if universe.era == StelliferousEra::EndStelliferous {
+                            1
+                        } else {
+                            rng.roll(1, 4, -1) as u8
+                        },
+                    );
                 } else {
-                    density = GalacticNeighborhoodDensity::Group(galaxies);
+                    density = GalacticNeighborhoodDensity::Group(
+                        if universe.era == StelliferousEra::LateStelliferous {
+                            rng.roll(1, 3, 0) as u8
+                        } else if universe.era == StelliferousEra::EndStelliferous {
+                            1
+                        } else {
+                            galaxies
+                        },
+                    );
                 }
             } else {
                 let mut galaxies = 0 as u8;
@@ -379,7 +406,22 @@ impl GalacticNeighborhood {
                     turn += 1;
                 }
 
-                density = GalacticNeighborhoodDensity::Cluster(galaxies, dominant);
+                density = GalacticNeighborhoodDensity::Cluster(
+                    if universe.era == StelliferousEra::LateStelliferous {
+                        1.max(galaxies / 2) as u8
+                    } else if universe.era == StelliferousEra::EndStelliferous {
+                        0
+                    } else {
+                        galaxies
+                    },
+                    if universe.era == StelliferousEra::LateStelliferous {
+                        1.max(dominant) as u8
+                    } else if universe.era == StelliferousEra::EndStelliferous {
+                        1
+                    } else {
+                        dominant
+                    },
+                );
             }
         };
 

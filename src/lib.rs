@@ -57,14 +57,14 @@ impl Display for GeneratedUniverse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "GeneratedUniverse {{ universe: {}, galactic_neighborhood: {}, galaxies: {} }}",
+            "GeneratedUniverse {{\n\tuniverse: {},\n\tgalactic_neighborhood: {},\n\tgalaxies:\n\t\t{}\n}}",
             self.universe,
             self.galactic_neighborhood,
             self.galaxies
                 .iter()
                 .map(|g| format!("{}", g))
                 .collect::<Vec<String>>()
-                .join(", ")
+                .join(",\n\t\t")
         )
     }
 }
@@ -80,9 +80,8 @@ impl Generator {
     pub fn generate(seed: &String, settings: GenerationSettings) -> GeneratedUniverse {
         let universe = Universe::generate(seed, &settings);
         let galactic_neighborhood = GalacticNeighborhood::generate(universe, seed, &settings);
-        let mut galaxies: Vec<Galaxy> = Vec::new();
-
-        galaxies.push(Galaxy::generate(galactic_neighborhood, 0, seed, &settings));
+        let galaxies: Vec<Galaxy> =
+            generate_galaxies(universe, galactic_neighborhood, seed, settings);
 
         GeneratedUniverse {
             universe,
@@ -90,4 +89,33 @@ impl Generator {
             galaxies,
         }
     }
+}
+
+/// Generates a list of [Galaxy] in the given **galactic_neighborhood** using the given **seed** and **settings**.
+fn generate_galaxies(
+    universe: Universe,
+    galactic_neighborhood: GalacticNeighborhood,
+    seed: &String,
+    settings: GenerationSettings,
+) -> Vec<Galaxy> {
+    let mut rng = SeededDiceRoller::new(seed, &format!("main_gal"));
+    let mut galaxies: Vec<Galaxy> = vec![];
+    let to_generate: u8;
+    let minor_to_generate: u8 = if universe.era == StelliferousEra::EndStelliferous {
+        0
+    } else if universe.era == StelliferousEra::LateStelliferous {
+        rng.roll(1, 3, 0) as u8
+    } else {
+        rng.roll(1, 6, 3) as u8
+    };
+    match galactic_neighborhood.density {
+        GalacticNeighborhoodDensity::Void(g) | GalacticNeighborhoodDensity::Group(g) => {
+            to_generate = minor_to_generate + g
+        }
+        GalacticNeighborhoodDensity::Cluster(g, d) => to_generate = minor_to_generate + g + d,
+    }
+    for i in 0..to_generate {
+        galaxies.push(Galaxy::generate(galactic_neighborhood, i, seed, &settings));
+    }
+    galaxies
 }

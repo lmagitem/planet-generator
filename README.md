@@ -12,8 +12,9 @@ This is the current roadmap of the library:
     - [x] Era
 - [ ] Galaxy generation
     - [x] Neighborhood
-    - [ ] Age
-    - [ ] Shape
+    - [x] Age
+    - [x] Shape
+    - [ ] Peculiarities
 - [ ] Sector and subsector generation
     - [ ] Location
     - [ ] Density

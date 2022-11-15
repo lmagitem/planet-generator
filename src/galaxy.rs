@@ -155,6 +155,9 @@ fn generate_category(
     if let Some(fixed_category) = settings.galaxy.fixed_category {
         category = fixed_category;
     } else {
+
+        // !todo make galaxies bigger if universe is older
+
         match neighborhood.density {
             GalacticNeighborhoodDensity::Void(_) => {
                 if is_major {
@@ -469,19 +472,19 @@ fn get_category_with_size(
                 category_with_size = GalaxyCategory::Intergalactic(
                     radius * 2,
                     radius * 2,
-                    radius * (rng.roll(10, 3, 0) / 10) as u32,
+                    (radius * (rng.roll(10, 3, 0) / 10) as u32).max(5),
                 );
             } else if category == GalaxyCategory::Irregular(0, 0, 0) {
                 category_with_size = GalaxyCategory::Irregular(
                     radius * 2,
                     radius * 2,
-                    radius * (rng.roll(10, 3, 0) / 10) as u32,
+                    (radius * (rng.roll(10, 3, 0) / 10) as u32).max(5),
                 );
             } else if category == GalaxyCategory::Intracluster(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intracluster(
                     radius * 2,
                     radius * 2,
-                    radius * (rng.roll(10, 4, 0) / 20) as u32,
+                    (radius * (rng.roll(10, 4, 0) / 20) as u32).max(5),
                 );
             } else {
                 category_with_size = GalaxyCategory::Elliptical(radius);
@@ -1144,6 +1147,9 @@ fn add_age_related_traits(
             if neighborhood.universe.age > 1500.0 || rng.roll(1, 3, 0) == 1 {
                 list_to_fill.push(GalaxySpecialTrait::Older);
             }
+            if neighborhood.universe.age > 50000.0 {
+                list_to_fill.push(GalaxySpecialTrait::Dead);
+            }
         }
     }
     list_to_fill.to_vec()
@@ -1158,6 +1164,7 @@ fn add_random_traits(
     seed: &String,
 ) -> Vec<GalaxySpecialTrait> {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_art", index));
+    let opposite_traits = get_opposite_traits();
     let mut turn = 0;
     while turn < to_add {
         let entry_found = rng.get_result(&CopyableRollToProcess {
@@ -1170,19 +1177,114 @@ fn add_random_traits(
                 .find(|current_trait| discriminant(&possible_trait) == discriminant(current_trait))
                 .is_none()
             {
-                // !todo If opposites (ex: gaspoor/gasrich) they cancel each others
-
                 turn += 1;
+                remove_opposite_traits(possible_trait, &opposite_traits, list_to_fill);
                 list_to_fill.push(possible_trait);
-                let index = possible_traits
-                    .iter()
-                    .position(|r| r.result == possible_trait)
-                    .expect("Should contain the trait we found earlier");
-                possible_traits.remove(index);
+                remove_specific_possible_trait(&mut possible_traits, possible_trait);
             }
         }
     }
     list_to_fill.to_vec()
+}
+
+/// Generates a list of pairs of incompatible traits.
+fn get_opposite_traits() -> Vec<OppositeTraits> {
+    vec![
+        OppositeTraits(
+            vec![GalaxySpecialTrait::Younger],
+            vec![GalaxySpecialTrait::Older],
+        ),
+        OppositeTraits(
+            vec![GalaxySpecialTrait::Dusty],
+            vec![GalaxySpecialTrait::MetalPoor],
+        ),
+        OppositeTraits(
+            vec![GalaxySpecialTrait::GasPoor],
+            vec![GalaxySpecialTrait::GasRich],
+        ),
+        OppositeTraits(
+            vec![GalaxySpecialTrait::Compact(0)],
+            vec![GalaxySpecialTrait::Expansive(0)],
+        ),
+        OppositeTraits(
+            vec![GalaxySpecialTrait::SubSize(0)],
+            vec![GalaxySpecialTrait::SuperSize(0)],
+        ),
+        OppositeTraits(
+            vec![GalaxySpecialTrait::Starburst],
+            vec![GalaxySpecialTrait::Dead, GalaxySpecialTrait::Dormant],
+        ),
+    ]
+}
+
+/// Pairs traits that are incompatible with one another.
+#[derive(
+    Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+struct OppositeTraits(Vec<GalaxySpecialTrait>, Vec<GalaxySpecialTrait>);
+
+/// Returns true if the given **list_to_fill** contains traits incompatible with the given **possible_trait**, using the **opposite_traits_list** as a reference to determine what is compatible or not.
+fn remove_opposite_traits(
+    possible_trait: GalaxySpecialTrait,
+    opposite_traits_list: &Vec<OppositeTraits>,
+    list_to_fill: &mut Vec<GalaxySpecialTrait>,
+) {
+    // Find a list of opposite traits to the given **possible_trait**
+    let mut possible_oppposites: Option<Vec<GalaxySpecialTrait>> = None;
+    opposite_traits_list.iter().for_each(|pair| {
+        if possible_oppposites.is_none() {
+            if pair
+                .0
+                .iter()
+                .find(|current_trait| discriminant(*current_trait) == discriminant(&possible_trait))
+                .is_some()
+            {
+                possible_oppposites = Some(pair.1.clone());
+            } else if pair
+                .1
+                .iter()
+                .find(|current_trait| discriminant(*current_trait) == discriminant(&possible_trait))
+                .is_some()
+            {
+                possible_oppposites = Some(pair.0.clone());
+            }
+        }
+    });
+
+    // For each opposite, if it is present in the **list_to_fill**, removes it
+    if let Some(opposites) = possible_oppposites {
+        opposites.iter().for_each(|opposite| {
+            let possible_found = list_to_fill
+                .iter()
+                .find(|current_trait| discriminant(*current_trait) == discriminant(&opposite));
+            if let Some(found) = possible_found {
+                remove_specific_trait(list_to_fill, *found);
+            }
+        });
+    }
+}
+
+/// Removes an entry from the given list of possible traits.
+fn remove_specific_possible_trait(
+    possible_traits: &mut Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
+    possible_trait: GalaxySpecialTrait,
+) {
+    let possible_index = possible_traits
+        .iter()
+        .position(|r| discriminant(&r.result) == discriminant(&possible_trait));
+    if let Some(index) = possible_index {
+        possible_traits.remove(index);
+    }
+}
+
+/// Removes an entry from the given list of traits.
+fn remove_specific_trait(traits: &mut Vec<GalaxySpecialTrait>, possible_trait: GalaxySpecialTrait) {
+    let possible_index = traits
+        .iter()
+        .position(|r| discriminant(r) == discriminant(&possible_trait));
+    if let Some(index) = possible_index {
+        traits.remove(index);
+    }
 }
 
 /// Calculates the number of random traits this galaxy will have.
