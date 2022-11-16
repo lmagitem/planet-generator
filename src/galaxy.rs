@@ -69,9 +69,9 @@ impl Galaxy {
         settings: &GenerationSettings,
     ) -> Self {
         let name = String::from("Galaxy");
-        let age = generate_age(neighborhood, index, seed, settings);
         let is_dominant = is_galaxy_dominant(neighborhood, index);
         let is_major = is_galaxy_major(neighborhood, index);
+        let age = generate_age(neighborhood, index, is_dominant, is_major, seed, settings);
         let mut category = generate_category(
             neighborhood,
             index,
@@ -115,6 +115,8 @@ impl Galaxy {
 fn generate_age(
     neighborhood: GalacticNeighborhood,
     index: u8,
+    is_dominant: bool,
+    is_major: bool,
     seed: &String,
     settings: &GenerationSettings,
 ) -> f32 {
@@ -128,7 +130,18 @@ fn generate_age(
         neighborhood.universe.age
             - (if neighborhood.universe.era != StelliferousEra::AncientStelliferous {
                 let randomize = (age_rng.roll(1, 36, 24) as f32) / 100.0;
-                if age_rng.roll(1, 10, 0) == 0 {
+                if age_rng.roll(
+                    1,
+                    if is_dominant {
+                        2
+                    } else if is_major {
+                        4
+                    } else {
+                        10
+                    },
+                    0,
+                ) == 1
+                {
                     neighborhood.universe.age / age_rng.roll(1, 9, 1) as f32 + randomize
                 } else {
                     randomize
@@ -155,9 +168,6 @@ fn generate_category(
     if let Some(fixed_category) = settings.galaxy.fixed_category {
         category = fixed_category;
     } else {
-
-        // !todo make galaxies bigger if universe is older
-
         match neighborhood.density {
             GalacticNeighborhoodDensity::Void(_) => {
                 if is_major {
@@ -188,7 +198,13 @@ fn generate_category(
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxyCategory::Elliptical(0),
-                                    weight: if age < 50.0 { 1 } else { 4 },
+                                    weight: if age < 50.0 {
+                                        1
+                                    } else if age < 750.0 {
+                                        4
+                                    } else {
+                                        12
+                                    },
                                 },
                             ],
                             roll_method: RollMethod::SimpleRoll,
@@ -245,8 +261,10 @@ fn generate_category(
                                         1
                                     } else if age < 50.0 {
                                         3
-                                    } else {
+                                    } else if age < 750.0 {
                                         9
+                                    } else {
+                                        12
                                     },
                                 },
                             ],
@@ -306,8 +324,10 @@ fn generate_category(
                                         1
                                     } else if age < 50.0 {
                                         4
+                                    } else if age < 750.0 {
+                                        10
                                     } else {
-                                        16
+                                        18
                                     },
                                 },
                             ],
@@ -614,7 +634,7 @@ fn generate_sub_category(
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::GiantLenticular,
-                                    weight: 3,
+                                    weight: if age < 500.0 { 3 } else { 10 },
                                 },
                             ],
                             roll_method: RollMethod::SimpleRoll,
@@ -635,7 +655,7 @@ fn generate_sub_category(
                                 },
                                 CopyableWeightedResult {
                                     result: GalaxySubCategory::GiantElliptical,
-                                    weight: 3,
+                                    weight: if age < 500.0 { 3 } else { 8 },
                                 },
                             ],
                             roll_method: RollMethod::SimpleRoll,
@@ -655,7 +675,13 @@ fn generate_sub_category(
                             },
                             CopyableWeightedResult {
                                 result: GalaxySubCategory::GiantElliptical,
-                                weight: if age < 50.0 { 3 } else { 6 },
+                                weight: if age < 50.0 {
+                                    3
+                                } else if age < 500.0 {
+                                    8
+                                } else {
+                                    12
+                                },
                             },
                         ],
                         roll_method: RollMethod::SimpleRoll,

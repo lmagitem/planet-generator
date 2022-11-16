@@ -106,7 +106,7 @@ fn generate_galaxies(
     } else if universe.era == StelliferousEra::LateStelliferous {
         rng.roll(1, 3, 0) as u8
     } else {
-        rng.roll(1, 6, 3) as u8
+        rng.roll(1, 16, 4) as u8
     };
     match galactic_neighborhood.density {
         GalacticNeighborhoodDensity::Void(g) | GalacticNeighborhoodDensity::Group(g) => {
