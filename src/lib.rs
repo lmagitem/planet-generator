@@ -100,19 +100,12 @@ fn generate_galaxies(
 ) -> Vec<Galaxy> {
     let mut rng = SeededDiceRoller::new(seed, &format!("main_gal"));
     let mut galaxies: Vec<Galaxy> = vec![];
-    let to_generate: u8;
-    let minor_to_generate: u8 = if universe.era == StelliferousEra::EndStelliferous {
-        0
-    } else if universe.era == StelliferousEra::LateStelliferous {
-        rng.roll(1, 3, 0) as u8
-    } else {
-        rng.roll(1, 16, 4) as u8
-    };
+    let to_generate: u16;
     match galactic_neighborhood.density {
-        GalacticNeighborhoodDensity::Void(g) | GalacticNeighborhoodDensity::Group(g) => {
-            to_generate = minor_to_generate + g
+        GalacticNeighborhoodDensity::Void(g, m) | GalacticNeighborhoodDensity::Group(g, m) => {
+            to_generate = (g as u16) + m
         }
-        GalacticNeighborhoodDensity::Cluster(g, d) => to_generate = minor_to_generate + g + d,
+        GalacticNeighborhoodDensity::Cluster(d, g, m) => to_generate = (d as u16) + (g as u16) + m,
     }
     for i in 0..to_generate {
         galaxies.push(Galaxy::generate(galactic_neighborhood, i, seed, &settings));

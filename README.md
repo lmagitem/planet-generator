@@ -15,6 +15,7 @@ This is the current roadmap of the library:
     - [x] Age
     - [x] Shape
     - [ ] Peculiarities
+    - [ ] Names
 - [ ] Sector and subsector generation
     - [ ] Location
     - [ ] Density
@@ -26,6 +27,9 @@ This is the current roadmap of the library:
     - [ ] Filling orbits
 - [ ] Planet generation
     - [ ] Resources
+      - [ ] Accessibility
+      - [ ] Rarity
+      - [ ] Quantity
     - [ ] Life presence
     - [ ] Points of interest
     - [ ] Map generation
@@ -34,6 +38,8 @@ This is the current roadmap of the library:
     - [ ] Spawn species using conditions found in specific systems
     - [ ] Writing the species' history
     - [ ] Filling the various systems with appropriate life
+- [ ] Populated sectors/systems/planets
+    - [ ] Add methods to generate populated objects "directly"
 
 ## Contribute
 I'd be happy to receive issues asking for new features or bug fixes. Also feel free to point out where code could be improved (either in performance, readability, documentation, following best practices...) and/or make pull requests yourselves.

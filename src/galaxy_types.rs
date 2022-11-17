@@ -47,41 +47,93 @@ impl Display for GalaxySettings {
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
 )]
 pub enum GalacticNeighborhoodDensity {
-    /// The emptiest parts of the universe, covers a diameter far greater than the other densities. Contains 0 to 3 major galaxies.
-    Void(#[default = 1] u8),
-    /// A zone filled with a "regular" amount of galaxies. Contains 1 to 5 major galaxies.
+    /// The emptiest parts of the universe, covers a diameter far greater than the other densities. Contains 0 to 3 major galaxies stored in
+    /// the first associated value and a certain number of minor ones stored in the second value.
+    Void(#[default = 1] u8, #[default = 4] u16),
+    /// A zone filled with a "regular" amount of galaxies. Contains 1 to 5 major galaxies stored in the first associated value and a certain
+    /// number of minor ones stored in the second value.
     #[default]
-    Group(#[default = 2] u8),
+    Group(#[default = 2] u8, #[default = 23] u16),
     /// The most crowded parts of the universe. Galaxies within this neighborhood usualy revolve around a huge dominant one. Space between
-    /// galaxies is filled with super-hot plasma and a large number of intergalactic stars. Contains 5 to 20+ major galaxies.
-    Cluster(#[default = 8] u8, #[default = 1] u8),
+    /// galaxies is filled with super-hot plasma and a large number of intergalactic stars. Contains 5 to 20+ major galaxies. Thje first
+    /// associated value is the number of dominant, the second value the number of major and the third the number of minor galaxies.
+    Cluster(#[default = 1] u8, #[default = 8] u8, #[default = 209] u16),
 }
 
 impl Display for GalacticNeighborhoodDensity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            GalacticNeighborhoodDensity::Void(m) => write!(
+            GalacticNeighborhoodDensity::Void(g, m) => write!(
                 f,
-                "Void with {} major galax{}",
-                m,
-                if *m == 1 { "y" } else { "ies" }
-            ),
-            GalacticNeighborhoodDensity::Group(m) => write!(
-                f,
-                "Group with {} major galax{}",
-                m,
-                if *m == 1 { "y" } else { "ies" }
-            ),
-            GalacticNeighborhoodDensity::Cluster(m, d) => write!(
-                f,
-                "Cluster with {} major{}galax{}",
-                m - d,
-                if d > &0 {
-                    format!(" and {} dominant ", d)
+                "Void with {}{}{} galax{}",
+                if g > &0 {
+                    format!("{} major", g)
                 } else {
-                    String::from(" ")
+                    String::from("")
                 },
-                if m + d == 1 { "y" } else { "ies" }
+                if g > &0 && m > &0 {
+                    String::from(" and ")
+                } else {
+                    String::from("")
+                },
+                if m > &0 {
+                    format!("{} minor", m)
+                } else {
+                    String::from("")
+                },
+                if *m == 1 { "y" } else { "ies" }
+            ),
+            GalacticNeighborhoodDensity::Group(g, m) => write!(
+                f,
+                "Group with {}{}{} galax{}",
+                if g > &0 {
+                    format!("{} major", g)
+                } else {
+                    String::from("")
+                },
+                if g > &0 && m > &0 {
+                    String::from(" and ")
+                } else {
+                    String::from("")
+                },
+                if m > &0 {
+                    format!("{} minor", m)
+                } else {
+                    String::from("")
+                },
+                if *m == 1 { "y" } else { "ies" }
+            ),
+            GalacticNeighborhoodDensity::Cluster(d, g, m) => write!(
+                f,
+                "Cluster with {}{}{}{}{} galax{}",
+                if d > &0 {
+                    format!("{} dominant", d)
+                } else {
+                    String::from("")
+                },
+                if d > &0 && g > &0 && m > &0 {
+                    String::from(", ")
+                } else if (d > &0 && m > &0) || (d > &0 && g > &0) {
+                    String::from(" and ")
+                } else {
+                    String::from("")
+                },
+                if g > &0 {
+                    format!("{} major", m)
+                } else {
+                    String::from("")
+                },
+                if (m > &0 && d > &0) || (m > &0 && g > &0) {
+                    String::from(" and ")
+                } else {
+                    String::from("")
+                },
+                if m > &0 {
+                    format!("{} minor", m)
+                } else {
+                    String::from("")
+                },
+                if *m == 1 { "y" } else { "ies" }
             ),
         }
     }
@@ -365,7 +417,7 @@ impl GalacticNeighborhood {
         if let Some(fixed_neighborhood) = settings.galaxy.fixed_neighborhood {
             density = fixed_neighborhood;
         } else if settings.galaxy.use_ours {
-            density = GalacticNeighborhoodDensity::Group(2);
+            density = GalacticNeighborhoodDensity::Group(2, 36);
         } else {
             let mut rng = SeededDiceRoller::new(seed.as_str(), "gal_den");
             let is_group = rng.roll(1, 4, 0) != 4;
@@ -374,22 +426,40 @@ impl GalacticNeighborhood {
                 let galaxies = rng.roll(1, 6, -1) as u8;
                 if galaxies == 0 {
                     density = GalacticNeighborhoodDensity::Void(
-                        if universe.era == StelliferousEra::LateStelliferous {
-                            rng.roll(1, 2, 0) as u8
-                        } else if universe.era == StelliferousEra::EndStelliferous {
+                        // Major galaxies
+                        if universe.era == StelliferousEra::EndStelliferous {
                             1
+                        } else if universe.era == StelliferousEra::LateStelliferous {
+                            rng.roll(1, 2, 0) as u8
                         } else {
                             rng.roll(1, 4, -1) as u8
+                        },
+                        // Minor galaxies
+                        if universe.era == StelliferousEra::EndStelliferous {
+                            0
+                        } else if universe.era == StelliferousEra::LateStelliferous {
+                            rng.roll(1, 5, 0) as u16
+                        } else {
+                            rng.roll(1, 16, 4) as u16
                         },
                     );
                 } else {
                     density = GalacticNeighborhoodDensity::Group(
-                        if universe.era == StelliferousEra::LateStelliferous {
-                            rng.roll(1, 3, 0) as u8
-                        } else if universe.era == StelliferousEra::EndStelliferous {
+                        // Major galaxies
+                        if universe.era == StelliferousEra::EndStelliferous {
                             1
+                        } else if universe.era == StelliferousEra::LateStelliferous {
+                            rng.roll(1, 3, 0) as u8
                         } else {
                             galaxies
+                        },
+                        // Minor galaxies
+                        if universe.era == StelliferousEra::EndStelliferous {
+                            0
+                        } else if universe.era == StelliferousEra::LateStelliferous {
+                            rng.roll(1, 22, 3) as u16
+                        } else {
+                            rng.roll(1, 100, 10) as u16
                         },
                     );
                 }
@@ -407,19 +477,29 @@ impl GalacticNeighborhood {
                 }
 
                 density = GalacticNeighborhoodDensity::Cluster(
-                    if universe.era == StelliferousEra::LateStelliferous {
-                        1.max(galaxies / 2) as u8
-                    } else if universe.era == StelliferousEra::EndStelliferous {
+                    // Dominant galaxies
+                    if universe.era == StelliferousEra::EndStelliferous {
+                        1
+                    } else if universe.era == StelliferousEra::LateStelliferous {
+                        1.max(dominant) as u8
+                    } else {
+                        dominant
+                    },
+                    // Major galaxies
+                    if universe.era == StelliferousEra::EndStelliferous {
                         0
+                    } else if universe.era == StelliferousEra::LateStelliferous {
+                        1.max(galaxies / 2) as u8
                     } else {
                         galaxies
                     },
-                    if universe.era == StelliferousEra::LateStelliferous {
-                        1.max(dominant) as u8
-                    } else if universe.era == StelliferousEra::EndStelliferous {
-                        1
+                    // Minor galaxies
+                    if universe.era == StelliferousEra::EndStelliferous {
+                        0
+                    } else if universe.era == StelliferousEra::LateStelliferous {
+                        rng.roll(1, 1000, 0) as u16
                     } else {
-                        dominant
+                        rng.roll(1, 2950, 50) as u16
                     },
                 );
             }
@@ -446,11 +526,11 @@ mod tests {
                 &settings,
             );
             match neighborhood.density {
-                GalacticNeighborhoodDensity::Void(galaxies) => assert!(galaxies < 4),
-                GalacticNeighborhoodDensity::Group(galaxies) => {
+                GalacticNeighborhoodDensity::Void(galaxies, _) => assert!(galaxies < 4),
+                GalacticNeighborhoodDensity::Group(galaxies, _) => {
                     assert!(galaxies > 0 && galaxies < 6)
                 }
-                GalacticNeighborhoodDensity::Cluster(galaxies, dominant) => {
+                GalacticNeighborhoodDensity::Cluster(dominant, galaxies, _) => {
                     assert!(galaxies > 0 || dominant > 0)
                 }
             }
@@ -477,7 +557,10 @@ mod tests {
                 &seed,
                 &settings,
             );
-            assert_eq!(neighborhood.density, GalacticNeighborhoodDensity::Group(2));
+            assert_eq!(
+                neighborhood.density,
+                GalacticNeighborhoodDensity::Group(2, 36)
+            );
         }
     }
 
@@ -488,25 +571,25 @@ mod tests {
             let fixed_neighborhood = rng
                 .get_result(&CopyableRollToProcess {
                     possible_results: SeededDiceRoller::to_copyable_possible_results(vec![
-                        GalacticNeighborhoodDensity::Void(0),
-                        GalacticNeighborhoodDensity::Void(1),
-                        GalacticNeighborhoodDensity::Void(2),
-                        GalacticNeighborhoodDensity::Void(3),
-                        GalacticNeighborhoodDensity::Group(1),
-                        GalacticNeighborhoodDensity::Group(2),
-                        GalacticNeighborhoodDensity::Group(3),
-                        GalacticNeighborhoodDensity::Group(4),
-                        GalacticNeighborhoodDensity::Group(5),
-                        GalacticNeighborhoodDensity::Cluster(1, 0),
-                        GalacticNeighborhoodDensity::Cluster(2, 0),
-                        GalacticNeighborhoodDensity::Cluster(3, 0),
-                        GalacticNeighborhoodDensity::Cluster(4, 0),
-                        GalacticNeighborhoodDensity::Cluster(5, 0),
-                        GalacticNeighborhoodDensity::Cluster(6, 0),
-                        GalacticNeighborhoodDensity::Cluster(7, 0),
-                        GalacticNeighborhoodDensity::Cluster(1, 1),
-                        GalacticNeighborhoodDensity::Cluster(2, 1),
-                        GalacticNeighborhoodDensity::Cluster(3, 1),
+                        GalacticNeighborhoodDensity::Void(0, 5),
+                        GalacticNeighborhoodDensity::Void(1, 5),
+                        GalacticNeighborhoodDensity::Void(2, 5),
+                        GalacticNeighborhoodDensity::Void(3, 5),
+                        GalacticNeighborhoodDensity::Group(1, 5),
+                        GalacticNeighborhoodDensity::Group(2, 5),
+                        GalacticNeighborhoodDensity::Group(3, 5),
+                        GalacticNeighborhoodDensity::Group(4, 5),
+                        GalacticNeighborhoodDensity::Group(5, 5),
+                        GalacticNeighborhoodDensity::Cluster(0, 1, 5),
+                        GalacticNeighborhoodDensity::Cluster(0, 2, 5),
+                        GalacticNeighborhoodDensity::Cluster(0, 3, 5),
+                        GalacticNeighborhoodDensity::Cluster(0, 4, 5),
+                        GalacticNeighborhoodDensity::Cluster(0, 5, 5),
+                        GalacticNeighborhoodDensity::Cluster(0, 6, 5),
+                        GalacticNeighborhoodDensity::Cluster(0, 7, 5),
+                        GalacticNeighborhoodDensity::Cluster(1, 1, 5),
+                        GalacticNeighborhoodDensity::Cluster(1, 2, 5),
+                        GalacticNeighborhoodDensity::Cluster(1, 3, 5),
                     ]),
                     roll_method: RollMethod::SimpleRoll,
                 })

@@ -8,6 +8,8 @@ const OUR_GALAXYS_AGE: f32 = 13.61;
 pub struct Galaxy {
     /// The neighborhood this galaxy belongs to.
     pub neighborhood: GalacticNeighborhood,
+    /// The numeric identifier of this galaxy in its neighborhood.
+    pub index: u16,
     /// The name of this galaxy.
     pub name: String,
     /// The age of this galaxy in billions of years.
@@ -30,6 +32,7 @@ impl Default for Galaxy {
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
+            index: 1,
             name: String::from("Milky Way"),
             age: 13.61,
             is_dominant: false,
@@ -45,7 +48,8 @@ impl Display for Galaxy {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "\"{}\", {}{}, of sub-type {}, aged {} billion years, with the following special traits: {}",
+            "{:04} - \"{}\" - {}{}, of sub-type {}, aged {} billion years, with the following special traits: {}",
+            self.index,
             self.name,
             if self.is_dominant { "" } else if self.is_major { "major " } else { "minor " },
             self.category,
@@ -64,7 +68,7 @@ impl Galaxy {
     /// Generates a brand new [Galaxy] using the given seed and [GenerationSettings].
     pub fn generate(
         neighborhood: GalacticNeighborhood,
-        index: u8,
+        index: u16,
         seed: &String,
         settings: &GenerationSettings,
     ) -> Self {
@@ -100,6 +104,7 @@ impl Galaxy {
         // !todo Generate a number of indexes according to the number of galaxies in a group
         Self {
             neighborhood,
+            index,
             name,
             age,
             is_dominant,
@@ -114,7 +119,7 @@ impl Galaxy {
 /// Generates an age to use in a [Galaxy] while following the given [GenerationSettings].
 fn generate_age(
     neighborhood: GalacticNeighborhood,
-    index: u8,
+    index: u16,
     is_dominant: bool,
     is_major: bool,
     seed: &String,
@@ -156,7 +161,7 @@ fn generate_age(
 /// Generates a [Galaxy] category while following the given [GenerationSettings].
 fn generate_category(
     neighborhood: GalacticNeighborhood,
-    index: u8,
+    index: u16,
     age: f32,
     is_dominant: bool,
     is_major: bool,
@@ -169,7 +174,7 @@ fn generate_category(
         category = fixed_category;
     } else {
         match neighborhood.density {
-            GalacticNeighborhoodDensity::Void(_) => {
+            GalacticNeighborhoodDensity::Void(_, _) => {
                 if is_major {
                     category = rng
                         .get_result(&CopyableRollToProcess {
@@ -228,7 +233,7 @@ fn generate_category(
                         .expect("Should return a category as result");
                 }
             }
-            GalacticNeighborhoodDensity::Group(_) => {
+            GalacticNeighborhoodDensity::Group(_, _) => {
                 if is_major {
                     category = rng
                         .get_result(&CopyableRollToProcess {
@@ -289,7 +294,7 @@ fn generate_category(
                         .expect("Should return a category as result");
                 }
             }
-            GalacticNeighborhoodDensity::Cluster(_, _) => {
+            GalacticNeighborhoodDensity::Cluster(_, _, _) => {
                 if is_dominant {
                     category = GalaxyCategory::DominantElliptical(0);
                 } else if is_major {
@@ -362,7 +367,7 @@ fn generate_category(
 fn get_category_with_size(
     category: GalaxyCategory,
     sub_category: GalaxySubCategory,
-    index: u8,
+    index: u16,
     seed: &String,
     settings: &GenerationSettings,
 ) -> GalaxyCategory {
@@ -535,7 +540,7 @@ fn get_category_with_size(
 fn generate_sub_category(
     neighborhood: GalacticNeighborhood,
     category: GalaxyCategory,
-    index: u8,
+    index: u16,
     age: f32,
     is_dominant: bool,
     is_major: bool,
@@ -699,7 +704,7 @@ fn generate_special_traits(
     neighborhood: GalacticNeighborhood,
     category: GalaxyCategory,
     sub_category: GalaxySubCategory,
-    index: u8,
+    index: u16,
     seed: &String,
     settings: &GenerationSettings,
 ) -> Vec<GalaxySpecialTrait> {
@@ -735,7 +740,7 @@ fn get_full_list_of_traits(
     neighborhood: GalacticNeighborhood,
     category: GalaxyCategory,
     sub_category: GalaxySubCategory,
-    index: u8,
+    index: u16,
     seed: &String,
 ) -> Vec<CopyableWeightedResult<GalaxySpecialTrait>> {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_gsp", index));
@@ -853,7 +858,7 @@ fn get_full_list_of_traits(
         CopyableWeightedResult {
             result: GalaxySpecialTrait::ExtendedHalo,
             weight: if discriminant(&neighborhood.density)
-                == discriminant(&GalacticNeighborhoodDensity::Cluster(0, 0))
+                == discriminant(&GalacticNeighborhoodDensity::Cluster(0, 0, 0))
                 || discriminant(&category) == discriminant(&GalaxyCategory::Lenticular(0, 0))
                 || discriminant(&category) == discriminant(&GalaxyCategory::Spiral(0, 0))
             {
@@ -1105,11 +1110,11 @@ fn get_full_list_of_traits(
         CopyableWeightedResult {
             result: GalaxySpecialTrait::Dormant,
             weight: if discriminant(&neighborhood.density)
-                == discriminant(&GalacticNeighborhoodDensity::Cluster(0, 0))
+                == discriminant(&GalacticNeighborhoodDensity::Cluster(0, 0, 0))
             {
                 3
             } else if discriminant(&neighborhood.density)
-                == discriminant(&GalacticNeighborhoodDensity::Group(0))
+                == discriminant(&GalacticNeighborhoodDensity::Group(0, 0))
             {
                 2
             } else {
@@ -1158,7 +1163,7 @@ fn remove_forbidden_traits(
 fn add_age_related_traits(
     neighborhood: GalacticNeighborhood,
     list_to_fill: &mut Vec<GalaxySpecialTrait>,
-    index: u8,
+    index: u16,
     seed: &String,
 ) -> Vec<GalaxySpecialTrait> {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_spa", index));
@@ -1186,7 +1191,7 @@ fn add_random_traits(
     to_add: i32,
     mut possible_traits: Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
     list_to_fill: &mut Vec<GalaxySpecialTrait>,
-    index: u8,
+    index: u16,
     seed: &String,
 ) -> Vec<GalaxySpecialTrait> {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_art", index));
@@ -1314,7 +1319,7 @@ fn remove_specific_trait(traits: &mut Vec<GalaxySpecialTrait>, possible_trait: G
 }
 
 /// Calculates the number of random traits this galaxy will have.
-fn get_number_of_random_traits(index: u8, seed: &String) -> i32 {
+fn get_number_of_random_traits(index: u16, seed: &String) -> i32 {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_srt", index));
     let mut number_of_random_traits = 0;
     let mut roll = 0;
@@ -1340,30 +1345,30 @@ fn get_fixed_age(settings: &GenerationSettings) -> f32 {
 }
 
 /// Is the [Galaxy] to be generated a dominant one in its local cluster?
-fn is_galaxy_dominant(neighborhood: GalacticNeighborhood, index: u8) -> bool {
+fn is_galaxy_dominant(neighborhood: GalacticNeighborhood, index: u16) -> bool {
     let is_dominant;
     match neighborhood.density {
-        GalacticNeighborhoodDensity::Void(_) => is_dominant = false,
-        GalacticNeighborhoodDensity::Group(_) => is_dominant = false,
-        GalacticNeighborhoodDensity::Cluster(_, dominant) => {
-            is_dominant = index < dominant;
+        GalacticNeighborhoodDensity::Void(_, _) => is_dominant = false,
+        GalacticNeighborhoodDensity::Group(_, _) => is_dominant = false,
+        GalacticNeighborhoodDensity::Cluster(dominant, _, _) => {
+            is_dominant = index < dominant as u16;
         }
     }
     is_dominant
 }
 
 /// Is the [Galaxy] to be generated a major one in its local neighborhood?
-fn is_galaxy_major(neighborhood: GalacticNeighborhood, index: u8) -> bool {
+fn is_galaxy_major(neighborhood: GalacticNeighborhood, index: u16) -> bool {
     let is_major;
     match neighborhood.density {
-        GalacticNeighborhoodDensity::Void(galaxies) => {
-            is_major = index < galaxies;
+        GalacticNeighborhoodDensity::Void(galaxies, _) => {
+            is_major = index < galaxies as u16;
         }
-        GalacticNeighborhoodDensity::Group(galaxies) => {
-            is_major = index < galaxies;
+        GalacticNeighborhoodDensity::Group(galaxies, _) => {
+            is_major = index < galaxies as u16;
         }
-        GalacticNeighborhoodDensity::Cluster(galaxies, dominant) => {
-            is_major = index < dominant + galaxies;
+        GalacticNeighborhoodDensity::Cluster(dominant, galaxies, _) => {
+            is_major = index < (dominant + galaxies) as u16;
         }
     }
     is_major
@@ -1388,7 +1393,7 @@ mod tests {
                 &seed,
                 &settings,
             );
-            let galaxy = Galaxy::generate(neighborhood, (i as u8) % 5, &seed, &settings);
+            let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
             println!("{}", galaxy);
 
             let category = galaxy.category;
