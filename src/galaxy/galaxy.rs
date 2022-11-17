@@ -1,7 +1,7 @@
+#[path = "./constants.rs"]
+mod galaxy_constants;
 use crate::prelude::*;
-
-/// The current age of the universe.
-const OUR_GALAXYS_AGE: f32 = 13.61;
+use galaxy_constants::*;
 
 /// Data allowing us to model a galaxy.
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]

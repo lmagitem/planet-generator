@@ -1,18 +1,40 @@
 #![warn(clippy::all, clippy::pedantic)]
+#[path = "./galactic-neighborhood/galactic_neighborhood.rs"]
+mod galactic_neighborhood;
+#[path = "./galactic-neighborhood/types.rs"]
+mod galactic_neighborhood_types;
+#[path = "./galaxy/galaxy.rs"]
 mod galaxy;
+#[path = "./galaxy/types.rs"]
 mod galaxy_types;
+#[path = "./generator/generator.rs"]
+mod generator;
+#[path = "./generator/types.rs"]
+mod generator_types;
+#[path = "./planet/planet.rs"]
 mod planet;
+#[path = "./planet/types.rs"]
 mod planet_types;
+#[path = "./sector/sector.rs"]
 mod sector;
+#[path = "./sector/types.rs"]
 mod sector_types;
+#[path = "./system/system.rs"]
 mod system;
+#[path = "./system/types.rs"]
 mod system_types;
+#[path = "./universe/universe.rs"]
 mod universe;
+#[path = "./universe/types.rs"]
 mod universe_types;
 
 pub mod prelude {
+    pub use crate::galactic_neighborhood::*;
+    pub use crate::galactic_neighborhood_types::*;
     pub use crate::galaxy::*;
     pub use crate::galaxy_types::*;
+    pub use crate::generator::*;
+    pub use crate::generator_types::*;
     pub use crate::planet::*;
     pub use crate::planet_types::*;
     pub use crate::sector::*;
@@ -21,94 +43,10 @@ pub mod prelude {
     pub use crate::system_types::*;
     pub use crate::universe::*;
     pub use crate::universe_types::*;
-    pub use crate::GeneratedUniverse;
-    pub use crate::GenerationSettings;
-    pub use crate::Generator;
     pub use log::*;
     pub use seeded_dice_roller::*;
     pub use serde::{Deserialize, Serialize};
     pub use smart_default::SmartDefault;
     pub use std::fmt::Display;
     pub use std::mem::discriminant;
-}
-use prelude::*;
-
-/// A list of settings used to configure generation.
-#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
-pub struct GenerationSettings {
-    /// A list of settings used to configure the [Universe] generation.
-    pub universe: UniverseSettings,
-    /// A list of settings used to configure the [Galaxy] generation.
-    pub galaxy: GalaxySettings,
-}
-
-/// Data object filled with the results of a generation.
-#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
-pub struct GeneratedUniverse {
-    /// The generated [Universe].
-    pub universe: Universe,
-    /// The generated [GalacticNeighborhood].
-    pub galactic_neighborhood: GalacticNeighborhood,
-    /// A list of generated [Galaxy] objects.
-    pub galaxies: Vec<Galaxy>,
-}
-
-impl Display for GeneratedUniverse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "GeneratedUniverse {{\n\tuniverse: {},\n\tgalactic_neighborhood: {},\n\tgalaxies:\n\t\t{}\n}}",
-            self.universe,
-            self.galactic_neighborhood,
-            self.galaxies
-                .iter()
-                .map(|g| format!("{}", g))
-                .collect::<Vec<String>>()
-                .join(",\n\t\t")
-        )
-    }
-}
-
-/// The generator itself, depending on the given settings, can generate a full blown universe with multiple galaxies, sectors, systems,
-/// planets and the species living in those.
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
-pub struct Generator {}
-
-impl Generator {
-    /// Generates a full blown universe with multiple galaxies, sectors, systems, planets and the species living in those following the
-    /// given [GenerationSettings], in a deterministic way thanks to the given **seed**.
-    pub fn generate(seed: &String, settings: GenerationSettings) -> GeneratedUniverse {
-        let universe = Universe::generate(seed, &settings);
-        let galactic_neighborhood = GalacticNeighborhood::generate(universe, seed, &settings);
-        let galaxies: Vec<Galaxy> =
-            generate_galaxies(universe, galactic_neighborhood, seed, settings);
-
-        GeneratedUniverse {
-            universe,
-            galactic_neighborhood,
-            galaxies,
-        }
-    }
-}
-
-/// Generates a list of [Galaxy] in the given **galactic_neighborhood** using the given **seed** and **settings**.
-fn generate_galaxies(
-    universe: Universe,
-    galactic_neighborhood: GalacticNeighborhood,
-    seed: &String,
-    settings: GenerationSettings,
-) -> Vec<Galaxy> {
-    let mut rng = SeededDiceRoller::new(seed, &format!("main_gal"));
-    let mut galaxies: Vec<Galaxy> = vec![];
-    let to_generate: u16;
-    match galactic_neighborhood.density {
-        GalacticNeighborhoodDensity::Void(g, m) | GalacticNeighborhoodDensity::Group(g, m) => {
-            to_generate = (g as u16) + m
-        }
-        GalacticNeighborhoodDensity::Cluster(d, g, m) => to_generate = (d as u16) + (g as u16) + m,
-    }
-    for i in 0..to_generate {
-        galaxies.push(Galaxy::generate(galactic_neighborhood, i, seed, &settings));
-    }
-    galaxies
 }
