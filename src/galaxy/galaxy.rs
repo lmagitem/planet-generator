@@ -32,14 +32,14 @@ impl Default for Galaxy {
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
-            index: 1,
-            name: String::from("Milky Way"),
-            age: 13.61,
+            index: 0,
+            name: String::from(OUR_GALAXYS_NAME),
+            age: OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
-            category: GalaxyCategory::Spiral(16203, 160),
-            sub_category: GalaxySubCategory::BarredSpiral,
-            special_traits: vec![GalaxySpecialTrait::NoPeculiarity],
+            category: OUR_GALAXYS_CATEGORY,
+            sub_category: OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![NO_SPECIAL_TRAIT],
         }
     }
 }
@@ -65,6 +65,31 @@ impl Display for Galaxy {
 }
 
 impl Galaxy {
+    /// Returns a new [Galaxy] using the given arguments.
+    pub fn new(
+        neighborhood: GalacticNeighborhood,
+        index: u16,
+        name: String,
+        age: f32,
+        is_dominant: bool,
+        is_major: bool,
+        category: GalaxyCategory,
+        sub_category: GalaxySubCategory,
+        special_traits: Vec<GalaxySpecialTrait>,
+    ) -> Self {
+        Self {
+            neighborhood,
+            index,
+            name,
+            age,
+            is_dominant,
+            is_major,
+            category,
+            sub_category,
+            special_traits,
+        }
+    }
+    
     /// Generates a brand new [Galaxy] using the given seed and [GenerationSettings].
     pub fn generate(
         neighborhood: GalacticNeighborhood,

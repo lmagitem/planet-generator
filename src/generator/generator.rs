@@ -11,8 +11,7 @@ impl Generator {
     pub fn generate(seed: &String, settings: GenerationSettings) -> GeneratedUniverse {
         let universe = Universe::generate(seed, &settings);
         let galactic_neighborhood = GalacticNeighborhood::generate(universe, seed, &settings);
-        let galaxies: Vec<Galaxy> =
-            generate_galaxies(universe, galactic_neighborhood, seed, settings);
+        let galaxies: Vec<Galaxy> = generate_galaxies(galactic_neighborhood, seed, settings);
 
         GeneratedUniverse {
             universe,
@@ -24,12 +23,10 @@ impl Generator {
 
 /// Generates a list of [Galaxy] in the given **galactic_neighborhood** using the given **seed** and **settings**.
 fn generate_galaxies(
-    universe: Universe,
     galactic_neighborhood: GalacticNeighborhood,
     seed: &String,
     settings: GenerationSettings,
 ) -> Vec<Galaxy> {
-    let mut rng = SeededDiceRoller::new(seed, &format!("main_gal"));
     let mut galaxies: Vec<Galaxy> = vec![];
     let to_generate: u16;
     match galactic_neighborhood.density {
