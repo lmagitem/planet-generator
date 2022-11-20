@@ -16,6 +16,11 @@ impl Display for GalacticNeighborhood {
 }
 
 impl GalacticNeighborhood {
+    /// Returns a new [GalacticNeighborhood] using the given arguments.
+    pub fn new(universe: Universe, density: GalacticNeighborhoodDensity) -> Self {
+        Self { universe, density }
+    }
+
     /// Generates a brand new [GalacticNeighborhood] using the given seed and [GenerationSettings].
     pub fn generate(universe: Universe, seed: &String, settings: &GenerationSettings) -> Self {
         let density;
@@ -33,9 +38,9 @@ impl GalacticNeighborhood {
                 if galaxies == 0 {
                     density = GalacticNeighborhoodDensity::Void(
                         // Major galaxies
-                        if universe.era == StelliferousEra::EndStelliferous {
-                            1
-                        } else if universe.era == StelliferousEra::LateStelliferous {
+                        if universe.era == StelliferousEra::EndStelliferous
+                            || universe.era == StelliferousEra::LateStelliferous
+                        {
                             rng.roll(1, 2, 0) as u8
                         } else {
                             rng.roll(1, 4, -1) as u8
@@ -53,7 +58,7 @@ impl GalacticNeighborhood {
                     density = GalacticNeighborhoodDensity::Group(
                         // Major galaxies
                         if universe.era == StelliferousEra::EndStelliferous {
-                            1
+                            rng.roll(1, 2, 0) as u8
                         } else if universe.era == StelliferousEra::LateStelliferous {
                             rng.roll(1, 3, 0) as u8
                         } else {
@@ -93,7 +98,7 @@ impl GalacticNeighborhood {
                     },
                     // Major galaxies
                     if universe.era == StelliferousEra::EndStelliferous {
-                        0
+                        0.max(rng.roll(1, 2, 0) as u8) as u8
                     } else if universe.era == StelliferousEra::LateStelliferous {
                         1.max(galaxies / 2) as u8
                     } else {
@@ -103,9 +108,9 @@ impl GalacticNeighborhood {
                     if universe.era == StelliferousEra::EndStelliferous {
                         0
                     } else if universe.era == StelliferousEra::LateStelliferous {
-                        rng.roll(1, 1000, 0) as u16
+                        rng.roll(1, 200, 0) as u16
                     } else {
-                        rng.roll(1, 2950, 50) as u16
+                        rng.roll(1, 1000, 50) as u16
                     },
                 );
             }

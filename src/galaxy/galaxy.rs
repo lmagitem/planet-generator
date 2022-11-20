@@ -89,7 +89,7 @@ impl Galaxy {
             special_traits,
         }
     }
-    
+
     /// Generates a brand new [Galaxy] using the given seed and [GenerationSettings].
     pub fn generate(
         neighborhood: GalacticNeighborhood,
@@ -97,36 +97,63 @@ impl Galaxy {
         seed: &String,
         settings: &GenerationSettings,
     ) -> Self {
-        let name = String::from("Galaxy");
-        let is_dominant = is_galaxy_dominant(neighborhood, index);
-        let is_major = is_galaxy_major(neighborhood, index);
-        let age = generate_age(neighborhood, index, is_dominant, is_major, seed, settings);
-        let mut category = generate_category(
-            neighborhood,
-            index,
-            age,
-            is_dominant,
-            is_major,
-            seed,
-            settings,
-        );
-        let sub_category = generate_sub_category(
-            neighborhood,
-            category,
-            index,
-            age,
-            is_dominant,
-            is_major,
-            seed,
-            settings,
-        );
-        if settings.galaxy.fixed_category.is_none() {
-            category = get_category_with_size(category, sub_category, index, seed, settings);
+        let name;
+        let is_dominant;
+        let is_major;
+        let age;
+        let mut category;
+        let sub_category;
+        let special_traits;
+
+        if settings.galaxy.use_ours && (index as usize) < LOCAL_GROUP_GALAXIES.len() {
+            // Our universe and galaxy
+            let model = LOCAL_GROUP_GALAXIES[index as usize].clone();
+            name = String::from(model.name);
+            is_dominant = model.is_dominant;
+            is_major = model.is_major;
+            age = if model.age > 0.0 {
+                model.age
+            } else {
+                generate_age(neighborhood, index, seed, settings)
+            };
+            category = model.category;
+            sub_category = model.sub_category;
+            special_traits = if model.third_trait != NO_SPECIAL_TRAIT {
+                vec![model.first_trait, model.second_trait, model.third_trait]
+            } else if model.second_trait != NO_SPECIAL_TRAIT {
+                vec![model.first_trait, model.second_trait]
+            } else {
+                vec![model.first_trait]
+            };
+        } else {
+            // Generated galaxy
+            name = String::from("Galaxy");
+            is_dominant = is_galaxy_dominant(neighborhood, index);
+            is_major = is_galaxy_major(neighborhood, index);
+            age = generate_age(neighborhood, index, seed, settings);
+            category = generate_category(
+                neighborhood,
+                index,
+                age,
+                is_dominant,
+                is_major,
+                seed,
+                settings,
+            );
+            sub_category = generate_sub_category(category, index, age, is_major, seed, settings);
+            if settings.galaxy.fixed_category.is_none() {
+                category = get_category_with_size(category, sub_category, index, seed);
+            }
+            special_traits = generate_special_traits(
+                neighborhood,
+                category,
+                sub_category,
+                index,
+                seed,
+                settings,
+            );
         }
-        let special_traits =
-            generate_special_traits(neighborhood, category, sub_category, index, seed, settings);
-        // !todo Think about "use_ours", our galaxy but during different era? which index "use_ours", what are the following galaxies?
-        // !todo Generate a number of indexes according to the number of galaxies in a group
+
         Self {
             neighborhood,
             index,
@@ -145,8 +172,6 @@ impl Galaxy {
 fn generate_age(
     neighborhood: GalacticNeighborhood,
     index: u16,
-    is_dominant: bool,
-    is_major: bool,
     seed: &String,
     settings: &GenerationSettings,
 ) -> f32 {
@@ -159,23 +184,7 @@ fn generate_age(
     } else {
         neighborhood.universe.age
             - (if neighborhood.universe.era != StelliferousEra::AncientStelliferous {
-                let randomize = (age_rng.roll(1, 36, 24) as f32) / 100.0;
-                if age_rng.roll(
-                    1,
-                    if is_dominant {
-                        2
-                    } else if is_major {
-                        4
-                    } else {
-                        10
-                    },
-                    0,
-                ) == 1
-                {
-                    neighborhood.universe.age / age_rng.roll(1, 9, 1) as f32 + randomize
-                } else {
-                    randomize
-                }
+                (age_rng.roll(1, 36, 24) as f32) / 100.0
             } else {
                 (age_rng.roll(1, 16, 19) as f32) / 100.0
             })
@@ -394,7 +403,6 @@ fn get_category_with_size(
     sub_category: GalaxySubCategory,
     index: u16,
     seed: &String,
-    settings: &GenerationSettings,
 ) -> GalaxyCategory {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_cws", index));
     let category_with_size;
@@ -403,47 +411,47 @@ fn get_category_with_size(
         GalaxySubCategory::DwarfAmorphous => {
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intergalactic(
-                    rng.roll(1, 165, 34) as u32 * 10,
-                    rng.roll(1, 165, 34) as u32 * 10,
-                    rng.roll(1, 150, 24) as u32 * 10,
+                    rng.roll(1, 390, 9) as u32 * 10,
+                    rng.roll(1, 390, 9) as u32 * 10,
+                    rng.roll(1, 2925, 74) as u32,
                 );
             } else if category == GalaxyCategory::Irregular(0, 0, 0) {
                 category_with_size = GalaxyCategory::Irregular(
-                    rng.roll(1, 165, 34) as u32 * 10,
-                    rng.roll(1, 165, 34) as u32 * 10,
-                    rng.roll(1, 150, 24) as u32 * 10,
+                    rng.roll(1, 390, 9) as u32 * 10,
+                    rng.roll(1, 390, 9) as u32 * 10,
+                    rng.roll(1, 2925, 74) as u32,
                 );
             } else {
                 category_with_size = GalaxyCategory::Intracluster(
-                    rng.roll(1, 165, 34) as u32 * 10,
-                    rng.roll(1, 165, 34) as u32 * 10,
-                    rng.roll(1, 150, 24) as u32 * 10,
+                    rng.roll(1, 390, 9) as u32 * 10,
+                    rng.roll(1, 390, 9) as u32 * 10,
+                    rng.roll(1, 2925, 74) as u32,
                 );
             }
         }
         GalaxySubCategory::Amorphous => {
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intergalactic(
-                    rng.roll(1, 530, 69) as u32 * 10,
-                    rng.roll(1, 530, 69) as u32 * 10,
-                    rng.roll(1, 330, 69) as u32 * 10,
+                    rng.roll(1, 1125, 124) as u32 * 10,
+                    rng.roll(1, 1125, 124) as u32 * 10,
+                    rng.roll(1, 900, 99) as u32 * 10,
                 );
             } else if category == GalaxyCategory::Irregular(0, 0, 0) {
                 category_with_size = GalaxyCategory::Irregular(
-                    rng.roll(1, 530, 69) as u32 * 10,
-                    rng.roll(1, 530, 69) as u32 * 10,
-                    rng.roll(1, 330, 69) as u32 * 10,
+                    rng.roll(1, 1125, 124) as u32 * 10,
+                    rng.roll(1, 1125, 124) as u32 * 10,
+                    rng.roll(1, 900, 99) as u32 * 10,
                 );
             } else {
                 category_with_size = GalaxyCategory::Intracluster(
-                    rng.roll(1, 530, 69) as u32 * 10,
-                    rng.roll(1, 530, 69) as u32 * 10,
-                    rng.roll(1, 330, 69) as u32 * 10,
+                    rng.roll(1, 1125, 124) as u32 * 10,
+                    rng.roll(1, 1125, 124) as u32 * 10,
+                    rng.roll(1, 900, 99) as u32 * 10,
                 );
             }
         }
         GalaxySubCategory::DwarfSpiral => {
-            let radius = rng.roll(1, 75, 24) as u32 * 10;
+            let radius = rng.roll(1, 475, 24) as u32 * 10;
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intergalactic(
                     radius * 2,
@@ -476,7 +484,7 @@ fn get_category_with_size(
             category_with_size = GalaxyCategory::Spiral(radius, (radius / 100).max(10));
         }
         GalaxySubCategory::DwarfLenticular => {
-            let radius = rng.roll(1, 75, 24) as u32 * 10;
+            let radius = rng.roll(1, 475, 24) as u32 * 10;
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intergalactic(
                     radius * 2,
@@ -517,7 +525,7 @@ fn get_category_with_size(
             );
         }
         GalaxySubCategory::DwarfElliptical => {
-            let radius = rng.roll(1, 100, 0) as u32 * 10;
+            let radius = rng.roll(1, 500, 0) as u32 * 10;
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intergalactic(
                     radius * 2,
@@ -563,11 +571,9 @@ fn get_category_with_size(
 
 /// Generates a [Galaxy] sub-category while following the given [GenerationSettings].
 fn generate_sub_category(
-    neighborhood: GalacticNeighborhood,
     category: GalaxyCategory,
     index: u16,
     age: f32,
-    is_dominant: bool,
     is_major: bool,
     seed: &String,
     settings: &GenerationSettings,
@@ -742,7 +748,8 @@ fn generate_special_traits(
 
         let mut all_special_traits =
             get_full_list_of_traits(neighborhood, category, sub_category, index, seed);
-        all_special_traits = remove_forbidden_traits(settings, &all_special_traits);
+        all_special_traits =
+            remove_forbidden_traits(category, sub_category, settings, &all_special_traits);
 
         special_traits = add_age_related_traits(neighborhood, &mut special_traits, index, seed);
         special_traits = add_random_traits(
@@ -754,10 +761,7 @@ fn generate_special_traits(
         );
     }
 
-    if special_traits.len() < 1 {
-        special_traits.push(GalaxySpecialTrait::NoPeculiarity);
-    }
-    special_traits
+    clean_special_traits(&mut special_traits)
 }
 
 /// Returns the complete list of traits a galaxy might have.
@@ -1164,24 +1168,58 @@ fn get_full_list_of_traits(
 
 /// Removes any eventual traits marked as forbidden in the [GenerationSettings].
 fn remove_forbidden_traits(
+    category: GalaxyCategory,
+    sub_category: GalaxySubCategory,
     settings: &GenerationSettings,
     all_special_traits: &Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
 ) -> Vec<CopyableWeightedResult<GalaxySpecialTrait>> {
-    if let Some(traits_to_remove) = settings.clone().galaxy.forbidden_special_traits {
-        let mut temp_special_traits = vec![];
-        all_special_traits.iter().for_each(|t| {
-            if traits_to_remove
-                .iter()
-                .find(|to_remove| discriminant(*to_remove) == discriminant(&t.result))
-                .is_none()
-            {
-                temp_special_traits.push(*t);
-            }
-        });
-        temp_special_traits
-    } else {
-        all_special_traits.to_vec()
+    let mut special_traits =
+        if let Some(traits_to_remove) = settings.clone().galaxy.forbidden_special_traits {
+            let mut temp_special_traits = vec![];
+            all_special_traits.iter().for_each(|t| {
+                if traits_to_remove
+                    .iter()
+                    .find(|to_remove| discriminant(*to_remove) == discriminant(&t.result))
+                    .is_none()
+                {
+                    temp_special_traits.push(*t);
+                }
+            });
+            temp_special_traits
+        } else {
+            all_special_traits.to_vec()
+        };
+
+    if sub_category == GalaxySubCategory::DwarfAmorphous
+        || sub_category == GalaxySubCategory::DwarfElliptical
+        || sub_category == GalaxySubCategory::DwarfLenticular
+        || sub_category == GalaxySubCategory::DwarfSpiral
+    {
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::ActiveNucleus);
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::DoubleNuclei);
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::ExtendedHalo);
+        remove_specific_possible_trait(
+            &mut special_traits,
+            GalaxySpecialTrait::Satellites(GalaxySatellites::None),
+        );
+    } else if sub_category == GalaxySubCategory::GiantElliptical
+        || sub_category == GalaxySubCategory::GiantLenticular
+        || discriminant(&category) == discriminant(&GalaxyCategory::DominantElliptical(0))
+    {
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::SubSize(0));
+    } else if discriminant(&category) == discriminant(&GalaxyCategory::Elliptical(0)) {
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::GasRich);
+    } else if discriminant(&category) == discriminant(&GalaxyCategory::Lenticular(0, 0)) {
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::GasRich);
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::MetalPoor);
+    } else if sub_category == GalaxySubCategory::Amorphous {
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::ActiveNucleus);
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::ExtendedHalo);
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::GasPoor);
+        remove_specific_possible_trait(&mut special_traits, GalaxySpecialTrait::MetalPoor);
     }
+
+    special_traits
 }
 
 /// Adds [GalaxySpecialTrait]s to the given **list_to_fill** according to the universe's age.
@@ -1243,42 +1281,6 @@ fn add_random_traits(
     list_to_fill.to_vec()
 }
 
-/// Generates a list of pairs of incompatible traits.
-fn get_opposite_traits() -> Vec<OppositeTraits> {
-    vec![
-        OppositeTraits(
-            vec![GalaxySpecialTrait::Younger],
-            vec![GalaxySpecialTrait::Older],
-        ),
-        OppositeTraits(
-            vec![GalaxySpecialTrait::Dusty],
-            vec![GalaxySpecialTrait::MetalPoor],
-        ),
-        OppositeTraits(
-            vec![GalaxySpecialTrait::GasPoor],
-            vec![GalaxySpecialTrait::GasRich],
-        ),
-        OppositeTraits(
-            vec![GalaxySpecialTrait::Compact(0)],
-            vec![GalaxySpecialTrait::Expansive(0)],
-        ),
-        OppositeTraits(
-            vec![GalaxySpecialTrait::SubSize(0)],
-            vec![GalaxySpecialTrait::SuperSize(0)],
-        ),
-        OppositeTraits(
-            vec![GalaxySpecialTrait::Starburst],
-            vec![GalaxySpecialTrait::Dead, GalaxySpecialTrait::Dormant],
-        ),
-    ]
-}
-
-/// Pairs traits that are incompatible with one another.
-#[derive(
-    Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
-)]
-struct OppositeTraits(Vec<GalaxySpecialTrait>, Vec<GalaxySpecialTrait>);
-
 /// Returns true if the given **list_to_fill** contains traits incompatible with the given **possible_trait**, using the **opposite_traits_list** as a reference to determine what is compatible or not.
 fn remove_opposite_traits(
     possible_trait: GalaxySpecialTrait,
@@ -1320,6 +1322,23 @@ fn remove_opposite_traits(
     }
 }
 
+/// If no traits, adds the "NoPeculiarity" one, otherwise checks if it's present and removes it.
+fn clean_special_traits(special_traits: &mut Vec<GalaxySpecialTrait>) -> Vec<GalaxySpecialTrait> {
+    if special_traits.len() < 1 {
+        special_traits.push(GalaxySpecialTrait::NoPeculiarity);
+    } else if special_traits.len() > 1
+        && special_traits
+            .iter()
+            .find(|current_trait| {
+                discriminant(*current_trait) == discriminant(&GalaxySpecialTrait::NoPeculiarity)
+            })
+            .is_some()
+    {
+        remove_specific_trait(special_traits, GalaxySpecialTrait::NoPeculiarity);
+    }
+    special_traits.to_vec()
+}
+
 /// Removes an entry from the given list of possible traits.
 fn remove_specific_possible_trait(
     possible_traits: &mut Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
@@ -1351,7 +1370,7 @@ fn get_number_of_random_traits(index: u16, seed: &String) -> i32 {
     let mut turn = 0;
     while roll == 50 || turn < 1 {
         roll = rng.roll(1, 50, 0) as u8;
-        number_of_random_traits += if roll == 1 { 0 } else { 1 };
+        number_of_random_traits += if roll < 10 { 0 } else { 1 };
         turn += 1;
     }
     number_of_random_traits
@@ -1361,8 +1380,6 @@ fn get_number_of_random_traits(index: u16, seed: &String) -> i32 {
 fn get_fixed_age(settings: &GenerationSettings) -> f32 {
     let fixed_age = if settings.galaxy.fixed_age.is_some() {
         settings.galaxy.fixed_age.expect("Fixed age should be set")
-    } else if settings.galaxy.use_ours {
-        OUR_GALAXYS_AGE
     } else {
         -1.0
     };
@@ -1427,48 +1444,63 @@ mod tests {
                 GalaxySubCategory::DwarfAmorphous => {
                     if let GalaxyCategory::Intergalactic(l, w, h) = category {
                         assert!(
-                            l >= 350 && l <= 2000 && w >= 350 && w <= 2000 && h >= 250 && h <= 1750
+                            l >= 100 && l <= 4000 && w >= 100 && w <= 4000 && h >= 75 && h <= 3000
                         );
                     } else if let GalaxyCategory::Irregular(l, w, h) = category {
                         assert!(
-                            l >= 350 && l <= 2000 && w >= 350 && w <= 2000 && h >= 250 && h <= 1750
+                            l >= 100 && l <= 4000 && w >= 100 && w <= 4000 && h >= 75 && h <= 3000
                         );
                     } else if let GalaxyCategory::Intracluster(l, w, h) = category {
                         assert!(
-                            l >= 350 && l <= 2000 && w >= 350 && w <= 2000 && h >= 250 && h <= 1750
+                            l >= 100 && l <= 4000 && w >= 100 && w <= 4000 && h >= 75 && h <= 3000
                         );
                     }
                 }
                 GalaxySubCategory::Amorphous => {
                     if let GalaxyCategory::Intergalactic(l, w, h) = category {
                         assert!(
-                            l >= 700 && l <= 6000 && w >= 700 && w <= 6000 && h >= 700 && h <= 4000
+                            l >= 1250
+                                && l <= 12500
+                                && w >= 1250
+                                && w <= 12500
+                                && h >= 1000
+                                && h <= 10000
                         );
                     } else if let GalaxyCategory::Irregular(l, w, h) = category {
                         assert!(
-                            l >= 700 && l <= 6000 && w >= 700 && w <= 6000 && h >= 700 && h <= 4000
+                            l >= 1250
+                                && l <= 12500
+                                && w >= 1250
+                                && w <= 12500
+                                && h >= 1000
+                                && h <= 10000
                         );
                     } else if let GalaxyCategory::Intracluster(l, w, h) = category {
                         assert!(
-                            l >= 700 && l <= 6000 && w >= 700 && w <= 6000 && h >= 700 && h <= 4000
+                            l >= 1250
+                                && l <= 12500
+                                && w >= 1250
+                                && w <= 12500
+                                && h >= 1000
+                                && h <= 10000
                         );
                     }
                 }
                 GalaxySubCategory::DwarfSpiral => {
                     if let GalaxyCategory::Intergalactic(l, w, h) = category {
                         assert!(
-                            l >= 500 && l <= 2000 && w >= 500 && w <= 2000 && h >= 2 && h <= 60
+                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
                         );
                     } else if let GalaxyCategory::Irregular(l, w, h) = category {
                         assert!(
-                            l >= 500 && l <= 2000 && w >= 500 && w <= 2000 && h >= 2 && h <= 60
+                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
                         );
                     } else if let GalaxyCategory::Intracluster(l, w, h) = category {
                         assert!(
-                            l >= 500 && l <= 2000 && w >= 500 && w <= 2000 && h >= 2 && h <= 60
+                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
                         );
                     } else if let GalaxyCategory::Spiral(r, t) = category {
-                        assert!(r >= 250 && r <= 1000 && t >= 2 && t <= 60);
+                        assert!(r >= 250 && r <= 5000 && t >= 2 && t <= 300);
                     }
                 }
                 GalaxySubCategory::FlatSpiral
@@ -1481,18 +1513,18 @@ mod tests {
                 GalaxySubCategory::DwarfLenticular => {
                     if let GalaxyCategory::Intergalactic(l, w, h) = category {
                         assert!(
-                            l >= 500 && l <= 2000 && w >= 500 && w <= 2000 && h >= 2 && h <= 60
+                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
                         );
                     } else if let GalaxyCategory::Irregular(l, w, h) = category {
                         assert!(
-                            l >= 500 && l <= 2000 && w >= 500 && w <= 2000 && h >= 2 && h <= 60
+                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
                         );
                     } else if let GalaxyCategory::Intracluster(l, w, h) = category {
                         assert!(
-                            l >= 500 && l <= 2000 && w >= 500 && w <= 2000 && h >= 2 && h <= 60
+                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
                         );
                     } else if let GalaxyCategory::Lenticular(r, t) = category {
-                        assert!(r >= 250 && r <= 1000 && t >= 2 && t <= 60);
+                        assert!(r >= 250 && r <= 5000 && t >= 2 && t <= 300);
                     }
                 }
                 GalaxySubCategory::CommonLenticular => {
@@ -1508,18 +1540,18 @@ mod tests {
                 GalaxySubCategory::DwarfElliptical => {
                     if let GalaxyCategory::Intergalactic(l, w, h) = category {
                         assert!(
-                            l >= 20 && l <= 2000 && w >= 20 && w <= 2000 && h >= 5 && h <= 2000
+                            l >= 20 && l <= 10000 && w >= 20 && w <= 10000 && h >= 5 && h <= 10000
                         );
                     } else if let GalaxyCategory::Irregular(l, w, h) = category {
                         assert!(
-                            l >= 20 && l <= 2000 && w >= 20 && w <= 2000 && h >= 5 && h <= 2000
+                            l >= 20 && l <= 10000 && w >= 20 && w <= 10000 && h >= 5 && h <= 10000
                         );
                     } else if let GalaxyCategory::Intracluster(l, w, h) = category {
                         assert!(
-                            l >= 20 && l <= 2000 && w >= 20 && w <= 2000 && h >= 5 && h <= 2000
+                            l >= 20 && l <= 10000 && w >= 20 && w <= 10000 && h >= 5 && h <= 10000
                         );
                     } else if let GalaxyCategory::Elliptical(r) = category {
-                        assert!(r >= 10 && r <= 1000);
+                        assert!(r >= 10 && r <= 5000);
                     }
                 }
                 GalaxySubCategory::CommonElliptical => {

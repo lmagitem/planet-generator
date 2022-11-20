@@ -14,8 +14,9 @@ This is the current roadmap of the library:
     - [x] Neighborhood
     - [x] Age
     - [x] Shape
-    - [ ] Peculiarities
+    - [x] Peculiarities
     - [ ] Names
+    - [ ] Our local group galaxies
 - [ ] Sector and subsector generation
     - [ ] Location
     - [ ] Density
