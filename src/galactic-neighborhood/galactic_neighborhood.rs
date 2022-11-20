@@ -70,7 +70,7 @@ impl GalacticNeighborhood {
                         } else if universe.era == StelliferousEra::LateStelliferous {
                             rng.roll(1, 22, 3) as u16
                         } else {
-                            rng.roll(1, 100, 10) as u16
+                            rng.roll(1, 70, 9) as u16
                         },
                     );
                 }
@@ -110,7 +110,7 @@ impl GalacticNeighborhood {
                     } else if universe.era == StelliferousEra::LateStelliferous {
                         rng.roll(1, 200, 0) as u16
                     } else {
-                        rng.roll(1, 1000, 50) as u16
+                        rng.roll(1, 950, 50) as u16
                     },
                 );
             }

@@ -88,7 +88,7 @@ dependencies = [
 
 [[package]]
 name = "planet_generator"
-version = "0.0.1-pre-alpha"
+version = "0.0.2-pre-alpha"
 dependencies = [
  "log",
  "seeded_dice_roller",

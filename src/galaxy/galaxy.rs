@@ -430,24 +430,23 @@ fn get_category_with_size(
             }
         }
         GalaxySubCategory::Amorphous => {
+            let min_size: u64 = 4000 * 4000 * 3000;
+            let mut l = 0;
+            let mut w = 0;
+            let mut h = 0;
+            let mut current_size: u64 = 0;
+            while current_size < min_size {
+                l = rng.roll(1, 1125, 124) as u32 * 10;
+                w = rng.roll(1, 1125, 124) as u32 * 10;
+                h = rng.roll(1, 900, 99) as u32 * 10;
+                current_size = (l as u64) * (w as u64) * (h as u64);
+            }
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
-                category_with_size = GalaxyCategory::Intergalactic(
-                    rng.roll(1, 1125, 124) as u32 * 10,
-                    rng.roll(1, 1125, 124) as u32 * 10,
-                    rng.roll(1, 900, 99) as u32 * 10,
-                );
+                category_with_size = GalaxyCategory::Intergalactic(l, w, h);
             } else if category == GalaxyCategory::Irregular(0, 0, 0) {
-                category_with_size = GalaxyCategory::Irregular(
-                    rng.roll(1, 1125, 124) as u32 * 10,
-                    rng.roll(1, 1125, 124) as u32 * 10,
-                    rng.roll(1, 900, 99) as u32 * 10,
-                );
+                category_with_size = GalaxyCategory::Irregular(l, w, h);
             } else {
-                category_with_size = GalaxyCategory::Intracluster(
-                    rng.roll(1, 1125, 124) as u32 * 10,
-                    rng.roll(1, 1125, 124) as u32 * 10,
-                    rng.roll(1, 900, 99) as u32 * 10,
-                );
+                category_with_size = GalaxyCategory::Intracluster(l, w, h);
             }
         }
         GalaxySubCategory::DwarfSpiral => {
@@ -525,7 +524,7 @@ fn get_category_with_size(
             );
         }
         GalaxySubCategory::DwarfElliptical => {
-            let radius = rng.roll(1, 500, 0) as u32 * 10;
+            let radius = rng.roll(1, 170, 4) as u32 * 10;
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intergalactic(
                     radius * 2,
@@ -1421,6 +1420,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn generate_a_galaxy_with_sensible_age() {
+        for i in 0..10000 {
+            let settings = &GenerationSettings {
+                galaxy: GalaxySettings {
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let seed = String::from(&i.to_string());
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&seed, &settings),
+                &seed,
+                &settings,
+            );
+            let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            assert!(galaxy.age <= neighborhood.universe.age - 0.2)
+        }
+    }
+
+    #[test]
     fn generate_a_galaxy_with_proper_size() {
         for i in 0..10000 {
             let settings = &GenerationSettings {
@@ -1436,7 +1455,6 @@ mod tests {
                 &settings,
             );
             let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
-            println!("{}", galaxy);
 
             let category = galaxy.category;
             let sub_category = galaxy.sub_category;
@@ -1540,18 +1558,18 @@ mod tests {
                 GalaxySubCategory::DwarfElliptical => {
                     if let GalaxyCategory::Intergalactic(l, w, h) = category {
                         assert!(
-                            l >= 20 && l <= 10000 && w >= 20 && w <= 10000 && h >= 5 && h <= 10000
+                            l >= 20 && l <= 3500 && w >= 20 && w <= 3500 && h >= 5 && h <= 3500
                         );
                     } else if let GalaxyCategory::Irregular(l, w, h) = category {
                         assert!(
-                            l >= 20 && l <= 10000 && w >= 20 && w <= 10000 && h >= 5 && h <= 10000
+                            l >= 20 && l <= 3500 && w >= 20 && w <= 3500 && h >= 5 && h <= 3500
                         );
                     } else if let GalaxyCategory::Intracluster(l, w, h) = category {
                         assert!(
-                            l >= 20 && l <= 10000 && w >= 20 && w <= 10000 && h >= 5 && h <= 10000
+                            l >= 20 && l <= 3500 && w >= 20 && w <= 3500 && h >= 5 && h <= 3500
                         );
                     } else if let GalaxyCategory::Elliptical(r) = category {
-                        assert!(r >= 10 && r <= 5000);
+                        assert!(r >= 10 && r <= 1750);
                     }
                 }
                 GalaxySubCategory::CommonElliptical => {
