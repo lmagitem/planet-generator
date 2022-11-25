@@ -18,9 +18,13 @@ This is the current roadmap of the library:
     - [ ] Names
     - [ ] Our local group galaxies
 - [ ] Sector and subsector generation
-    - [ ] Location
-    - [ ] Density
+    - [ ] Configurable divisions
+    - [ ] Hex and division calculations
+    - [ ] Temporary region mapping
+    - [ ] Proper region mapping
+    - [ ] Names
 - [ ] Star system generation
+    - [ ] Spawn chance according to density
     - [ ] Stars generation
         - [ ] Age
         - [ ] Spectral type

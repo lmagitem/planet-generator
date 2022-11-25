@@ -1,4 +1,10 @@
 #![warn(clippy::all, clippy::pedantic)]
+#[path = "./galactic-map/division.rs"]
+mod galactic_map_division;
+#[path = "./galactic-map/hex.rs"]
+mod galactic_map_hex;
+#[path = "./galactic-map/types.rs"]
+mod galactic_map_types;
 #[path = "./galactic-neighborhood/galactic_neighborhood.rs"]
 mod galactic_neighborhood;
 #[path = "./galactic-neighborhood/types.rs"]
@@ -15,10 +21,6 @@ mod generator_types;
 mod planet;
 #[path = "./planet/types.rs"]
 mod planet_types;
-#[path = "./sector/sector.rs"]
-mod sector;
-#[path = "./sector/types.rs"]
-mod sector_types;
 #[path = "./system/system.rs"]
 mod system;
 #[path = "./system/types.rs"]
@@ -29,6 +31,9 @@ mod universe;
 mod universe_types;
 
 pub mod prelude {
+    pub use crate::galactic_map_division::*;
+    pub use crate::galactic_map_hex::*;
+    pub use crate::galactic_map_types::*;
     pub use crate::galactic_neighborhood::*;
     pub use crate::galactic_neighborhood_types::*;
     pub use crate::galaxy::*;
@@ -37,8 +42,6 @@ pub mod prelude {
     pub use crate::generator_types::*;
     pub use crate::planet::*;
     pub use crate::planet_types::*;
-    pub use crate::sector::*;
-    pub use crate::sector_types::*;
     pub use crate::system::*;
     pub use crate::system_types::*;
     pub use crate::universe::*;
