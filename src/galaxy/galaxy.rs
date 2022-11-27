@@ -6,6 +6,10 @@ use galaxy_constants::*;
 /// Data allowing us to model a galaxy.
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Galaxy {
+    /// The generation seed to use when generating content.
+    pub seed: String,
+    /// The settings to use when generating content.
+    pub settings: GenerationSettings,
     /// The neighborhood this galaxy belongs to.
     pub neighborhood: GalacticNeighborhood,
     /// The numeric identifier of this galaxy in its neighborhood.
@@ -24,11 +28,21 @@ pub struct Galaxy {
     pub sub_category: GalaxySubCategory,
     /// What are the pecularities of this galaxy.
     pub special_traits: Vec<GalaxySpecialTrait>,
+    /// The specific division levels used to map this galaxy's content.
+    pub division_levels: Vec<GalacticMapDivisionLevel>,
+    /// This galaxy's already generated divisions.
+    pub divisions: Vec<GalacticMapDivision>,
+    /// This galaxy's already generated hexagons.
+    pub hexes: Vec<GalacticHex>,
 }
 
 impl Default for Galaxy {
     fn default() -> Self {
         Self {
+            seed: String::from("default"),
+            settings: GenerationSettings {
+                ..Default::default()
+            },
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
@@ -40,6 +54,9 @@ impl Default for Galaxy {
             category: OUR_GALAXYS_CATEGORY,
             sub_category: OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![NO_SPECIAL_TRAIT],
+            division_levels: vec![],
+            divisions: vec![],
+            hexes: vec![],
         }
     }
 }
@@ -67,6 +84,8 @@ impl Display for Galaxy {
 impl Galaxy {
     /// Returns a new [Galaxy] using the given arguments.
     pub fn new(
+        seed: String,
+        settings: GenerationSettings,
         neighborhood: GalacticNeighborhood,
         index: u16,
         name: String,
@@ -78,6 +97,8 @@ impl Galaxy {
         special_traits: Vec<GalaxySpecialTrait>,
     ) -> Self {
         Self {
+            seed,
+            settings,
             neighborhood,
             index,
             name,
@@ -87,6 +108,9 @@ impl Galaxy {
             category,
             sub_category,
             special_traits,
+            division_levels: vec![],
+            divisions: vec![],
+            hexes: vec![],
         }
     }
 
@@ -155,6 +179,8 @@ impl Galaxy {
         }
 
         Self {
+            seed: seed.to_string(),
+            settings: settings.clone(),
             neighborhood,
             index,
             name,
@@ -164,7 +190,71 @@ impl Galaxy {
             category,
             sub_category,
             special_traits,
+            division_levels: vec![],
+            divisions: vec![],
+            hexes: vec![],
         }
+    }
+
+    /// Returns the [GalacticHex] whose coordinates have been given in parameters.
+    /// TODO: Add a boolean "populate" parameter that genetates life in the hex if needed.
+    pub fn get_hex(&self, coord: SpaceCoordinates) -> Result<GalacticHex, String> {
+        // TODO: Get the size of a standard hex
+        // TODO: Calculate the coordinates of the standard hex the given coordinates are supposed to belong to
+        let x_hex = coord.x;
+        let y_hex = coord.y;
+        let z_hex = coord.z;
+        // TODO: Check if the coordinates are valid
+        if false {
+            return Err(String::from("Invalid coordinates."));
+        }
+
+        let possible_hex = self
+            .hexes
+            .iter()
+            .find(|hex| hex.coord.x == x_hex && hex.coord.y == y_hex && hex.coord.z == z_hex);
+        if let Some(hex) = possible_hex {
+            Ok(hex.clone())
+        } else {
+            // TODO: Generate the hex and return it
+            Ok(GalacticHex::default())
+        }
+    }
+
+    /// TODO: Returns the list of [GalacticMapDivision] the given coordinates are a part of.
+    pub fn get_division_at_level(
+        &self,
+        coord: SpaceCoordinates,
+        level: u8,
+    ) -> Result<GalacticMapDivision, String> {
+        // TODO: Check if the coordinates are valid
+        if false {
+            return Err(String::from("Invalid coordinates."));
+        }
+
+        if let Some(division) = self
+            .get_divisions(coord)?
+            .iter()
+            .find(|div| div.level == level)
+        {
+            Ok(division.clone())
+        } else {
+            // TODO: Generate the division and return it
+            Ok(GalacticMapDivision::default())
+        }
+    }
+
+    /// TODO: Returns the list of [GalacticMapDivision] the given coordinates are a part of.
+    pub fn get_divisions(
+        &self,
+        coord: SpaceCoordinates,
+    ) -> Result<Vec<GalacticMapDivision>, String> {
+        // TODO: Check if the coordinates are valid
+        if false {
+            return Err(String::from("Invalid coordinates."));
+        }
+
+        Ok(vec![])
     }
 }
 

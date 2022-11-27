@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+/// Represents a specific part of the [Galaxy].
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
 pub struct GalacticMapDivision {
     /// The denomination by which this particular partition of space is known.
     pub name: String,

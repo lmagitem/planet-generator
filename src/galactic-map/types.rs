@@ -1,4 +1,9 @@
+use crate::prelude::*;
+
 /// Data pertaining how space is divided on a galactic scale.
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 pub struct GalacticMapDivisionLevel {
     /// The divisions' "level" this object represents. The higher the level, the bigger the division. 0 is a single hex, 1 a subsector,
     /// 2 a sector, and so on...
@@ -12,6 +17,9 @@ pub struct GalacticMapDivisionLevel {
 }
 
 /// Represents the different kind of places a star could be in the galaxy.
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
+)]
 pub enum GalacticRegion {
     /// This division spawns accross a number of different regions.
     Multiple,
@@ -36,6 +44,7 @@ pub enum GalacticRegion {
     /// there are generally older and way less densely packed.
     Aura,
     /// The void outside the limits of the galaxy proper. One can still find the occasional stray stars and satellite clusters around.
+    #[default]
     Void,
     /// A spheroidal conglomeration of stars gound together by their gravity, with a higher concentration of stars towards the center. They
     /// tenbd to be older, denser and have less metallicity
@@ -56,6 +65,9 @@ pub enum GalacticRegion {
 }
 
 /// Coordinates of an hex in a galactic map.
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
+)]
 pub struct SpaceCoordinates {
     /// The x coordinate of the point.
     pub x: u64,
