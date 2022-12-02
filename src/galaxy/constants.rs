@@ -10,7 +10,7 @@ pub const OUR_GALAXYS_CATEGORY: GalaxyCategory = GalaxyCategory::Spiral(16203, 1
 pub const OUR_GALAXYS_SUB_CATEGORY: GalaxySubCategory = GalaxySubCategory::BarredSpiral;
 /// The current age of the universe.
 pub const NO_SPECIAL_TRAIT: GalaxySpecialTrait = GalaxySpecialTrait::NoPeculiarity;
-/// !todo List of all galaxies in our local group
+/// TODO List of all galaxies in our local group
 pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     GalaxyWithoutTraits {
         index: 0,
@@ -50,7 +50,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 3,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -62,7 +62,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 4,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -74,7 +74,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 5,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -86,7 +86,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 6,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -98,7 +98,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 7,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -110,7 +110,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 8,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -122,7 +122,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 9,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -134,7 +134,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 10,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -146,7 +146,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 11,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -158,7 +158,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 12,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -170,7 +170,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 13,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -182,7 +182,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 14,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -194,7 +194,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 15,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -206,7 +206,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 16,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -218,7 +218,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 17,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -230,7 +230,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 18,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -242,7 +242,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 19,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -254,7 +254,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 20,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -266,7 +266,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 21,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -278,7 +278,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 22,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -290,7 +290,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 23,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -302,7 +302,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 24,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -314,7 +314,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 25,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -326,7 +326,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 26,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -338,7 +338,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 27,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -350,7 +350,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 28,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -362,7 +362,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 29,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -374,7 +374,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 30,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -386,7 +386,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 31,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -398,7 +398,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 32,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -410,7 +410,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 33,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -422,7 +422,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 34,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -434,7 +434,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 35,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -446,7 +446,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 36,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,
@@ -458,7 +458,7 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 37,
-        name: "!todo",
+        name: "TODO",
         age: -1.0,
         is_dominant: false,
         is_major: true,

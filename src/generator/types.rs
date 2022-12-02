@@ -7,6 +7,8 @@ pub struct GenerationSettings {
     pub universe: UniverseSettings,
     /// A list of settings used to configure the [Galaxy] generation.
     pub galaxy: GalaxySettings,
+    /// A list of settings used to configure the [GalacticMapDivisionLevel], [GalacticMapDivision]s and [GalacticHex]es generation.
+    pub sector: SectorSettings,
 }
 
 /// Data object filled with the results of a generation.
