@@ -33,6 +33,12 @@ impl SpaceCoordinates {
     }
 }
 
+impl Display for SpaceCoordinates {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "(x: {}, y: {}, z: {})", self.x, self.y, self.z)
+    }
+}
+
 impl Add for SpaceCoordinates {
     fn add(self, o: Self) -> Self {
         Self {

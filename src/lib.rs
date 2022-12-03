@@ -16,6 +16,8 @@ pub mod prelude {
     pub use crate::galaxy::*;
     pub use crate::generator::types::*;
     pub use crate::generator::*;
+    pub use crate::system::neighborhood::types::*;
+    pub use crate::system::neighborhood::*;
     pub use crate::system::planet::types::*;
     pub use crate::system::planet::*;
     pub use crate::system::types::*;

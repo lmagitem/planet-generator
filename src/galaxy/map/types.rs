@@ -59,6 +59,8 @@ pub enum GalacticRegion {
     Multiple,
     /// The core of an elliptical galaxy. Stars there are generally older, numerous and densely packed.
     Core,
+    /// The core of a spiral or dwarf lenticular galaxy.
+    Nucleus,
     /// The bulge of a spiral or lenticular galaxy. Stars there are generally numerous and densely packed, but age and star generation rate
     /// depends on the type of bulge.
     Bulge,
