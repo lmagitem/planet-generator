@@ -18,8 +18,8 @@ This is the current roadmap of the library:
     - [ ] Names
     - [ ] Our local group galaxies
 - [ ] Sector and subsector generation
-    - [ ] Configurable divisions
-    - [ ] Hex and division calculations
+    - [x] Configurable divisions
+    - [x] Hex and division calculations
     - [ ] Temporary region mapping
     - [ ] Proper region mapping
     - [ ] Names
