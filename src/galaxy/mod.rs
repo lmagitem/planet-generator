@@ -4,6 +4,7 @@ mod constants;
 use constants::*;
 pub mod generator;
 pub mod map;
+pub mod neighborhood;
 pub mod types;
 
 /// Data allowing us to model a galaxy.

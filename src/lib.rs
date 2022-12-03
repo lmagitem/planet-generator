@@ -1,24 +1,23 @@
 #![warn(clippy::all, clippy::pedantic)]
-mod galactic_map;
-mod galactic_neighborhood;
 mod galaxy;
 mod generator;
-mod planet;
 mod system;
 mod universe;
 
 pub mod prelude {
-    pub use crate::galactic_map::division::*;
-    pub use crate::galactic_map::hex::*;
-    pub use crate::galactic_map::types::*;
-    pub use crate::galactic_neighborhood::types::*;
-    pub use crate::galactic_neighborhood::*;
+    pub use crate::galaxy::map::division::*;
+    pub use crate::galaxy::map::division_level::*;
+    pub use crate::galaxy::map::hex::types::*;
+    pub use crate::galaxy::map::hex::*;
+    pub use crate::galaxy::map::types::*;
+    pub use crate::galaxy::neighborhood::types::*;
+    pub use crate::galaxy::neighborhood::*;
     pub use crate::galaxy::types::*;
     pub use crate::galaxy::*;
     pub use crate::generator::types::*;
     pub use crate::generator::*;
-    pub use crate::planet::types::*;
-    pub use crate::planet::*;
+    pub use crate::system::planet::types::*;
+    pub use crate::system::planet::*;
     pub use crate::system::types::*;
     pub use crate::system::*;
     pub use crate::universe::types::*;

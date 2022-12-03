@@ -1,6 +1,10 @@
 use crate::prelude::*;
-#[path = "./constants.rs"]
+#[path = "../constants.rs"]
 mod constants;
+pub mod division;
+pub mod division_level;
+pub mod hex;
+pub mod types;
 use constants::*;
 
 impl Galaxy {
@@ -11,12 +15,18 @@ impl Galaxy {
             return Err(String::from("Invalid coordinates."));
         }
 
+        let starting_point = self.get_galactic_start();
+        let abs_coord = coord.abs(starting_point);
         let hex_size = self.settings.sector.hex_size;
-        let abs_coord = coord.abs(self.get_galactic_start());
+        let hex_size_as_coord =
+            SpaceCoordinates::new(hex_size.0 as i64, hex_size.1 as i64, hex_size.2 as i64);
+        let abs_hex_coordinates = abs_coord / hex_size_as_coord;
+        let rel_hex_coordinates = abs_hex_coordinates.rel(starting_point);
+        let possible_hex = self
+            .hexes
+            .iter()
+            .find(|hex| hex.first_vertex == rel_hex_coordinates);
 
-        let possible_hex = self.hexes.iter().find(|hex| {
-            hex.coord.x == abs_coord.x && hex.coord.y == abs_coord.y && hex.coord.z == abs_coord.z
-        });
         if let Some(hex) = possible_hex {
             Ok(hex.clone())
         } else {
@@ -185,7 +195,7 @@ mod tests {
     }
 
     #[test]
-    fn checks_coordinates_validity() {
+    fn checks_coordinates_validity_properly() {
         let galaxy = Galaxy {
             seed: String::from("default"),
             settings: GenerationSettings {
@@ -231,5 +241,52 @@ mod tests {
         assert!(!galaxy.are_coord_valid(SpaceCoordinates::new(2, 3, 0)));
         assert!(!galaxy.are_coord_valid(SpaceCoordinates::new(3, 2, 0)));
         assert!(!galaxy.are_coord_valid(SpaceCoordinates::new(2, 2, 60)));
+    }
+
+    #[test]
+    fn get_hex_returns_hexes_at_expected_coordinates() {
+        let galaxy = Galaxy {
+            seed: String::from("default"),
+            settings: GenerationSettings {
+                universe: UniverseSettings {
+                    ..Default::default()
+                },
+                galaxy: GalaxySettings {
+                    ..Default::default()
+                },
+                sector: SectorSettings {
+                    hex_size: (2, 2, 2),
+                    level_1_size: (2, 2, 2),
+                    level_2_size: (3, 3, 3),
+                    level_3_size: (4, 4, 4),
+                    level_4_size: (62, 62, 62),
+                    level_5_size: (62, 62, 62),
+                    level_6_size: (62, 62, 62),
+                    level_7_size: (62, 62, 62),
+                    level_8_size: (62, 62, 62),
+                    level_9_size: (62, 62, 62),
+                    flat_map: true,
+                },
+            },
+            neighborhood: GalacticNeighborhood {
+                ..Default::default()
+            },
+            index: 0,
+            name: String::from(OUR_GALAXYS_NAME),
+            age: OUR_GALAXYS_AGE,
+            is_dominant: false,
+            is_major: true,
+            category: GalaxyCategory::Irregular(100, 1, 1),
+            sub_category: OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![NO_SPECIAL_TRAIT],
+            division_levels: vec![],
+            divisions: vec![],
+            hexes: vec![],
+        };
+        let last_hex = galaxy
+            .get_hex(SpaceCoordinates::new(50, 0, 0))
+            .expect("Should return a hex");
+        assert!(last_hex.first_vertex == SpaceCoordinates::new(49, 0, 0));
+        assert!(last_hex.last_vertex == SpaceCoordinates::new(50, 1, 1));
     }
 }

@@ -1,5 +1,6 @@
 use crate::prelude::*;
 pub mod generator;
+pub mod planet;
 pub mod types;
 
 #[derive(

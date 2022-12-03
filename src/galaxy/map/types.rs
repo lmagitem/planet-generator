@@ -1,5 +1,4 @@
 use crate::prelude::*;
-use std::ops::*;
 
 /// A list of settings used to configure the [GalacticMapDivisionLevel], [GalacticMapDivision]s and [GalacticHex]es generation.
 #[derive(
@@ -51,30 +50,6 @@ pub struct SectorSettings {
     pub flat_map: bool,
 }
 
-/// Data pertaining how space is divided on a galactic scale.
-#[derive(
-    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
-)]
-pub struct GalacticMapDivisionLevel {
-    /// The divisions' "level" this object represents. The higher the level, the bigger the division. 0 is a single hex, 1 a subsector,
-    /// 2 a sector, and so on...
-    pub level: u8,
-    /// How many inferior level divisions this level spans on the x axis, or how many parsecs for level 0.
-    pub x_subdivisions: u8,
-    /// How many inferior level divisions this level spans on the y axis, or how many parsecs for level 0.
-    pub y_subdivisions: u8,
-    /// How many inferior level divisions this level spans on the z axis, or how many parsecs for level 0.
-    pub z_subdivisions: u8,
-}
-
-impl GalacticMapDivisionLevel {
-    pub fn generate_division_levels(settings: &GenerationSettings) -> Vec<Self> {
-        let mut division_levels = Vec::new();
-        // TODO: this
-        division_levels
-    }
-}
-
 /// Represents the different kind of places a star could be in the galaxy.
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
@@ -121,73 +96,4 @@ pub enum GalacticRegion {
     Remnant,
     /// Some stars lost into the void, pushed out of their normal course by gravity during their past.
     Exile,
-}
-
-/// Coordinates of a point in a galactic map, in parsecs.
-#[derive(
-    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize,
-)]
-pub struct SpaceCoordinates {
-    /// The x coordinate of the point in parsecs relative to the galactic center.
-    pub x: i64,
-    /// The y coordinate of the point in parsecs relative to the galactic center.
-    pub y: i64,
-    /// The z coordinate of the point in parsecs relative to the galactic center.
-    pub z: i64,
-}
-
-impl SpaceCoordinates {
-    /// Creates a new [SpaceCoordinates] instance.
-    pub fn new(x: i64, y: i64, z: i64) -> Self {
-        SpaceCoordinates { x, y, z }
-    }
-
-    /// Returns the absolute value of the coordinates using a given starting point.
-    pub fn abs(self, starting_point: SpaceCoordinates) -> Self {
-        self + starting_point
-    }
-}
-
-impl Add for SpaceCoordinates {
-    fn add(self, o: Self) -> Self {
-        Self {
-            x: self.x + o.x,
-            y: self.y + o.y,
-            z: self.z + o.z,
-        }
-    }
-    type Output = Self;
-}
-
-impl Sub for SpaceCoordinates {
-    fn sub(self, o: Self) -> Self {
-        Self {
-            x: self.x - o.x,
-            y: self.y - o.y,
-            z: self.z - o.z,
-        }
-    }
-    type Output = Self;
-}
-
-impl Mul for SpaceCoordinates {
-    fn mul(self, o: Self) -> Self {
-        Self {
-            x: self.x * o.x,
-            y: self.y * o.y,
-            z: self.z * o.z,
-        }
-    }
-    type Output = Self;
-}
-
-impl Div for SpaceCoordinates {
-    fn div(self, o: Self) -> Self {
-        Self {
-            x: self.x / o.x,
-            y: self.y / o.y,
-            z: self.z / o.z,
-        }
-    }
-    type Output = Self;
 }
