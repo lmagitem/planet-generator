@@ -16,4 +16,29 @@ pub struct GalacticMapDivision {
     pub y: u8,
     /// Which cell this division occupies on the Z axis in its parent's grid.
     pub z: u8,
+    /// The index of this division on the x, y and z axis.
+    pub index: SpaceCoordinates,
+}
+
+impl GalacticMapDivision {
+    /// Creates a new [GalacticMapDivision].
+    pub fn new(
+        name: String,
+        region: GalacticRegion,
+        level: u8,
+        x: u8,
+        y: u8,
+        z: u8,
+        index: SpaceCoordinates,
+    ) -> Self {
+        Self {
+            name,
+            region,
+            level,
+            x,
+            y,
+            z,
+            index,
+        }
+    }
 }

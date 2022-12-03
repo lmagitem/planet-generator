@@ -67,6 +67,7 @@ impl Galaxy {
                 settings,
             );
         }
+        let division_levels = GalacticMapDivisionLevel::generate_division_levels(settings);
 
         Self {
             seed: seed.to_string(),
@@ -80,7 +81,7 @@ impl Galaxy {
             category,
             sub_category,
             special_traits,
-            division_levels: vec![],
+            division_levels,
             divisions: vec![],
             hexes: vec![],
         }

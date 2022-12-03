@@ -7,10 +7,15 @@ pub mod types;
     Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
 )]
 pub struct GalacticHex {
-    /// The coordinates of the first parsec covered by that hex on the galactic map, that is the one whose x, y and z values are the lowest.
-    pub first_vertex: SpaceCoordinates,
-    /// The coordinates of the last parsec covered by that hex on the galactic map, that is the one whose x, y and z values are the highest.
-    pub last_vertex: SpaceCoordinates,
+    /// The index of this hex on the x, y and z axis.
+    pub index: SpaceCoordinates,
     /// The star systems one can find in this hex, if any.
     pub contents: Vec<StarSystem>,
+}
+
+impl GalacticHex {
+    /// Creates a new instance of [GalacticHex].
+    pub fn new(index: SpaceCoordinates, contents: Vec<StarSystem>) -> Self {
+        Self { index, contents }
+    }
 }

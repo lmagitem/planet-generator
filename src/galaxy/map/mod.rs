@@ -9,64 +9,99 @@ use constants::*;
 
 impl Galaxy {
     /// Returns the [GalacticHex] whose coordinates have been given in parameters.
-    /// TODO: Add a boolean "populate" parameter that genetates life in the hex if needed.
-    pub fn get_hex(&self, coord: SpaceCoordinates) -> Result<GalacticHex, String> {
+    /// TODO: Add a boolean "populate" parameter that generates life in the hex if needed.
+    pub fn get_hex(&mut self, coord: SpaceCoordinates) -> Result<GalacticHex, String> {
         if !self.are_coord_valid(coord) {
             return Err(String::from("Invalid coordinates."));
         }
 
         let starting_point = self.get_galactic_start();
         let abs_coord = coord.abs(starting_point);
-        let hex_size = self.settings.sector.hex_size;
-        let hex_size_as_coord =
-            SpaceCoordinates::new(hex_size.0 as i64, hex_size.1 as i64, hex_size.2 as i64);
-        let abs_hex_coordinates = abs_coord / hex_size_as_coord;
-        let rel_hex_coordinates = abs_hex_coordinates.rel(starting_point);
-        let possible_hex = self
-            .hexes
+        let hex_size = self
+            .division_levels
             .iter()
-            .find(|hex| hex.first_vertex == rel_hex_coordinates);
+            .find(|l| l.level == 0)
+            .expect("The division levels should be set")
+            .as_coord();
+        let index = abs_coord / hex_size;
+        let possible_hex = self.hexes.iter().find(|hex| hex.index == index);
 
         if let Some(hex) = possible_hex {
             Ok(hex.clone())
         } else {
-            // TODO: Generate the hex and return it
-            Ok(GalacticHex::default())
+            let new_hex = GalacticHex::generate(coord, index, self);
+            self.hexes.push(new_hex.clone());
+            Ok(new_hex)
         }
     }
 
-    /// TODO: Returns the list of [GalacticMapDivision] the given coordinates are a part of.
+    /// Returns the [GalacticMapDivision] at the level and coordinates given in parameters.
     pub fn get_division_at_level(
-        &self,
+        &mut self,
         coord: SpaceCoordinates,
         level: u8,
     ) -> Result<GalacticMapDivision, String> {
         if !self.are_coord_valid(coord) {
             return Err(String::from("Invalid coordinates."));
         }
+        if level <= 0 || level >= 10 {
+            return Err(String::from(
+                "Level must be higher than 0 and less than 10.",
+            ));
+        }
 
-        if let Some(division) = self
-            .get_divisions(coord)?
+        let divisions = self
+            .get_divisions_for_coord(coord)
+            .expect("Divisions should have been found or generated.");
+        let division = divisions
             .iter()
             .find(|div| div.level == level)
-        {
-            Ok(division.clone())
-        } else {
-            // TODO: Generate the division and return it
-            Ok(GalacticMapDivision::default())
-        }
+            .expect("A division should have been found or generated.");
+        Ok(division.clone())
     }
 
-    /// TODO: Returns the list of [GalacticMapDivision] the given coordinates are a part of.
-    pub fn get_divisions(
-        &self,
+    /// Returns the list of [GalacticMapDivision] the given coordinates are a part of.
+    pub fn get_divisions_for_coord(
+        &mut self,
         coord: SpaceCoordinates,
     ) -> Result<Vec<GalacticMapDivision>, String> {
         if !self.are_coord_valid(coord) {
             return Err(String::from("Invalid coordinates."));
         }
 
-        Ok(vec![])
+        let mut result = Vec::new();
+        let starting_point = self.get_galactic_start();
+        let abs_coord = coord.abs(starting_point);
+
+        let mut index = abs_coord;
+        for i in 0..=9 {
+            index = calculate_next_index(self, i, index);
+            let possible_division = self
+                .divisions
+                .iter()
+                .filter(|div| div.level == i)
+                .find(|div| div.index == index);
+
+            if let Some(division) = possible_division {
+                result.push(division.clone())
+            } else {
+                let new_division = GalacticMapDivision::generate(
+                    coord,
+                    index,
+                    i,
+                    &self
+                        .division_levels
+                        .iter()
+                        .find(|lvl| lvl.level == i + 1)
+                        .unwrap_or(&GalacticMapDivisionLevel::new(10, 255, 255, 255)),
+                    self,
+                );
+                self.divisions.push(new_division.clone());
+                result.push(new_division)
+            }
+        }
+
+        Ok(result)
     }
 
     /// Returns the starting point of a galactic 3D map.
@@ -160,6 +195,21 @@ impl Galaxy {
     }
 }
 
+/// Calculates the index of a [GalacticMapDivision] when iterating over division levels to determine the index of higher levels.
+fn calculate_next_index(
+    galaxy: &mut Galaxy,
+    level: u8,
+    index: SpaceCoordinates,
+) -> SpaceCoordinates {
+    let size = galaxy
+        .division_levels
+        .iter()
+        .find(|l| l.level == level)
+        .expect("The division levels should be set.")
+        .as_coord();
+    index / size
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -244,30 +294,31 @@ mod tests {
     }
 
     #[test]
-    fn get_hex_returns_hexes_at_expected_coordinates() {
-        let galaxy = Galaxy {
-            seed: String::from("default"),
-            settings: GenerationSettings {
-                universe: UniverseSettings {
-                    ..Default::default()
-                },
-                galaxy: GalaxySettings {
-                    ..Default::default()
-                },
-                sector: SectorSettings {
-                    hex_size: (2, 2, 2),
-                    level_1_size: (2, 2, 2),
-                    level_2_size: (3, 3, 3),
-                    level_3_size: (4, 4, 4),
-                    level_4_size: (62, 62, 62),
-                    level_5_size: (62, 62, 62),
-                    level_6_size: (62, 62, 62),
-                    level_7_size: (62, 62, 62),
-                    level_8_size: (62, 62, 62),
-                    level_9_size: (62, 62, 62),
-                    flat_map: true,
-                },
+    fn hexes_and_divs_are_at_expected_coordinates() {
+        let settings = GenerationSettings {
+            universe: UniverseSettings {
+                ..Default::default()
             },
+            galaxy: GalaxySettings {
+                ..Default::default()
+            },
+            sector: SectorSettings {
+                hex_size: (4, 2, 4),
+                level_1_size: (2, 2, 2),
+                level_2_size: (3, 3, 3),
+                level_3_size: (2, 2, 2),
+                level_4_size: (62, 62, 62),
+                level_5_size: (62, 62, 62),
+                level_6_size: (62, 62, 62),
+                level_7_size: (62, 62, 62),
+                level_8_size: (62, 62, 62),
+                level_9_size: (62, 62, 62),
+                flat_map: true,
+            },
+        };
+        let mut galaxy = Galaxy {
+            seed: String::from("default"),
+            settings: settings.clone(),
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
@@ -276,17 +327,74 @@ mod tests {
             age: OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
-            category: GalaxyCategory::Irregular(100, 1, 1),
+            category: GalaxyCategory::Irregular(100, 5, 1),
             sub_category: OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![NO_SPECIAL_TRAIT],
-            division_levels: vec![],
+            division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
             divisions: vec![],
             hexes: vec![],
         };
+        let first_hex = galaxy
+            .get_hex(SpaceCoordinates::new(-49, -2, 0))
+            .expect("Should return a hex.");
+        assert!(first_hex.index == SpaceCoordinates::new(0, 0, 0));
+        let first_hex_but_second_parsec = galaxy
+            .get_hex(SpaceCoordinates::new(-48, -2, 0))
+            .expect("Should return a hex.");
+        assert!(first_hex_but_second_parsec.index == SpaceCoordinates::new(0, 0, 0));
+        let another_hex = galaxy
+            .get_hex(SpaceCoordinates::new(-10, -2, 0))
+            .expect("Should return a hex.");
+        assert!(another_hex.index == SpaceCoordinates::new(9, 0, 0));
+        let another_hex_with_different_y = galaxy
+            .get_hex(SpaceCoordinates::new(-10, 0, 0))
+            .expect("Should return a hex.");
+        assert!(another_hex_with_different_y.index == SpaceCoordinates::new(9, 1, 0));
         let last_hex = galaxy
-            .get_hex(SpaceCoordinates::new(50, 0, 0))
-            .expect("Should return a hex");
-        assert!(last_hex.first_vertex == SpaceCoordinates::new(49, 0, 0));
-        assert!(last_hex.last_vertex == SpaceCoordinates::new(50, 1, 1));
+            .get_hex(SpaceCoordinates::new(50, 2, 0))
+            .expect("Should return a hex.");
+        assert!(last_hex.index == SpaceCoordinates::new(24, 2, 0));
+
+        let first_div = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 1)
+            .expect("Should return a div.");
+        assert!(first_div.index == SpaceCoordinates::new(0, 0, 0));
+        let first_div_but_fourth_parsec = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 1)
+            .expect("Should return a div.");
+        assert!(first_div_but_fourth_parsec.index == SpaceCoordinates::new(0, 0, 0));
+        let another_div = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)
+            .expect("Should return a div.");
+        assert!(another_div.index == SpaceCoordinates::new(4, 0, 0));
+        let another_div_with_different_y = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 1)
+            .expect("Should return a div.");
+        assert!(another_div_with_different_y.index == SpaceCoordinates::new(4, 0, 0));
+        let last_div = galaxy
+            .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 1)
+            .expect("Should return a div.");
+        assert!(last_div.index == SpaceCoordinates::new(12, 1, 0));
+
+        let first_second_level_div = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 2)
+            .expect("Should return a div.");
+        assert!(first_second_level_div.index == SpaceCoordinates::new(0, 0, 0));
+        let first_second_level_div_but_fourth_parsec = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 2)
+            .expect("Should return a div.");
+        assert!(first_second_level_div_but_fourth_parsec.index == SpaceCoordinates::new(0, 0, 0));
+        let another_second_level_div = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 2)
+            .expect("Should return a div.");
+        assert!(another_second_level_div.index == SpaceCoordinates::new(1, 0, 0));
+        let another_second_level_div_with_different_y = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 2)
+            .expect("Should return a div.");
+        assert!(another_second_level_div_with_different_y.index == SpaceCoordinates::new(1, 0, 0));
+        let last_second_level_div = galaxy
+            .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 2)
+            .expect("Should return a div.");
+        assert!(last_second_level_div.index == SpaceCoordinates::new(4, 0, 0));
     }
 }

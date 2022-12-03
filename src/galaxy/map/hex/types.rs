@@ -23,13 +23,13 @@ impl SpaceCoordinates {
     /// Returns the absolute value of the coordinates in the galaxy. Uses a starting point which corresponds to the coordinates of the first
     /// parsec in the galactic map.
     pub fn abs(self, starting_point: SpaceCoordinates) -> Self {
-        self + starting_point
+        self - starting_point
     }
 
     /// Returns the value of the coordinates relative to the center of the galaxy. Uses a starting point, which corresponds to the
     /// coordinates of the first parsec in the galactic map.
     pub fn rel(self, starting_point: SpaceCoordinates) -> Self {
-        self - starting_point
+        self + starting_point
     }
 }
 
