@@ -171,9 +171,9 @@ dependencies = [
 
 [[package]]
 name = "seeded_dice_roller"
-version = "0.1.1"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c8d9d4b49cfe0908b67274706b078a44761fd3d03befe61215fa0932204ea590"
+checksum = "a8e83003e7025fec5ef109bc020b3f631756271ab12d5ef61a8bb6eed8815c78"
 dependencies = [
  "log",
  "rand",

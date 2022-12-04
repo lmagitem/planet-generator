@@ -48,6 +48,10 @@ pub struct SectorSettings {
     /// z axis to a value different than 1, it will enable star systems to be generated "above" and "under" the map plane.
     #[default = false]
     pub flat_map: bool,
+    /// If set to true, only one roll will occur to determine how much star systems there are per hex. If set to false, a roll will be made
+    /// for each cubic parsec inside the hex.
+    #[default = true]
+    pub density_by_hex_instead_of_parsec: bool,
 }
 
 /// Represents the different kind of places a star could be in the galaxy.
@@ -94,8 +98,6 @@ pub enum GalacticRegion {
     /// A number of stars which was previously a cluster and has been torn apart and stretched out along the orbit of a galaxy by tidal
     /// forces.
     Stream,
-    /// A number of stars in the remnants of a supernova.
-    Remnant,
     /// Some stars lost into the void, pushed out of their normal course by gravity during their past.
     Exile,
 }

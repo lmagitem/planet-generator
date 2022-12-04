@@ -307,13 +307,8 @@ mod tests {
                 level_1_size: (2, 2, 2),
                 level_2_size: (3, 3, 3),
                 level_3_size: (2, 2, 2),
-                level_4_size: (62, 62, 62),
-                level_5_size: (62, 62, 62),
-                level_6_size: (62, 62, 62),
-                level_7_size: (62, 62, 62),
-                level_8_size: (62, 62, 62),
-                level_9_size: (62, 62, 62),
                 flat_map: true,
+                ..Default::default()
             },
         };
         let mut galaxy = Galaxy {
