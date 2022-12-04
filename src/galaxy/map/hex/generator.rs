@@ -5,6 +5,10 @@ impl GalacticHex {
         let contents = Vec::new();
         let neighborhood = StellarNeighborhood::generate(coord, galaxy);
 
-        Self { index, contents }
+        Self {
+            index,
+            neighborhood,
+            contents,
+        }
     }
 }
