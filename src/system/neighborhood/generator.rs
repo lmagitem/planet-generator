@@ -36,12 +36,13 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
         GalacticRegion::GlobularCluster | GalacticRegion::OpenCluster => modifier -= 5,
         _ => (),
     });
+
     let mut rng = SeededDiceRoller::new(&galaxy.seed, &format!("ste_nei_{}_age", sub_sector.index));
-    let age = rng
+    let mut age = rng
         .get_result(&CopyableRollToProcess {
             possible_results: vec![
                 CopyableWeightedResult {
-                    result: StellarNeighborhoodAge::Young,
+                    result: StellarNeighborhoodAge::Young(0),
                     weight: 1,
                 },
                 CopyableWeightedResult {
@@ -49,11 +50,11 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
                     weight: 6,
                 },
                 CopyableWeightedResult {
-                    result: StellarNeighborhoodAge::Old,
+                    result: StellarNeighborhoodAge::Old(0),
                     weight: 4,
                 },
                 CopyableWeightedResult {
-                    result: StellarNeighborhoodAge::Ancient,
+                    result: StellarNeighborhoodAge::Ancient(0),
                     weight: 1,
                 },
             ],
@@ -64,5 +65,42 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
             }),
         })
         .expect("Should return a proper neighborhood age.");
+
+    match age {
+        StellarNeighborhoodAge::Young(_) => {
+            let mut years = 0;
+            let mut roll = 0;
+            let mut turn = 0;
+            let mut divide_by = 1;
+            while roll == 1 || roll == 10 || turn < 1 {
+                roll = rng.roll(1, 10, 0) as u64;
+                years += if turn == 0 || roll == 10 { roll } else { 0 };
+                divide_by += if roll == 1 { 1 } else { 0 };
+                turn += 1;
+            }
+            years = 1.max(years * 100 / divide_by);
+            age = StellarNeighborhoodAge::Young(years);
+        }
+        StellarNeighborhoodAge::Mature => (),
+        StellarNeighborhoodAge::Old(_) => {
+            let mut roll = 0;
+            let mut turn = 0;
+            let mut divide_by = 1;
+            while roll == 10 || turn < 1 {
+                roll = rng.roll(1, 10, 0) as u64;
+                divide_by += roll;
+                turn += 1;
+            }
+            age = StellarNeighborhoodAge::Old(
+                1.max((galaxy.neighborhood.universe.age * 1000.0) as u64 / divide_by),
+            );
+        }
+        StellarNeighborhoodAge::Ancient(_) => {
+            age = StellarNeighborhoodAge::Ancient(
+                ((galaxy.neighborhood.universe.age) as u64 - rng.roll(1, 10, 0) as u64) * 1000,
+            );
+        }
+    }
+
     age
 }
