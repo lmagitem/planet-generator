@@ -31,12 +31,12 @@ fn get_number_of_systems_to_generate(
     let success_on;
     let to_roll: PreparedRoll;
 
-    // TODO: Get number of parsecs in the hex
-    let number_of_cubic_parsecs = 2;
     let turns = if galaxy.settings.sector.density_by_hex_instead_of_parsec {
         1
     } else {
-        number_of_cubic_parsecs
+        // Number of cubir parsecs
+        let hex_size = galaxy.settings.sector.hex_size;
+        hex_size.0 * hex_size.1 * hex_size.2
     };
 
     let region = galaxy

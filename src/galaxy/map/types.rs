@@ -46,7 +46,7 @@ pub struct SectorSettings {
     pub level_9_size: (u8, u8, u8),
     /// If set to true, a single z level will be generated. For your map to still have some kind of height, you can set the **hex_size**
     /// z axis to a value different than 1, it will enable star systems to be generated "above" and "under" the map plane.
-    #[default = false]
+    #[default = true]
     pub flat_map: bool,
     /// If set to true, only one roll will occur to determine how much star systems there are per hex. If set to false, a roll will be made
     /// for each cubic parsec inside the hex.
