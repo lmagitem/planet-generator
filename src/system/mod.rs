@@ -2,6 +2,7 @@ use crate::prelude::*;
 pub mod generator;
 pub mod neighborhood;
 pub mod planet;
+pub mod star;
 pub mod types;
 
 #[derive(

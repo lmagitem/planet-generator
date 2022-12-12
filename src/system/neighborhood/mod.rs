@@ -8,7 +8,7 @@ pub mod types;
 )]
 pub struct StellarNeighborhood {
     /// The age of this neighborhood.
-    age: StellarNeighborhoodAge,
+    pub age: StellarNeighborhoodAge,
 }
 
 impl StellarNeighborhood {

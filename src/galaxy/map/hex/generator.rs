@@ -5,18 +5,26 @@ impl GalacticHex {
     pub fn generate(coord: SpaceCoordinates, index: SpaceCoordinates, galaxy: &mut Galaxy) -> Self {
         let mut contents = Vec::new();
         let neighborhood = StellarNeighborhood::generate(coord, galaxy);
-        let number_of_systems_to_generate = get_number_of_systems_to_generate(galaxy, index, coord);
-        for _ in 0..number_of_systems_to_generate {
-            contents.push(StarSystem {
-                ..Default::default()
-            });
-        }
-
-        Self {
+        let mut generated = Self {
             index,
             neighborhood,
             contents,
+        };
+
+        let number_of_systems_to_generate = get_number_of_systems_to_generate(galaxy, index, coord);
+        for i in 0..number_of_systems_to_generate {
+            generated.contents.push(StarSystem::generate(
+                i,
+                coord,
+                &generated,
+                &galaxy
+                    .get_division_at_level(coord, 1)
+                    .expect("Should return a subsector."),
+                galaxy,
+            ));
         }
+
+        generated
     }
 }
 
@@ -88,6 +96,17 @@ fn get_number_of_systems_to_generate(
             number_of_systems_to_generate += roll;
         }
     }
+
+    // Add a number of brown dwarfs
+    rng = SeededDiceRoller::new(&galaxy.seed, &format!("hex_{}_nbr_brwn", index));
+    let mut number_of_brown_dwarfs = 0;
+    for _ in 0..turns {
+        let roll = rng.roll_prepared(&to_roll);
+        if roll <= success_on {
+            number_of_brown_dwarfs += roll;
+        }
+    }
+    number_of_systems_to_generate += number_of_brown_dwarfs / 5;
 
     number_of_systems_to_generate as u16
 }

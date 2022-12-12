@@ -24,7 +24,7 @@ This is the current roadmap of the library:
     - [ ] Proper region mapping
     - [ ] Names
 - [ ] Star system generation
-    - [ ] Spawn chance according to density
+    - [x] Spawn chance according to density
     - [ ] Stars generation
         - [ ] Age
         - [ ] Spectral type
