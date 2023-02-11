@@ -1,4 +1,4 @@
-use crate::{prelude::*, system::generator::StellarEvolution};
+use crate::prelude::*;
 
 impl Star {
     /// Generates a new star.
@@ -11,8 +11,8 @@ impl Star {
         hex: &GalacticHex,
         galaxy: &Galaxy,
     ) -> Self {
-        let mass = generate_mass(star_index, system_index, coord, galaxy);
-        let luminosity = calculate_luminosity(mass);
+        let mut mass = generate_mass(star_index, system_index, coord, galaxy);
+        let mut luminosity = calculate_main_sequence_luminosity(mass);
         let main_lifespan = calculate_lifespan(mass, luminosity);
         let subgiant_lifespan = main_lifespan * 0.15;
         let giant_lifespan = main_lifespan * 0.0917;
@@ -24,54 +24,59 @@ impl Star {
             &galaxy,
             &galaxy.neighborhood.universe,
         );
+        mass = simulate_mass_loss_over_the_years(mass, age);
 
-        Self {}
+        // Main sequence values
+        let mut radius = calculate_radius(
+            mass,
+            0.0,
+            main_lifespan,
+            subgiant_lifespan,
+            giant_lifespan,
+            star_index,
+            system_index,
+            coord,
+            galaxy,
+        );
+        let mut temperature = calculate_temperature_using_luminosity(luminosity, radius);
+        let mut spectral_type = calculate_spectral_type(temperature);
+
+        // Actual values
+        radius = calculate_radius(
+            mass,
+            age,
+            main_lifespan,
+            subgiant_lifespan,
+            giant_lifespan,
+            star_index,
+            system_index,
+            coord,
+            galaxy,
+        );
+        // TODO: Min temperature for a supergiant should be 3500K, but Stephenson_2-18 seems to have a temperature of 3200K
+        luminosity = calculate_luminosity_using_temperature(temperature, radius);
+        spectral_type = calculate_spectral_type(temperature);
+        let luminosity_class = StarLuminosityClass::Ia;
+
+        Self {
+            name: "Sun".to_string(),
+            mass,
+            luminosity,
+            radius,
+            age: age / 1000.0,
+            temperature: temperature,
+            spectral_type,
+            luminosity_class,
+        }
     }
 }
 
-fn calculate_luminosity(mass: f32) -> f32 {
-    if mass <= 0.43 {
-        0.23 * f32::powf(mass, 2.3)
-    } else if mass <= 2.0 {
-        f32::powf(mass, 4.0)
-    } else if mass <= 55.0 {
-        1.4 * f32::powf(mass, 3.5)
+/// Reduces mass towards 150 solar masses if higher, as a that is bigger than that blows off its mass as solar wind until it gets to 150.
+fn simulate_mass_loss_over_the_years(mass: f32, age: f32) -> f32 {
+    if mass > 150.0 {
+        150.0_f32.max(mass - age)
     } else {
-        32000.0 * mass
-    }
-}
-
-/// In billions of years.
-fn calculate_lifespan(mass: f32, luminosity: f32) -> f32 {
-    f32::powi(10.0, 10) * mass as f32 / luminosity as f32 / 10.0
-}
-
-/// In billions of years.
-fn generate_age(
-    star_index: u16,
-    system_index: u16,
-    coord: SpaceCoordinates,
-    hex: &GalacticHex,
-    galaxy: &Galaxy,
-    universe: &Universe,
-) -> f32 {
-    let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
-        &format!("star_{}_{}_{}_age", coord, system_index, star_index),
-    );
-    if let StellarNeighborhoodAge::Ancient(years)
-    | StellarNeighborhoodAge::Old(years)
-    | StellarNeighborhoodAge::Young(years) = hex.neighborhood.age
-    {
-        years as f32
-    } else if universe.era == StelliferousEra::AncientStelliferous
-        || universe.era == StelliferousEra::EarlyStelliferous
-    {
-        (((universe.age * 1000.0) as f32) - 300.0)
-            .min((universe.age) as f32 - rng.roll(1, 10, -1) as f32)
-            * 1000.0
-    } else {
-        rng.roll(1, 91, 9) as f32 / 10.0
+        mass
     }
 }
 
@@ -166,4 +171,525 @@ fn generate_mass(
         ))
         .expect("Should return a range to generate a star's mass.");
     rng.gen_f32() % (range.1 - range.0) + range.0
+}
+
+fn calculate_spectral_type(temperature: u32) -> StarSpectralType {
+    let mut spectral_type: StarSpectralType;
+    if temperature >= 30000 {
+        spectral_type = StarSpectralType::O(0);
+    } else if temperature >= 10000 {
+        spectral_type = StarSpectralType::B(0);
+    } else if temperature >= 7500 {
+        spectral_type = StarSpectralType::A(0);
+    } else if temperature >= 6000 {
+        spectral_type = StarSpectralType::F(0);
+    } else if temperature >= 5200 {
+        spectral_type = StarSpectralType::G(0);
+    } else if temperature >= 3700 {
+        spectral_type = StarSpectralType::K(0);
+    } else if temperature >= 2400 {
+        spectral_type = StarSpectralType::M(0);
+    } else if temperature >= 1300 {
+        spectral_type = StarSpectralType::L(0);
+    } else if temperature >= 700 {
+        spectral_type = StarSpectralType::T(0);
+    } else {
+        spectral_type = StarSpectralType::Y(0);
+    }
+    spectral_type
+}
+
+fn calculate_temperature(
+    mass: f32,
+    radius: f32,
+    age: f32,
+    main_lifespan: f32,
+    subgiant_lifespan: f32,
+    giant_lifespan: f32,
+) -> u32 {
+    3000
+}
+
+fn calculate_temperature_using_luminosity(luminosity: f32, radius: f32) -> f32 {
+    let pi = std::f64::consts::PI;
+    let area = 4.0 * pi * (radius as f64).powf(2.0);
+    // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
+    // in order to get working results.
+    let sigma = 5.670367 * f64::powf(10.0, -17.0);
+    // Same there, I've added the "x0.94304315" because it gives me results that are, on average (and exactly in the case of Sun), closer
+    // to the ones I found on existing stars.
+    ((luminosity as f64 / (area * sigma)).powf(1.0 / 4.0) * 0.94304315) as f32
+}
+
+fn calculate_luminosity_using_temperature(temperature: u32, radius: f32) -> f32 {
+    let pi = std::f64::consts::PI;
+    let area = 4.0 * pi * (radius as f64).powf(2.0);
+    // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
+    // in order to get working results.
+    let sigma = 5.670367 * f64::powf(10.0, -17.0);
+    // Same there, I've added the "x1.2643679" because it gives me results that are, on average (and exactly in the case of Sun), closer
+    // to the ones I found on existing stars.
+    ((sigma * area * (temperature as f64).powf(4.0)) * 1.2643679) as f32
+}
+
+fn calculate_radius(
+    mass: f32,
+    age: f32,
+    main_lifespan: f32,
+    subgiant_lifespan: f32,
+    giant_lifespan: f32,
+    star_index: u16,
+    system_index: u16,
+    coord: SpaceCoordinates,
+    galaxy: &Galaxy,
+) -> f32 {
+    let mut rng = SeededDiceRoller::new(
+        &galaxy.seed,
+        &format!("star_{}_{}_{}_radius", coord, system_index, star_index),
+    );
+    let mut radius = mass.powf(0.8);
+    let rand_multiplier = rng.roll(1, 4666, 999) as f32 / 10000.0;
+    if age < main_lifespan + subgiant_lifespan {
+        // Subgiant
+        radius = radius * rand_multiplier * 1.5;
+    } else if age < main_lifespan + subgiant_lifespan + giant_lifespan {
+        // Giant
+        radius = radius * rand_multiplier * 3.0;
+    } else {
+        // Remnant
+        if mass < 8.0 {
+            // White dwarf
+            radius = radius / 60.0;
+        } else if mass < 50.0 {
+            // Neutron star
+            radius = 0.001_f32.max((mass / (mass - 6.0) + mass) / 20000.0);
+        } else {
+            // Black hole
+            radius = mass / 33333.33333;
+        }
+    }
+    (radius * 1000.0).round() / 1000.0
+}
+
+fn calculate_main_sequence_luminosity(mass: f32) -> f32 {
+    if mass <= 0.43 {
+        0.23 * f32::powf(mass, 2.3)
+    } else if mass <= 2.0 {
+        f32::powf(mass, 4.0)
+    } else if mass <= 55.0 {
+        1.4 * f32::powf(mass, 3.5)
+    } else {
+        32000.0 * mass
+    }
+}
+
+/// In millions of years.
+fn calculate_lifespan(mass: f32, luminosity: f32) -> f32 {
+    f32::powi(10.0, 10) * mass as f32 / luminosity as f32 * 100.0
+}
+
+/// In millions of years.
+fn generate_age(
+    star_index: u16,
+    system_index: u16,
+    coord: SpaceCoordinates,
+    hex: &GalacticHex,
+    galaxy: &Galaxy,
+    universe: &Universe,
+) -> f32 {
+    let mut rng = SeededDiceRoller::new(
+        &galaxy.seed,
+        &format!("star_{}_{}_{}_age", coord, system_index, star_index),
+    );
+    if let StellarNeighborhoodAge::Ancient(years)
+    | StellarNeighborhoodAge::Old(years)
+    | StellarNeighborhoodAge::Young(years) = hex.neighborhood.age
+    {
+        years as f32
+    } else if universe.era == StelliferousEra::AncientStelliferous
+        || universe.era == StelliferousEra::EarlyStelliferous
+    {
+        (((universe.age * 1000.0) as f32) - 300.0)
+            .min(((universe.age) as f32 * 1000.0) - rng.roll(1, 9000, 0) as f32)
+    } else {
+        rng.roll(1, 9000, 999) as f32
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn print_tested_star(star: &Star) {
+        let calc_radius = calculate_radius(
+            star.mass,
+            star.age,
+            99999.0,
+            99999.0,
+            99999.0,
+            1,
+            1,
+            SpaceCoordinates { x: 0, y: 0, z: 0 },
+            &Galaxy {
+                ..Default::default()
+            },
+        );
+        let main_seq_lum = calculate_main_sequence_luminosity(star.mass);
+        let calc_lum = calculate_luminosity_using_temperature(star.temperature, star.radius);
+        let calc_temp = calculate_temperature_using_luminosity(star.luminosity, star.radius);
+        println!(
+            "- {} - {} {}\n>>>>>>>>>> age: {},\n>>>>>>>>>> mass: {},\n>>>>>>>>>> radius: {} (calc: {} ({})),\n>>>>>>>>>> luminosity: {} (calc: {} ({}), main seq: {} ({})),\n>>>>>>>>>> temp: {} (calc: {} ({}))",
+            star.name,
+            star.spectral_type,
+            star.luminosity_class,
+            star.age,
+            (star.mass * 1000000.0).round() / 1000000.0,
+            (star.radius * 1000000.0).round() / 1000000.0,
+            calc_radius,
+            get_difference_percentage(calc_radius, star.radius),
+            (star.luminosity * 1000000.0).round() / 1000000.0,
+            (calc_lum * 1000000.0).round() / 1000000.0,
+            get_difference_percentage(calc_lum, star.luminosity),
+            (main_seq_lum * 1000000.0).round() / 1000000.0,
+            get_difference_percentage(main_seq_lum, star.luminosity),
+            star.temperature,
+            (calc_temp * 1000000.0).round() / 1000000.0,
+            get_difference_percentage(calc_temp, star.temperature as f32),
+        );
+    }
+
+    pub fn get_test_stars() -> Vec<Star> {
+        vec![
+            Star::new(
+                "Sun".to_string(),
+                1.0,  // Mass
+                1.0,  // Luminosity
+                1.0,  // Radius
+                4.6,  // Age
+                5772, // Temperature
+                StarSpectralType::G(2),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Cygnus OB2-12".to_string(),
+                110.0,     // Mass
+                1660000.0, // Luminosity
+                246.0,     // Radius
+                0.003,     // Age
+                13700,     // Temperature
+                StarSpectralType::B(3),
+                StarLuminosityClass::Ia,
+            ),
+            Star::new(
+                "Rigel A".to_string(),
+                21.0,     // Mass
+                120000.0, // Luminosity
+                78.9,     // Radius
+                0.008,    // Age
+                12100,    // Temperature
+                StarSpectralType::F(8),
+                StarLuminosityClass::Ia,
+            ),
+            Star::new(
+                "Proxima Centauri".to_string(),
+                0.1221,   // Mass
+                0.001567, // Luminosity
+                0.1542,   // Radius
+                4.85,     // Age
+                2992,     // Temperature
+                StarSpectralType::M(5),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Alpha Centauri A".to_string(),
+                1.0788, // Mass
+                1.5059, // Luminosity
+                1.2175, // Radius
+                5.3,    // Age
+                5790,   // Temperature
+                StarSpectralType::G(2),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Alpha Centauri B".to_string(),
+                0.9092, // Mass
+                0.4981, // Luminosity
+                0.8591, // Radius
+                5.3,    // Age
+                5260,   // Temperature
+                StarSpectralType::K(1),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Barnard's Star".to_string(),
+                0.144,  // Mass
+                0.0035, // Luminosity
+                0.196,  // Radius
+                10.0,   // Age
+                3134,   // Temperature
+                StarSpectralType::M(4),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Luhman 16".to_string(),
+                0.03197,   // Mass
+                0.0000219, // Luminosity
+                0.08734,   // Radius
+                -1.0,      // Age
+                1350,      // Temperature
+                StarSpectralType::L(7),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "WISE 0855−0714".to_string(),
+                0.004772,  // Mass
+                0.0000011, // Luminosity
+                0.021,     // Radius
+                -1.0,      // Age
+                240,       // Temperature
+                StarSpectralType::Y(4),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Wolf 359".to_string(),
+                0.11,    // Mass
+                0.00106, // Luminosity
+                0.144,   // Radius
+                0.25,    // Age
+                2749,    // Temperature
+                StarSpectralType::M(6),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Lalande 21185".to_string(),
+                0.389,  // Mass
+                0.0195, // Luminosity
+                0.392,  // Radius
+                7.5,    // Age
+                3547,   // Temperature
+                StarSpectralType::M(2),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Sirius A".to_string(),
+                2.063, // Mass
+                25.4,  // Luminosity
+                1.711, // Radius
+                0.228, // Age
+                9940,  // Temperature
+                StarSpectralType::A(0),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Sirius B".to_string(),
+                1.018,  // Mass
+                0.056,  // Luminosity
+                0.0084, // Radius
+                0.228,  // Age
+                25200,  // Temperature
+                StarSpectralType::DA(2),
+                StarLuminosityClass::VII,
+            ),
+            Star::new(
+                "Luyten 726-8 A".to_string(),
+                0.102,   // Mass
+                0.00006, // Luminosity
+                0.14,    // Radius
+                8.0,     // Age
+                2670,    // Temperature
+                StarSpectralType::M(5),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Luyten 726-8 B".to_string(),
+                0.1,     // Mass
+                0.00004, // Luminosity
+                0.14,    // Radius
+                8.0,     // Age
+                2650,    // Temperature
+                StarSpectralType::M(6),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Ross 154".to_string(),
+                0.177,    // Mass
+                0.004015, // Luminosity
+                0.2,      // Radius
+                0.9,      // Age
+                3248,     // Temperature
+                StarSpectralType::M(3),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Ran".to_string(),
+                0.82,  // Mass
+                0.34,  // Luminosity
+                0.735, // Radius
+                0.6,   // Age
+                5084,  // Temperature
+                StarSpectralType::K(2),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Lacaille 9352".to_string(),
+                0.479,  // Mass
+                0.0368, // Luminosity
+                0.474,  // Radius
+                4.57,   // Age
+                3672,   // Temperature
+                StarSpectralType::M(0),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "Altair".to_string(),
+                1.86, // Mass
+                10.6, // Luminosity
+                1.57, // Radius
+                0.1,  // Age
+                7760, // Temperature
+                StarSpectralType::A(7),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "40 Eridani A".to_string(),
+                0.78,  // Mass
+                0.457, // Luminosity
+                0.812, // Radius
+                7.0,   // Age
+                5072,  // Temperature
+                StarSpectralType::K(0),
+                StarLuminosityClass::V,
+            ),
+            Star::new(
+                "40 Eridani B".to_string(),
+                0.573, // Mass
+                0.013, // Luminosity
+                0.014, // Radius
+                9.0,   // Age
+                16500, // Temperature
+                StarSpectralType::DA(4),
+                StarLuminosityClass::VII,
+            ),
+            Star::new(
+                "40 Eridani C".to_string(),
+                0.2036, // Mass
+                0.008,  // Luminosity
+                0.31,   // Radius
+                5.6,    // Age
+                3100,   // Temperature
+                StarSpectralType::M(4),
+                StarLuminosityClass::V,
+            ),
+        ]
+    }
+
+    #[test]
+    fn calculus() {
+        for star in get_test_stars().iter() {
+            print_tested_star(star);
+        }
+    }
+
+    #[test]
+    fn calculate_proper_age() {
+        for i in 0..1000 {
+            let mut rng = SeededDiceRoller::new(&format!("{}", i), &"test_age");
+            let settings = &GenerationSettings {
+                galaxy: GalaxySettings {
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let seed = String::from(&i.to_string());
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&seed, &settings),
+                &seed,
+                &settings,
+            );
+            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            let coord = SpaceCoordinates::new(
+                rng.gen_u16() as i64,
+                rng.gen_u16() as i64,
+                rng.gen_u16() as i64,
+            );
+            let age = generate_age(
+                i as u16,
+                i as u16 + 1,
+                coord,
+                &GalacticHex::generate(coord, coord, &mut galaxy),
+                &galaxy,
+                &galaxy.neighborhood.universe,
+            );
+            assert!(age > 0.0 && age < galaxy.neighborhood.universe.age);
+        }
+    }
+
+    #[test]
+    fn calculate_proper_spectral_type() {
+        assert!(calculate_spectral_type(380000) == StarSpectralType::WR(2));
+        assert!(calculate_spectral_type(170000) == StarSpectralType::WR(3));
+        assert!(calculate_spectral_type(117000) == StarSpectralType::WR(4));
+        assert!(calculate_spectral_type(54000) == StarSpectralType::O(2));
+        assert!(calculate_spectral_type(45000) == StarSpectralType::O(3));
+        assert!(calculate_spectral_type(43300) == StarSpectralType::O(4));
+        assert!(calculate_spectral_type(40600) == StarSpectralType::O(5));
+        assert!(calculate_spectral_type(39500) == StarSpectralType::O(6));
+        assert!(calculate_spectral_type(37100) == StarSpectralType::O(7));
+        assert!(calculate_spectral_type(35100) == StarSpectralType::O(8));
+        assert!(calculate_spectral_type(33300) == StarSpectralType::O(9));
+        assert!(calculate_spectral_type(29200) == StarSpectralType::B(0));
+        assert!(calculate_spectral_type(23000) == StarSpectralType::B(1));
+        assert!(calculate_spectral_type(21000) == StarSpectralType::B(2));
+        assert!(calculate_spectral_type(17600) == StarSpectralType::B(3));
+        assert!(calculate_spectral_type(15200) == StarSpectralType::B(5));
+        assert!(calculate_spectral_type(14300) == StarSpectralType::B(6));
+        assert!(calculate_spectral_type(13500) == StarSpectralType::B(7));
+        assert!(calculate_spectral_type(12300) == StarSpectralType::B(8));
+        assert!(calculate_spectral_type(11400) == StarSpectralType::B(9));
+        assert!(calculate_spectral_type(9600) == StarSpectralType::A(0));
+        assert!(calculate_spectral_type(9330) == StarSpectralType::A(1));
+        assert!(calculate_spectral_type(9040) == StarSpectralType::A(2));
+        assert!(calculate_spectral_type(8750) == StarSpectralType::A(3));
+        assert!(calculate_spectral_type(8480) == StarSpectralType::A(4));
+        assert!(calculate_spectral_type(8310) == StarSpectralType::A(5));
+        assert!(calculate_spectral_type(7920) == StarSpectralType::A(7));
+        assert!(calculate_spectral_type(7350) == StarSpectralType::F(0));
+        assert!(calculate_spectral_type(7050) == StarSpectralType::F(2));
+        assert!(calculate_spectral_type(6850) == StarSpectralType::F(3));
+        assert!(calculate_spectral_type(6700) == StarSpectralType::F(5));
+        assert!(calculate_spectral_type(6550) == StarSpectralType::F(6));
+        assert!(calculate_spectral_type(6400) == StarSpectralType::F(7));
+        assert!(calculate_spectral_type(6300) == StarSpectralType::F(8));
+        assert!(calculate_spectral_type(6050) == StarSpectralType::G(0));
+        assert!(calculate_spectral_type(5930) == StarSpectralType::G(1));
+        assert!(calculate_spectral_type(5800) == StarSpectralType::G(2));
+        assert!(calculate_spectral_type(5660) == StarSpectralType::G(5));
+        assert!(calculate_spectral_type(5440) == StarSpectralType::G(8));
+        assert!(calculate_spectral_type(5240) == StarSpectralType::K(0));
+        assert!(calculate_spectral_type(5110) == StarSpectralType::K(1));
+        assert!(calculate_spectral_type(4960) == StarSpectralType::K(2));
+        assert!(calculate_spectral_type(4800) == StarSpectralType::K(3));
+        assert!(calculate_spectral_type(4600) == StarSpectralType::K(4));
+        assert!(calculate_spectral_type(4400) == StarSpectralType::K(5));
+        assert!(calculate_spectral_type(4000) == StarSpectralType::K(7));
+        assert!(calculate_spectral_type(3750) == StarSpectralType::M(0));
+        assert!(calculate_spectral_type(3700) == StarSpectralType::M(1));
+        assert!(calculate_spectral_type(3600) == StarSpectralType::M(2));
+        assert!(calculate_spectral_type(3500) == StarSpectralType::M(3));
+        assert!(calculate_spectral_type(3400) == StarSpectralType::M(4));
+        assert!(calculate_spectral_type(3200) == StarSpectralType::M(5));
+        assert!(calculate_spectral_type(3100) == StarSpectralType::M(6));
+        assert!(calculate_spectral_type(2900) == StarSpectralType::M(7));
+        assert!(calculate_spectral_type(2700) == StarSpectralType::M(8));
+        assert!(calculate_spectral_type(2600) == StarSpectralType::L(0));
+        assert!(calculate_spectral_type(2200) == StarSpectralType::L(3));
+        assert!(calculate_spectral_type(1500) == StarSpectralType::L(8));
+        assert!(calculate_spectral_type(1400) == StarSpectralType::T(2));
+        assert!(calculate_spectral_type(1000) == StarSpectralType::T(6));
+        assert!(calculate_spectral_type(800) == StarSpectralType::T(8));
+        assert!(calculate_spectral_type(370) == StarSpectralType::Y(0));
+        assert!(calculate_spectral_type(350) == StarSpectralType::Y(1));
+        assert!(calculate_spectral_type(320) == StarSpectralType::Y(2));
+        assert!(calculate_spectral_type(250) == StarSpectralType::Y(4));
+    }
 }

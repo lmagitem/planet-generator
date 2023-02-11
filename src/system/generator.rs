@@ -1,16 +1,5 @@
-use std::result;
-
-use crate::prelude::*;
-
 use super::StarSystem;
-
-pub enum StellarEvolution {
-    Paleodwarf,
-    SubDwarf,
-    Dwarf,
-    SuperDwarf,
-    HyperDwarf,
-}
+use crate::prelude::*;
 
 impl StarSystem {
     /// Generates a brand new star system at the given coordinates

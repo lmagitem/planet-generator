@@ -78,12 +78,12 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
             while roll == 1 || roll == 10 || turn < 1 {
                 roll = rng.roll(1, 10, 0) as u64;
                 years += if turn == 0 || roll == 10 { roll } else { 0 };
-                divide_by += if roll == 1 { 1 } else { 0 };
+                divide_by *= if roll == 1 { 10 } else { 1 };
                 turn += 1;
             }
             years = years * 100 / divide_by;
             age = StellarNeighborhoodAge::Young(
-                1.max(years.min((galaxy.neighborhood.universe.age) as u64)),
+                1.max(years.min((galaxy.neighborhood.universe.age * 1000.0) as u64)),
             );
         }
         StellarNeighborhoodAge::Mature => (),
