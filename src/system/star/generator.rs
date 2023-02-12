@@ -1,4 +1,7 @@
 use crate::prelude::*;
+#[path = "./constants.rs"]
+mod constants;
+use constants::*;
 
 impl Star {
     /// Generates a new star.
@@ -38,7 +41,7 @@ impl Star {
             coord,
             galaxy,
         );
-        let mut temperature = calculate_temperature_using_luminosity(luminosity, radius);
+        let mut temperature = calculate_temperature_using_luminosity(luminosity, radius) as u32;
         let mut spectral_type = calculate_spectral_type(temperature);
 
         // Actual values
@@ -53,8 +56,7 @@ impl Star {
             coord,
             galaxy,
         );
-        // TODO: Min temperature for a supergiant should be 3500K, but Stephenson_2-18 seems to have a temperature of 3200K
-        luminosity = calculate_luminosity_using_temperature(temperature, radius);
+        temperature = calculate_temperature_using_luminosity(luminosity, radius) as u32;
         spectral_type = calculate_spectral_type(temperature);
         let luminosity_class = StarLuminosityClass::Ia;
 
@@ -71,7 +73,7 @@ impl Star {
     }
 }
 
-/// Reduces mass towards 150 solar masses if higher, as a that is bigger than that blows off its mass as solar wind until it gets to 150.
+/// Reduces mass towards 150 solar masses if higher, as a star that is bigger than that blows off its mass as solar wind until it gets to 150.
 fn simulate_mass_loss_over_the_years(mass: f32, age: f32) -> f32 {
     if mass > 150.0 {
         150.0_f32.max(mass - age)
@@ -174,40 +176,37 @@ fn generate_mass(
 }
 
 fn calculate_spectral_type(temperature: u32) -> StarSpectralType {
-    let mut spectral_type: StarSpectralType;
-    if temperature >= 30000 {
-        spectral_type = StarSpectralType::O(0);
-    } else if temperature >= 10000 {
-        spectral_type = StarSpectralType::B(0);
-    } else if temperature >= 7500 {
-        spectral_type = StarSpectralType::A(0);
-    } else if temperature >= 6000 {
-        spectral_type = StarSpectralType::F(0);
-    } else if temperature >= 5200 {
-        spectral_type = StarSpectralType::G(0);
-    } else if temperature >= 3700 {
-        spectral_type = StarSpectralType::K(0);
-    } else if temperature >= 2400 {
-        spectral_type = StarSpectralType::M(0);
-    } else if temperature >= 1300 {
-        spectral_type = StarSpectralType::L(0);
-    } else if temperature >= 700 {
-        spectral_type = StarSpectralType::T(0);
-    } else {
-        spectral_type = StarSpectralType::Y(0);
-    }
-    spectral_type
-}
+    println!("calculate_spectral_type");
 
-fn calculate_temperature(
-    mass: f32,
-    radius: f32,
-    age: f32,
-    main_lifespan: f32,
-    subgiant_lifespan: f32,
-    giant_lifespan: f32,
-) -> u32 {
-    3000
+    // Find the two temperatures in the dataset that the given temperature is between
+    let (lower_temp, lower_class) = dataset.iter().find(|&(t, _)| *t <= temperature).unwrap();
+    let (upper_temp, upper_class) = dataset
+        .iter()
+        .rev()
+        .find(|&(t, _)| *t > temperature)
+        .unwrap();
+
+    // Interpolate the class value between the two nearest temperatures
+    let class_as_int: u32 = (*lower_class as f32
+        + (temperature as f32 - *lower_temp as f32) * (*upper_class as f32 - *lower_class as f32)
+            / (*upper_temp as f32 - *lower_temp as f32)) as u32;
+
+    // Convert the class value to the spectral type
+    let spectral_type = match class_as_int / 10 {
+        0 => StarSpectralType::WR((class_as_int % 10) as u8),
+        1 => StarSpectralType::O((class_as_int % 10) as u8),
+        2 => StarSpectralType::B((class_as_int % 10) as u8),
+        3 => StarSpectralType::A((class_as_int % 10) as u8),
+        4 => StarSpectralType::F((class_as_int % 10) as u8),
+        5 => StarSpectralType::G((class_as_int % 10) as u8),
+        6 => StarSpectralType::K((class_as_int % 10) as u8),
+        7 => StarSpectralType::M((class_as_int % 10) as u8),
+        8 => StarSpectralType::L((class_as_int % 10) as u8),
+        9 => StarSpectralType::T((class_as_int % 10) as u8),
+        _ => StarSpectralType::Y((class_as_int % 10) as u8),
+    };
+
+    spectral_type
 }
 
 fn calculate_temperature_using_luminosity(luminosity: f32, radius: f32) -> f32 {
@@ -320,273 +319,28 @@ fn generate_age(
 mod tests {
     use super::*;
 
-    fn print_tested_star(star: &Star) {
-        let calc_radius = calculate_radius(
-            star.mass,
-            star.age,
-            99999.0,
-            99999.0,
-            99999.0,
-            1,
-            1,
-            SpaceCoordinates { x: 0, y: 0, z: 0 },
-            &Galaxy {
-                ..Default::default()
-            },
-        );
-        let main_seq_lum = calculate_main_sequence_luminosity(star.mass);
-        let calc_lum = calculate_luminosity_using_temperature(star.temperature, star.radius);
-        let calc_temp = calculate_temperature_using_luminosity(star.luminosity, star.radius);
-        println!(
-            "- {} - {} {}\n>>>>>>>>>> age: {},\n>>>>>>>>>> mass: {},\n>>>>>>>>>> radius: {} (calc: {} ({})),\n>>>>>>>>>> luminosity: {} (calc: {} ({}), main seq: {} ({})),\n>>>>>>>>>> temp: {} (calc: {} ({}))",
-            star.name,
-            star.spectral_type,
-            star.luminosity_class,
-            star.age,
-            (star.mass * 1000000.0).round() / 1000000.0,
-            (star.radius * 1000000.0).round() / 1000000.0,
-            calc_radius,
-            get_difference_percentage(calc_radius, star.radius),
-            (star.luminosity * 1000000.0).round() / 1000000.0,
-            (calc_lum * 1000000.0).round() / 1000000.0,
-            get_difference_percentage(calc_lum, star.luminosity),
-            (main_seq_lum * 1000000.0).round() / 1000000.0,
-            get_difference_percentage(main_seq_lum, star.luminosity),
-            star.temperature,
-            (calc_temp * 1000000.0).round() / 1000000.0,
-            get_difference_percentage(calc_temp, star.temperature as f32),
-        );
-    }
-
-    pub fn get_test_stars() -> Vec<Star> {
-        vec![
-            Star::new(
-                "Sun".to_string(),
-                1.0,  // Mass
-                1.0,  // Luminosity
-                1.0,  // Radius
-                4.6,  // Age
-                5772, // Temperature
-                StarSpectralType::G(2),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Cygnus OB2-12".to_string(),
-                110.0,     // Mass
-                1660000.0, // Luminosity
-                246.0,     // Radius
-                0.003,     // Age
-                13700,     // Temperature
-                StarSpectralType::B(3),
-                StarLuminosityClass::Ia,
-            ),
-            Star::new(
-                "Rigel A".to_string(),
-                21.0,     // Mass
-                120000.0, // Luminosity
-                78.9,     // Radius
-                0.008,    // Age
-                12100,    // Temperature
-                StarSpectralType::F(8),
-                StarLuminosityClass::Ia,
-            ),
-            Star::new(
-                "Proxima Centauri".to_string(),
-                0.1221,   // Mass
-                0.001567, // Luminosity
-                0.1542,   // Radius
-                4.85,     // Age
-                2992,     // Temperature
-                StarSpectralType::M(5),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Alpha Centauri A".to_string(),
-                1.0788, // Mass
-                1.5059, // Luminosity
-                1.2175, // Radius
-                5.3,    // Age
-                5790,   // Temperature
-                StarSpectralType::G(2),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Alpha Centauri B".to_string(),
-                0.9092, // Mass
-                0.4981, // Luminosity
-                0.8591, // Radius
-                5.3,    // Age
-                5260,   // Temperature
-                StarSpectralType::K(1),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Barnard's Star".to_string(),
-                0.144,  // Mass
-                0.0035, // Luminosity
-                0.196,  // Radius
-                10.0,   // Age
-                3134,   // Temperature
-                StarSpectralType::M(4),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Luhman 16".to_string(),
-                0.03197,   // Mass
-                0.0000219, // Luminosity
-                0.08734,   // Radius
-                -1.0,      // Age
-                1350,      // Temperature
-                StarSpectralType::L(7),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "WISE 0855−0714".to_string(),
-                0.004772,  // Mass
-                0.0000011, // Luminosity
-                0.021,     // Radius
-                -1.0,      // Age
-                240,       // Temperature
-                StarSpectralType::Y(4),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Wolf 359".to_string(),
-                0.11,    // Mass
-                0.00106, // Luminosity
-                0.144,   // Radius
-                0.25,    // Age
-                2749,    // Temperature
-                StarSpectralType::M(6),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Lalande 21185".to_string(),
-                0.389,  // Mass
-                0.0195, // Luminosity
-                0.392,  // Radius
-                7.5,    // Age
-                3547,   // Temperature
-                StarSpectralType::M(2),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Sirius A".to_string(),
-                2.063, // Mass
-                25.4,  // Luminosity
-                1.711, // Radius
-                0.228, // Age
-                9940,  // Temperature
-                StarSpectralType::A(0),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Sirius B".to_string(),
-                1.018,  // Mass
-                0.056,  // Luminosity
-                0.0084, // Radius
-                0.228,  // Age
-                25200,  // Temperature
-                StarSpectralType::DA(2),
-                StarLuminosityClass::VII,
-            ),
-            Star::new(
-                "Luyten 726-8 A".to_string(),
-                0.102,   // Mass
-                0.00006, // Luminosity
-                0.14,    // Radius
-                8.0,     // Age
-                2670,    // Temperature
-                StarSpectralType::M(5),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Luyten 726-8 B".to_string(),
-                0.1,     // Mass
-                0.00004, // Luminosity
-                0.14,    // Radius
-                8.0,     // Age
-                2650,    // Temperature
-                StarSpectralType::M(6),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Ross 154".to_string(),
-                0.177,    // Mass
-                0.004015, // Luminosity
-                0.2,      // Radius
-                0.9,      // Age
-                3248,     // Temperature
-                StarSpectralType::M(3),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Ran".to_string(),
-                0.82,  // Mass
-                0.34,  // Luminosity
-                0.735, // Radius
-                0.6,   // Age
-                5084,  // Temperature
-                StarSpectralType::K(2),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Lacaille 9352".to_string(),
-                0.479,  // Mass
-                0.0368, // Luminosity
-                0.474,  // Radius
-                4.57,   // Age
-                3672,   // Temperature
-                StarSpectralType::M(0),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "Altair".to_string(),
-                1.86, // Mass
-                10.6, // Luminosity
-                1.57, // Radius
-                0.1,  // Age
-                7760, // Temperature
-                StarSpectralType::A(7),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "40 Eridani A".to_string(),
-                0.78,  // Mass
-                0.457, // Luminosity
-                0.812, // Radius
-                7.0,   // Age
-                5072,  // Temperature
-                StarSpectralType::K(0),
-                StarLuminosityClass::V,
-            ),
-            Star::new(
-                "40 Eridani B".to_string(),
-                0.573, // Mass
-                0.013, // Luminosity
-                0.014, // Radius
-                9.0,   // Age
-                16500, // Temperature
-                StarSpectralType::DA(4),
-                StarLuminosityClass::VII,
-            ),
-            Star::new(
-                "40 Eridani C".to_string(),
-                0.2036, // Mass
-                0.008,  // Luminosity
-                0.31,   // Radius
-                5.6,    // Age
-                3100,   // Temperature
-                StarSpectralType::M(4),
-                StarLuminosityClass::V,
-            ),
-        ]
-    }
-
-    #[test]
-    fn calculus() {
+    // #[test]
+    fn print_out_test_stars() {
         for star in get_test_stars().iter() {
-            print_tested_star(star);
+            print_tested_star(
+                star,
+                calculate_radius(
+                    star.mass,
+                    star.age,
+                    99999.0,
+                    99999.0,
+                    99999.0,
+                    1,
+                    1,
+                    SpaceCoordinates { x: 0, y: 0, z: 0 },
+                    &Galaxy {
+                        ..Default::default()
+                    },
+                ),
+                calculate_main_sequence_luminosity(star.mass),
+                calculate_luminosity_using_temperature(star.temperature, star.radius),
+                calculate_temperature_using_luminosity(star.luminosity, star.radius),
+            );
         }
     }
 
@@ -654,6 +408,7 @@ mod tests {
         assert!(calculate_spectral_type(8310) == StarSpectralType::A(5));
         assert!(calculate_spectral_type(7920) == StarSpectralType::A(7));
         assert!(calculate_spectral_type(7350) == StarSpectralType::F(0));
+        assert!(calculate_spectral_type(7200) == StarSpectralType::F(1));
         assert!(calculate_spectral_type(7050) == StarSpectralType::F(2));
         assert!(calculate_spectral_type(6850) == StarSpectralType::F(3));
         assert!(calculate_spectral_type(6700) == StarSpectralType::F(5));
