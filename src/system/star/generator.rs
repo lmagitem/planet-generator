@@ -9,16 +9,17 @@ impl Star {
         star_index: u16,
         system_index: u16,
         coord: SpaceCoordinates,
-        evolution: StellarEvolution,
+        population: StellarEvolution,
         system: &StarSystem,
         hex: &GalacticHex,
         galaxy: &Galaxy,
     ) -> Self {
         let mut mass = generate_mass(star_index, system_index, coord, galaxy);
+        mass = adjust_mass_to_population(mass, population);
         let mut luminosity = calculate_main_sequence_luminosity(mass);
         let main_lifespan = calculate_lifespan(mass, luminosity);
-        let subgiant_lifespan = main_lifespan * 0.15;
-        let giant_lifespan = main_lifespan * 0.0917;
+        let subgiant_lifespan = calculate_subgiant_lifespan(mass, main_lifespan);
+        let giant_lifespan = calculate_giant_lifespan(mass, main_lifespan);
         let age = generate_age(
             star_index,
             system_index,
@@ -28,6 +29,7 @@ impl Star {
             &galaxy.neighborhood.universe,
         );
         mass = simulate_mass_loss_over_the_years(mass, age);
+        luminosity = calculate_main_sequence_luminosity(mass);
 
         // Main sequence values
         let mut radius = calculate_radius(
@@ -42,6 +44,8 @@ impl Star {
             galaxy,
         );
         let mut temperature = calculate_temperature_using_luminosity(luminosity, radius) as u32;
+        // TODO: Change temperatures ranges according to population
+        // TODO: Calculate if remnant before
         let mut spectral_type = calculate_spectral_type(temperature);
 
         // Actual values
@@ -73,6 +77,49 @@ impl Star {
     }
 }
 
+fn calculate_giant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
+    if mass > RED_DWARF_POP_III_MIN_MASS {
+        main_lifespan * 0.0917
+    } else {
+        0.0
+    }
+}
+
+fn calculate_subgiant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
+    if mass > RED_DWARF_POP_III_MIN_MASS {
+        main_lifespan * 0.15
+    } else {
+        0.0
+    }
+}
+
+fn adjust_mass_to_population(mass: f32, population: StellarEvolution) -> f32 {
+    match population {
+        StellarEvolution::Population0 => {
+            if mass > BLUE_GIANT_POP_0_MAX_MASS {
+                BLUE_GIANT_POP_0_MAX_MASS
+            } else {
+                mass
+            }
+        }
+        StellarEvolution::PopulationI => {
+            if mass > BLUE_GIANT_POP_I_MAX_MASS {
+                BLUE_GIANT_POP_I_MAX_MASS
+            } else {
+                mass
+            }
+        }
+        StellarEvolution::PopulationII => {
+            if mass > BLUE_GIANT_POP_II_MAX_MASS {
+                BLUE_GIANT_POP_II_MAX_MASS
+            } else {
+                mass
+            }
+        }
+        _ => mass,
+    }
+}
+
 /// Reduces mass towards 150 solar masses if higher, as a star that is bigger than that blows off its mass as solar wind until it gets to 150.
 fn simulate_mass_loss_over_the_years(mass: f32, age: f32) -> f32 {
     if mass > 150.0 {
@@ -97,75 +144,81 @@ fn generate_mass(
             vec![
                 // Brown dwarf
                 CopyableWeightedResult {
-                    result: (0.015, 0.039),
+                    result: (BROWN_DWARF_MIN_MASS, RED_DWARF_POP_0_MIN_MASS - 0.001),
                     weight: 920,
                 },
                 // Red dwarf Pop 0
                 CopyableWeightedResult {
-                    result: (0.04, 0.07),
+                    result: (RED_DWARF_POP_0_MIN_MASS, RED_DWARF_POP_I_MIN_MASS - 0.001),
                     weight: 1078,
                 },
                 // Red dwarf Pop I
                 CopyableWeightedResult {
-                    result: (0.071, 0.124),
+                    result: (RED_DWARF_POP_I_MIN_MASS, RED_DWARF_POP_II_MIN_MASS - 0.001),
                     weight: 1013,
                 },
                 // Red dwarf Pop II
                 CopyableWeightedResult {
-                    result: (0.125, 0.25),
+                    result: (RED_DWARF_POP_II_MIN_MASS, 0.25),
                     weight: 2252,
                 },
                 CopyableWeightedResult {
-                    result: (0.251, 0.399),
+                    result: (0.251, RED_DWARF_POP_III_MIN_MASS - 0.001),
                     weight: 1344,
                 },
                 // Red dwarf Pop III
                 CopyableWeightedResult {
-                    result: (0.4, 0.5),
+                    result: (RED_DWARF_POP_III_MIN_MASS, ORANGE_DWARF_MIN_MASS - 0.001),
                     weight: 896,
                 },
                 // Orange
                 CopyableWeightedResult {
-                    result: (0.501, 1.0),
+                    result: (ORANGE_DWARF_MIN_MASS, YELLOW_DWARF_MIN_MASS - 0.001),
                     weight: 1520,
                 },
                 // Yellow
                 CopyableWeightedResult {
-                    result: (1.001, 2.0),
+                    result: (YELLOW_DWARF_MIN_MASS, WHITE_DWARF_MIN_MASS - 0.001),
                     weight: 640,
                 },
                 // White
                 CopyableWeightedResult {
-                    result: (2.001, 4.0),
+                    result: (WHITE_DWARF_MIN_MASS, WHITE_GIANT_MIN_MASS - 0.001),
                     weight: 240,
                 },
                 // Giants
                 CopyableWeightedResult {
-                    result: (4.001, 8.0),
+                    result: (WHITE_GIANT_MIN_MASS, BLUE_GIANT_MIN_MASS - 0.001),
                     weight: 64,
                 },
                 // Blue giants
                 CopyableWeightedResult {
-                    result: (8.001, 20.0),
+                    result: (BLUE_GIANT_MIN_MASS, 20.0),
                     weight: 24,
                 },
                 CopyableWeightedResult {
-                    result: (20.001, 50.0),
+                    result: (20.001, BLUE_GIANT_POP_0_MAX_MASS),
                     weight: 2,
                 },
                 // Pop I
                 CopyableWeightedResult {
-                    result: (50.001, 100.0),
+                    result: (BLUE_GIANT_POP_0_MAX_MASS + 0.001, BLUE_GIANT_POP_I_MAX_MASS),
                     weight: 1,
                 },
                 // Pop II
                 CopyableWeightedResult {
-                    result: (100.001, 200.0),
+                    result: (
+                        BLUE_GIANT_POP_I_MAX_MASS + 0.001,
+                        BLUE_GIANT_POP_II_MAX_MASS,
+                    ),
                     weight: 1,
                 },
                 // Pop III
                 CopyableWeightedResult {
-                    result: (200.001, 500.0),
+                    result: (
+                        BLUE_GIANT_POP_II_MAX_MASS + 0.001,
+                        BLUE_GIANT_POP_III_MAX_MASS,
+                    ),
                     weight: 1,
                 },
             ],
@@ -177,8 +230,11 @@ fn generate_mass(
 
 fn calculate_spectral_type(temperature: u32) -> StarSpectralType {
     // Find the two temperatures in the dataset that the given temperature is between
-    let (lower_temp, lower_class) = dataset.iter().find(|&(t, _)| *t <= temperature).unwrap();
-    let (upper_temp, upper_class) = dataset
+    let (lower_temp, lower_class) = TEMPERATURE_TO_SPECTRAL_TYPE_DATASET
+        .iter()
+        .find(|&(t, _)| *t <= temperature)
+        .unwrap();
+    let (upper_temp, upper_class) = TEMPERATURE_TO_SPECTRAL_TYPE_DATASET
         .iter()
         .rev()
         .find(|&(t, _)| *t > temperature)
@@ -244,7 +300,9 @@ fn calculate_radius(
         &galaxy.seed,
         &format!("star_{}_{}_{}_radius", coord, system_index, star_index),
     );
-    let mut radius = mass.powf(0.8);
+    // From what I found online, mass^.8 should return a good approximation, but I've found better results by doing the following:
+    let mut radius = mass.powf(0.78);
+    radius += radius * 2.5666;
     let rand_multiplier = rng.roll(1, 4666, 999) as f32 / 10000.0;
     if age < main_lifespan + subgiant_lifespan {
         // Subgiant
@@ -317,29 +375,94 @@ fn generate_age(
 mod tests {
     use super::*;
 
-    // #[test]
-    fn print_out_test_stars() {
+    #[test]
+    fn generate_values_approaching_reality_for_actual_stars() {
+        let mut n = 0;
+        let mut rad_sum = 0.0;
+        let mut lum_ms_sum = 0.0;
+        let mut lum_calc_sum = 0.0;
+        let mut temp_sum = 0.0;
+
         for star in get_test_stars().iter() {
-            print_tested_star(
-                star,
-                calculate_radius(
-                    star.mass,
-                    star.age,
-                    99999.0,
-                    99999.0,
-                    99999.0,
-                    1,
-                    1,
-                    SpaceCoordinates { x: 0, y: 0, z: 0 },
+            if is_star_a_main_sequence_dwarf_or_giant(star) {
+                let mass = star.mass;
+                let luminosity = calculate_main_sequence_luminosity(mass);
+                let radius = calculate_radius(
+                    mass,
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0,
+                    0,
+                    0,
+                    SpaceCoordinates {
+                        ..Default::default()
+                    },
                     &Galaxy {
                         ..Default::default()
                     },
-                ),
-                calculate_main_sequence_luminosity(star.mass),
-                calculate_luminosity_using_temperature(star.temperature, star.radius),
-                calculate_temperature_using_luminosity(star.luminosity, star.radius),
-            );
+                );
+                let temperature = calculate_temperature_using_luminosity(luminosity, radius) as u32;
+                let spectral_type = calculate_spectral_type(temperature);
+                let calc_luminosity =
+                    calculate_luminosity_using_temperature(star.temperature, star.radius);
+
+                // print_real_to_generated_star_comparison(
+                //     star,
+                //     mass,
+                //     radius,
+                //     luminosity,
+                //     calc_luminosity,
+                //     temperature,
+                //     spectral_type,
+                // );
+
+                n += 1;
+                rad_sum += get_difference_percentage(radius, star.radius);
+                lum_ms_sum += get_difference_percentage(luminosity, star.luminosity);
+                lum_calc_sum += get_difference_percentage(calc_luminosity, star.luminosity);
+                temp_sum += get_difference_percentage(temperature as f32, star.temperature as f32);
+
+                if star.name.eq("Sun") {
+                    // The results should be really close to reality for the Sun
+                    assert!(
+                        star.radius - star.radius * 0.025 <= radius
+                            && radius <= star.radius + star.radius * 0.025
+                    );
+                    assert!(
+                        star.luminosity - star.luminosity * 0.025 <= luminosity
+                            && luminosity <= star.luminosity + star.luminosity * 0.025
+                    );
+                    assert!(
+                        star.luminosity - star.luminosity * 0.025 <= calc_luminosity
+                            && calc_luminosity <= star.luminosity + star.luminosity * 0.025
+                    );
+                    assert!(
+                        star.temperature as f32 - star.temperature as f32 * 0.025
+                            <= temperature as f32
+                            && temperature as f32
+                                <= star.temperature as f32 + star.temperature as f32 * 0.025
+                    );
+                }
+            }
         }
+
+        rad_sum /= n as f32;
+        lum_ms_sum /= n as f32;
+        lum_calc_sum /= n as f32;
+        temp_sum /= n as f32;
+
+        // The results shouldn't have a variance higher than 10% in general
+        // print_real_to_generated_stars_comparison_results(
+        //     rad_sum,
+        //     lum_ms_sum,
+        //     lum_calc_sum,
+        //     temp_sum,
+        // );
+        assert!(-0.1 <= rad_sum && rad_sum <= 0.1);
+        assert!(-0.1 <= lum_ms_sum && lum_ms_sum <= 0.1);
+        assert!(-0.1 <= lum_calc_sum && lum_calc_sum <= 0.1);
+        assert!(-0.1 <= temp_sum && temp_sum <= 0.1);
     }
 
     #[test]

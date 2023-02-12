@@ -97,15 +97,13 @@ fn generate_stellar_evolution(
         + rng.roll(1, 4, -1)
         + modifier;
     let result = if roll < -10 {
-        StellarEvolution::Paleodwarf
+        StellarEvolution::PopulationIII
     } else if roll < 3 {
-        StellarEvolution::SubDwarf
-    } else if roll < 10 {
-        StellarEvolution::Dwarf
+        StellarEvolution::PopulationII
     } else if roll < 21 {
-        StellarEvolution::SuperDwarf
+        StellarEvolution::PopulationI
     } else {
-        StellarEvolution::HyperDwarf
+        StellarEvolution::Population0
     };
     result
 }

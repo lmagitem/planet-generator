@@ -1,7 +1,6 @@
 pub enum StellarEvolution {
-    Paleodwarf,
-    SubDwarf,
-    Dwarf,
-    SuperDwarf,
-    HyperDwarf,
+    PopulationIII,
+    PopulationII,
+    PopulationI,
+    Population0,
 }
