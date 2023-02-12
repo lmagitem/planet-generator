@@ -356,7 +356,7 @@ fn generate_age(
         &galaxy.seed,
         &format!("star_{}_{}_{}_age", coord, system_index, star_index),
     );
-    if let StellarNeighborhoodAge::Ancient(years)
+    let mut age = if let StellarNeighborhoodAge::Ancient(years)
     | StellarNeighborhoodAge::Old(years)
     | StellarNeighborhoodAge::Young(years) = hex.neighborhood.age
     {
@@ -368,7 +368,15 @@ fn generate_age(
             .min(((universe.age) as f32 * 1000.0) - rng.roll(1, 9000, 0) as f32)
     } else {
         rng.roll(1, 9000, 999) as f32
-    }
+    };
+    age = if age >= universe.age * 1000.0 - 40.0 {
+        universe.age * 1000.0 - 40.0
+    } else if age < 50.0 {
+        50.0
+    } else {
+        age
+    };
+    age
 }
 
 #[cfg(test)]
@@ -466,7 +474,7 @@ mod tests {
     }
 
     #[test]
-    fn calculate_proper_age() {
+    fn calculate_proper_star_age() {
         for i in 0..1000 {
             let mut rng = SeededDiceRoller::new(&format!("{}", i), &"test_age");
             let settings = &GenerationSettings {
@@ -482,11 +490,12 @@ mod tests {
                 &settings,
             );
             let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
-            let coord = SpaceCoordinates::new(
-                rng.gen_u16() as i64,
-                rng.gen_u16() as i64,
-                rng.gen_u16() as i64,
-            );
+            let gal_end = galaxy.get_galactic_end();
+            let x = rng.gen_u32() as i64 % gal_end.x;
+            let y = rng.gen_u32() as i64 % gal_end.y;
+            let z = rng.gen_u32() as i64 % gal_end.z;
+            let coord = SpaceCoordinates::new(x, y, z);
+
             let age = generate_age(
                 i as u16,
                 i as u16 + 1,
@@ -494,7 +503,7 @@ mod tests {
                 &GalacticHex::generate(coord, coord, &mut galaxy),
                 &galaxy,
                 &galaxy.neighborhood.universe,
-            );
+            ) / 1000.0;
             assert!(age > 0.0 && age < galaxy.neighborhood.universe.age);
         }
     }

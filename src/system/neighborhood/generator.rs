@@ -69,6 +69,7 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
         })
         .expect("Should return a proper neighborhood age.");
 
+    let universe_age = (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200;
     match age {
         StellarNeighborhoodAge::Young(_) => {
             let mut years = 0;
@@ -82,9 +83,7 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
                 turn += 1;
             }
             years = years * 100 / divide_by;
-            age = StellarNeighborhoodAge::Young(
-                1.max(years.min((galaxy.neighborhood.universe.age * 1000.0) as u64)),
-            );
+            age = StellarNeighborhoodAge::Young(1.max(years.min(universe_age)));
         }
         StellarNeighborhoodAge::Mature => (),
         StellarNeighborhoodAge::Old(_) => {
@@ -97,15 +96,13 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
                 turn += 1;
             }
             age = StellarNeighborhoodAge::Old(
-                (((galaxy.neighborhood.universe.age * 1000.0) as u64) - 300)
+                (universe_age - 200)
                     .min((galaxy.neighborhood.universe.age * 1000.0) as u64 / divide_by),
             );
         }
         StellarNeighborhoodAge::Ancient(_) => {
             age = StellarNeighborhoodAge::Ancient(
-                (((galaxy.neighborhood.universe.age * 1000.0) as u64) - 300)
-                    .min((galaxy.neighborhood.universe.age) as u64 - rng.roll(1, 10, -1) as u64)
-                    * 1000,
+                (universe_age - 200).min(universe_age - rng.roll(1, 10, -1) as u64 * 1000),
             );
         }
     }
@@ -118,7 +115,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generate_a_galaxy_with_proper_size() {
+    fn generate_star_neighborhood_with_proper_size() {
         let mut rng = SeededDiceRoller::new("seed", "step");
         for i in 0..10000 {
             let settings = &GenerationSettings {
@@ -134,7 +131,7 @@ mod tests {
                 &settings,
             );
             let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
-            let gal_end = galaxy.get_galactic_end().abs(galaxy.get_galactic_start());
+            let gal_end = galaxy.get_galactic_end();
             let x = rng.gen_u32() as i64 % gal_end.x;
             let y = rng.gen_u32() as i64 % gal_end.y;
             let z = rng.gen_u32() as i64 % gal_end.z;
@@ -143,14 +140,14 @@ mod tests {
                 .expect("Should have generated a hex.");
             match hex.neighborhood.age {
                 StellarNeighborhoodAge::Young(a) => {
-                    assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 300)
+                    assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200)
                 }
                 StellarNeighborhoodAge::Mature => (),
                 StellarNeighborhoodAge::Old(a) => {
-                    assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 300)
+                    assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200)
                 }
                 StellarNeighborhoodAge::Ancient(a) => {
-                    assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 300)
+                    assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200)
                 }
             }
         }
