@@ -176,8 +176,6 @@ fn generate_mass(
 }
 
 fn calculate_spectral_type(temperature: u32) -> StarSpectralType {
-    println!("calculate_spectral_type");
-
     // Find the two temperatures in the dataset that the given temperature is between
     let (lower_temp, lower_class) = dataset.iter().find(|&(t, _)| *t <= temperature).unwrap();
     let (upper_temp, upper_class) = dataset
