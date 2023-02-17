@@ -271,7 +271,9 @@ fn calculate_temperature_using_luminosity(luminosity: f32, radius: f32) -> f32 {
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
     // Same there, I've added the "x0.94304315" because it gives me results that are, on average (and exactly in the case of Sun), closer
     // to the ones I found on existing stars.
-    ((luminosity as f64 / (area * sigma)).powf(1.0 / 4.0) * 0.94304315) as f32
+    let mut result = (luminosity as f64 / (area * sigma)).powf(1.0 / 4.0) as f32;
+    result = result * 0.94304315;
+    result
 }
 
 fn calculate_luminosity_using_temperature(temperature: u32, radius: f32) -> f32 {
@@ -282,7 +284,22 @@ fn calculate_luminosity_using_temperature(temperature: u32, radius: f32) -> f32 
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
     // Same there, I've added the "x1.2643679" because it gives me results that are, on average (and exactly in the case of Sun), closer
     // to the ones I found on existing stars.
-    ((sigma * area * (temperature as f64).powf(4.0)) * 1.2643679) as f32
+    let mut result = (sigma * area * (temperature as f64).powf(4.0)) as f32;
+    result = result * 1.2643679;
+    result
+}
+
+fn calculate_radius_using_luminosity_and_temperature(luminosity: f32, temperature: u32) -> f32 {
+    let pi = std::f64::consts::PI;
+    // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
+    // in order to get working results.
+    let sigma = 5.670367 * f64::powf(10.0, -17.0);
+    // Same there, I've added the "x0.88937" because it gives me results that are, on average (and exactly in the case of Sun), closer
+    // to the ones I found on existing stars.
+    let mut result =
+        f64::sqrt(luminosity as f64 / (4.0 * pi * sigma * (temperature as f64).powf(4.0))) as f32;
+    result = result * 0.88937;
+    result
 }
 
 fn calculate_radius(
@@ -303,6 +320,7 @@ fn calculate_radius(
     // From what I found online, mass^.8 should return a good approximation, but I've found better results by doing the following:
     let mut radius = mass.powf(0.78);
     radius += radius * 2.5666;
+
     let rand_multiplier = rng.roll(1, 4666, 999) as f32 / 10000.0;
     if age < main_lifespan + subgiant_lifespan {
         // Subgiant
@@ -340,7 +358,7 @@ fn calculate_main_sequence_luminosity(mass: f32) -> f32 {
 
 /// In millions of years.
 fn calculate_lifespan(mass: f32, luminosity: f32) -> f32 {
-    f32::powi(10.0, 10) * mass as f32 / luminosity as f32 * 100.0
+    f32::powi(10.0, 4) * mass as f32 / luminosity as f32
 }
 
 /// In millions of years.
@@ -379,6 +397,117 @@ fn generate_age(
     age
 }
 
+// * 2.0 because my dataset has half-way points
+fn get_age_range_in_star_lifecycle_dataset(
+    age_in_billion_of_years: f32,
+    main_lifespan: f32,
+    subgiant_lifespan: f32,
+    giant_lifespan: f32,
+) -> f32 {
+    let age_in_million_of_years = age_in_billion_of_years * 1000.0;
+    let to_subgiant_lifespan = main_lifespan + subgiant_lifespan;
+    let to_giant_lifespan = to_subgiant_lifespan + giant_lifespan;
+    if age_in_million_of_years >= 0.0 && age_in_million_of_years <= main_lifespan {
+        return (age_in_million_of_years / main_lifespan) * 2.0;
+    } else if age_in_million_of_years > main_lifespan
+        && age_in_million_of_years <= to_subgiant_lifespan
+    {
+        return 2.0 + ((age_in_million_of_years - main_lifespan) / to_subgiant_lifespan) * 2.0;
+    } else if age_in_million_of_years > to_subgiant_lifespan
+        && age_in_million_of_years <= to_giant_lifespan
+    {
+        return 4.0 + ((age_in_million_of_years - to_subgiant_lifespan) / to_giant_lifespan) * 2.0;
+    } else {
+        return 7.0;
+    }
+}
+
+fn get_mass_range_in_star_lifecycle_dataset(mass: f32) -> f32 {
+    if mass < 0.4 {
+        return 0.0;
+    } else if mass >= 0.4 && mass <= 0.5 {
+        return mass / 0.5;
+    } else if mass > 0.5 && mass <= 1.0 {
+        return 1.0 + ((mass - 0.5) / (1.0 - 0.5));
+    } else if mass > 1.0 && mass <= 2.0 {
+        return 2.0 + ((mass - 1.0) / (2.0 - 1.0));
+    } else if mass > 2.0 && mass <= 5.0 {
+        return 3.0 + ((mass - 2.0) / (5.0 - 2.0));
+    } else if mass > 5.0 && mass <= 15.0 {
+        return 4.0 + ((mass - 5.0) / (15.0 - 5.0));
+    } else if mass > 15.0 && mass <= 60.0 {
+        return 5.0 + ((mass - 15.0) / (60.0 - 15.0));
+    } else if mass > 60.0 && mass <= 500.0 {
+        return 6.0 + ((mass - 60.0) / (500.0 - 60.0));
+    } else {
+        return 8.0;
+    }
+}
+
+fn get_nearest_star_lifecycle_dataset_cells(
+    age_range: f32,
+    mass_range: f32,
+) -> [TemperatureAndLuminosity; 4] {
+    if age_range < 0.0 || age_range > 6.0 || mass_range < 0.0 || mass_range > 7.0 {
+        panic!(
+            "{}",
+            format!(
+                "age_range ({}) or mass_range ({}) is out of bounds",
+                age_range, mass_range
+            )
+        );
+    }
+
+    let x = age_range as usize;
+    let x1 = if age_range.fract() != 0.0 { x + 1 } else { x };
+    let y = mass_range as usize;
+    let y1 = if mass_range.fract() != 0.0 { y + 1 } else { y };
+
+    let a = STAR_LIFECYCLE_DATASET[y][x];
+    let b = STAR_LIFECYCLE_DATASET[y][x1];
+    let c = STAR_LIFECYCLE_DATASET[y1][x];
+    let d = STAR_LIFECYCLE_DATASET[y1][x1];
+
+    [a, b, c, d]
+}
+
+fn is_star_a_main_sequence_dwarf(star: &Star) -> bool {
+    star.luminosity_class == StarLuminosityClass::V
+        && (discriminant(&star.spectral_type) == discriminant(&StarSpectralType::WR(0))
+            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::O(0))
+            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::B(0))
+            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::A(0))
+            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0))
+            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::G(0))
+            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::K(0))
+            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::M(0)))
+}
+
+fn interpolate_f32(x0_y0: f32, x1_y0: f32, x0_y1: f32, x1_y1: f32, x: f32, y: f32) -> f32 {
+    let xf = x.fract();
+    let yf = y.fract();
+    let i1 = x0_y0 * (1.0 - yf) + x0_y1 * yf;
+    let i2 = x1_y0 * (1.0 - yf) + x1_y1 * yf;
+    i1 * (1.0 - xf) + i2 * xf
+}
+
+/// My "main sequence only" calculation is almost good, but it's useless for subgiants and giants, and my calculation that interpolates from
+/// a dataset of temperatures and luminosity for mass/age steps wasn't a bad idea per se, but I don't have enough data to make it effective.
+/// However, I need to go forward, so I'll mix the two for main sequence and use the dataset for giants.
+/// If you're reading this, have knowledge in the field and an idea of how to improve my star generation sequence in a more realistic way,
+/// feel free to reach out to me and contribute!
+fn mix_values(a: f32, b: f32, age: f32, main_lifespan: f32) -> f32 {
+    let result;
+    let pond_a = 0.3 + age / main_lifespan;
+    if pond_a >= 1.0 {
+        result = b;
+    } else {
+        let pond_b = 1.0 - pond_a;
+        result = a * pond_a + b * pond_b;
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,90 +516,216 @@ mod tests {
     fn generate_values_approaching_reality_for_actual_stars() {
         let mut n = 0;
         let mut rad_sum = 0.0;
+        let mut rad_ms_sum = 0.0;
+        let mut rad_calc_sum = 0.0;
+        let mut lum_sum = 0.0;
         let mut lum_ms_sum = 0.0;
         let mut lum_calc_sum = 0.0;
         let mut temp_sum = 0.0;
+        let mut temp_ms_sum = 0.0;
+        let mut temp_calc_sum = 0.0;
+
+        let coord = SpaceCoordinates {
+            ..Default::default()
+        };
+        let hex = &GalacticHex {
+            ..Default::default()
+        };
+        let galaxy = &Galaxy {
+            ..Default::default()
+        };
 
         for star in get_test_stars().iter() {
-            if is_star_a_main_sequence_dwarf_or_giant(star) {
+            if is_star_a_main_sequence_dwarf(star) {
                 let mass = star.mass;
-                let luminosity = calculate_main_sequence_luminosity(mass);
-                let radius = calculate_radius(
-                    mass,
-                    0.0,
-                    1.0,
-                    0.0,
-                    0.0,
-                    0,
-                    0,
-                    SpaceCoordinates {
-                        ..Default::default()
-                    },
-                    &Galaxy {
-                        ..Default::default()
-                    },
+                let ms_luminosity = calculate_main_sequence_luminosity(mass);
+                let ms_radius = calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, galaxy);
+                let ms_temperature =
+                    calculate_temperature_using_luminosity(ms_luminosity, ms_radius) as u32;
+
+                let main_lifespan = calculate_lifespan(mass, ms_luminosity);
+                let subgiant_lifespan = calculate_subgiant_lifespan(mass, main_lifespan);
+                let giant_lifespan = calculate_giant_lifespan(mass, main_lifespan);
+                let age = star.age;
+
+                let mass_range = get_mass_range_in_star_lifecycle_dataset(mass);
+                let age_range = get_age_range_in_star_lifecycle_dataset(
+                    age,
+                    main_lifespan,
+                    subgiant_lifespan,
+                    giant_lifespan,
                 );
-                let temperature = calculate_temperature_using_luminosity(luminosity, radius) as u32;
-                let spectral_type = calculate_spectral_type(temperature);
-                let calc_luminosity =
-                    calculate_luminosity_using_temperature(star.temperature, star.radius);
+                if age_range < 7.0 && mass_range < 6.0 {
+                    let nearest_values =
+                        get_nearest_star_lifecycle_dataset_cells(age_range, mass_range);
+                    let interpolated_temperature = if mass < 0.4 {
+                        ms_temperature
+                    } else {
+                        interpolate_f32(
+                            nearest_values[0].0,
+                            nearest_values[1].0,
+                            nearest_values[2].0,
+                            nearest_values[3].0,
+                            age_range,
+                            mass_range,
+                        ) as u32
+                    };
+                    let interpolated_lum_power = interpolate_f32(
+                        nearest_values[0].1,
+                        nearest_values[1].1,
+                        nearest_values[2].1,
+                        nearest_values[3].1,
+                        age_range,
+                        mass_range,
+                    );
+                    let interpolated_luminosity = if mass < 0.4 {
+                        ms_luminosity
+                    } else {
+                        f32::powf(10.0, interpolated_lum_power)
+                    };
+                    let interpolated_radius = if mass < 0.4 {
+                        ms_radius
+                    } else {
+                        calculate_radius_using_luminosity_and_temperature(
+                            interpolated_luminosity,
+                            interpolated_temperature as u32,
+                        )
+                    };
 
-                // print_real_to_generated_star_comparison(
-                //     star,
-                //     mass,
-                //     radius,
-                //     luminosity,
-                //     calc_luminosity,
-                //     temperature,
-                //     spectral_type,
-                // );
+                    let final_radius =
+                        mix_values(ms_radius, interpolated_radius, age, main_lifespan);
+                    let final_luminosity =
+                        mix_values(ms_luminosity, interpolated_luminosity, age, main_lifespan);
+                    let final_temperature = mix_values(
+                        ms_temperature as f32,
+                        interpolated_temperature as f32,
+                        age,
+                        main_lifespan,
+                    ) as u32;
 
-                n += 1;
-                rad_sum += get_difference_percentage(radius, star.radius);
-                lum_ms_sum += get_difference_percentage(luminosity, star.luminosity);
-                lum_calc_sum += get_difference_percentage(calc_luminosity, star.luminosity);
-                temp_sum += get_difference_percentage(temperature as f32, star.temperature as f32);
+                    let calc_radius = calculate_radius_using_luminosity_and_temperature(
+                        star.luminosity,
+                        star.temperature,
+                    );
+                    let calc_luminosity =
+                        calculate_luminosity_using_temperature(star.temperature, star.radius);
+                    let calc_temperature =
+                        calculate_temperature_using_luminosity(star.luminosity, star.radius);
 
-                if star.name.eq("Sun") {
-                    // The results should be really close to reality for the Sun
-                    assert!(
-                        star.radius - star.radius * 0.025 <= radius
-                            && radius <= star.radius + star.radius * 0.025
+                    n += 1;
+                    rad_sum += get_difference_percentage(final_radius, star.radius);
+                    rad_ms_sum += get_difference_percentage(ms_radius, star.radius);
+                    rad_calc_sum += get_difference_percentage(calc_radius, star.radius);
+                    lum_sum += get_difference_percentage(final_luminosity, star.luminosity);
+                    lum_ms_sum += get_difference_percentage(ms_luminosity, star.luminosity);
+                    lum_calc_sum += get_difference_percentage(calc_luminosity, star.luminosity);
+                    temp_sum += get_difference_percentage(
+                        final_temperature as f32,
+                        star.temperature as f32,
                     );
-                    assert!(
-                        star.luminosity - star.luminosity * 0.025 <= luminosity
-                            && luminosity <= star.luminosity + star.luminosity * 0.025
+                    temp_ms_sum +=
+                        get_difference_percentage(ms_temperature as f32, star.temperature as f32);
+                    temp_calc_sum +=
+                        get_difference_percentage(calc_temperature as f32, star.temperature as f32);
+
+                    print_real_to_generated_star_comparison(
+                        star,
+                        mass,
+                        final_radius,
+                        ms_radius,
+                        interpolated_radius,
+                        calc_radius,
+                        final_luminosity,
+                        ms_luminosity,
+                        interpolated_luminosity,
+                        calc_luminosity,
+                        final_temperature as f32,
+                        ms_temperature as f32,
+                        interpolated_temperature as f32,
+                        calc_temperature,
                     );
-                    assert!(
-                        star.luminosity - star.luminosity * 0.025 <= calc_luminosity
-                            && calc_luminosity <= star.luminosity + star.luminosity * 0.025
-                    );
-                    assert!(
-                        star.temperature as f32 - star.temperature as f32 * 0.025
-                            <= temperature as f32
-                            && temperature as f32
-                                <= star.temperature as f32 + star.temperature as f32 * 0.025
-                    );
+
+                    if star.name.eq("Sun") {
+                        // The results should be really close to reality for the Sun
+                        assert!(
+                            star.radius - star.radius * 0.025 <= ms_radius
+                                && ms_radius <= star.radius + star.radius * 0.025
+                        );
+                        assert!(
+                            star.radius - star.radius * 0.025 <= final_radius
+                                && final_radius <= star.radius + star.radius * 0.025
+                        );
+                        assert!(
+                            star.radius - star.radius * 0.025 <= calc_radius
+                                && calc_radius <= star.radius + star.radius * 0.025
+                        );
+                        assert!(
+                            star.luminosity - star.luminosity * 0.025 <= ms_luminosity
+                                && ms_luminosity <= star.luminosity + star.luminosity * 0.025
+                        );
+                        assert!(
+                            star.luminosity - star.luminosity * 0.025 <= final_luminosity
+                                && final_luminosity <= star.luminosity + star.luminosity * 0.025
+                        );
+                        assert!(
+                            star.luminosity - star.luminosity * 0.025 <= calc_luminosity
+                                && calc_luminosity <= star.luminosity + star.luminosity * 0.025
+                        );
+                        assert!(
+                            star.temperature as f32 - star.temperature as f32 * 0.025
+                                <= ms_temperature as f32
+                                && ms_temperature as f32
+                                    <= star.temperature as f32 + star.temperature as f32 * 0.025
+                        );
+                        assert!(
+                            star.temperature as f32 - star.temperature as f32 * 0.025
+                                <= final_temperature as f32
+                                && final_temperature as f32
+                                    <= star.temperature as f32 + star.temperature as f32 * 0.025
+                        );
+                        assert!(
+                            star.temperature as f32 - star.temperature as f32 * 0.025
+                                <= calc_temperature as f32
+                                && calc_temperature as f32
+                                    <= star.temperature as f32 + star.temperature as f32 * 0.025
+                        );
+                    }
                 }
             }
         }
 
         rad_sum /= n as f32;
+        rad_ms_sum /= n as f32;
+        rad_calc_sum /= n as f32;
+        lum_sum /= n as f32;
         lum_ms_sum /= n as f32;
         lum_calc_sum /= n as f32;
         temp_sum /= n as f32;
+        temp_ms_sum /= n as f32;
+        temp_calc_sum /= n as f32;
 
         // The results shouldn't have a variance higher than 10% in general
-        // print_real_to_generated_stars_comparison_results(
-        //     rad_sum,
-        //     lum_ms_sum,
-        //     lum_calc_sum,
-        //     temp_sum,
-        // );
-        assert!(-0.1 <= rad_sum && rad_sum <= 0.1);
-        assert!(-0.1 <= lum_ms_sum && lum_ms_sum <= 0.1);
-        assert!(-0.1 <= lum_calc_sum && lum_calc_sum <= 0.1);
-        assert!(-0.1 <= temp_sum && temp_sum <= 0.1);
+        print_real_to_generated_stars_comparison_results(
+            rad_sum,
+            rad_ms_sum,
+            rad_calc_sum,
+            lum_sum,
+            lum_ms_sum,
+            lum_calc_sum,
+            temp_sum,
+            temp_ms_sum,
+            temp_calc_sum,
+        );
+
+        assert!(-0.2 <= rad_sum && rad_sum <= 0.2);
+        assert!(-0.2 <= rad_ms_sum && rad_ms_sum <= 0.2);
+        assert!(-0.2 <= rad_calc_sum && rad_calc_sum <= 0.2);
+        assert!(-0.2 <= lum_sum && lum_sum <= 0.2);
+        assert!(-0.2 <= lum_ms_sum && lum_ms_sum <= 0.2);
+        assert!(-0.2 <= lum_calc_sum && lum_calc_sum <= 0.2);
+        assert!(-0.2 <= temp_sum && temp_sum <= 0.2);
+        assert!(-0.2 <= temp_ms_sum && temp_ms_sum <= 0.2);
+        assert!(-0.2 <= temp_calc_sum && temp_calc_sum <= 0.2);
     }
 
     #[test]
@@ -576,5 +831,149 @@ mod tests {
         assert!(calculate_spectral_type(350) == StarSpectralType::Y(1));
         assert!(calculate_spectral_type(320) == StarSpectralType::Y(2));
         assert!(calculate_spectral_type(250) == StarSpectralType::Y(4));
+    }
+
+    #[test]
+    fn interpolate_temperature_properly() {
+        let mut x0_y0 = 5000.0;
+        let mut x1_y0 = 6000.0;
+        let mut x0_y1 = 5500.0;
+        let mut x1_y1 = 6500.0;
+        let mut x = 2.5;
+        let mut y = 1.5;
+        let mut result = interpolate_f32(x0_y0, x1_y0, x0_y1, x1_y1, x, y);
+        let mut expected = 5750.0;
+        assert!((result - expected).abs() < 0.001);
+
+        x0_y0 = 0.0;
+        x1_y0 = 1000.0;
+        x0_y1 = 0.0;
+        x1_y1 = 1000.0;
+        x = 2.5;
+        y = 1.5;
+        result = interpolate_f32(x0_y0, x1_y0, x0_y1, x1_y1, x, y);
+        expected = 500.0;
+        assert!((result - expected).abs() < 0.001);
+
+        x0_y0 = 0.0;
+        x1_y0 = 1000.0;
+        x0_y1 = 500.0;
+        x1_y1 = 1500.0;
+        x = 2.5;
+        y = 1.5;
+        result = interpolate_f32(x0_y0, x1_y0, x0_y1, x1_y1, x, y);
+        expected = 750.0;
+        assert!((result - expected).abs() < 0.001);
+
+        x0_y0 = 0.0;
+        x1_y0 = 1000.0;
+        x0_y1 = 500.0;
+        x1_y1 = 1500.0;
+        x = 1.75;
+        y = 1.5;
+        result = interpolate_f32(x0_y0, x1_y0, x0_y1, x1_y1, x, y);
+        expected = 1000.0;
+        assert!((result - expected).abs() < 0.001);
+    }
+
+    fn print_real_to_generated_stars_comparison_results(
+        rad_sum: f32,
+        rad_ms_sum: f32,
+        rad_calc_sum: f32,
+        lum_sum: f32,
+        lum_ms_sum: f32,
+        lum_calc_sum: f32,
+        temp_sum: f32,
+        temp_ms_sum: f32,
+        temp_calc_sum: f32,
+    ) {
+        println!(
+        "\nVariance from generated values to real ones - radius: {}%, ms radius: {}%, calculated radius: {}%, luminosity: {}%, ms luminosity: {}%, calculated luminosity: {}%, temperature: {}%, ms temperature: {}%, calculated temperature: {}\n",
+        format!("{}{}", if rad_sum > 0.0 {"+"} else {""}, rad_sum * 100.0),
+        format!("{}{}", if rad_ms_sum > 0.0 {"+"} else {""}, rad_ms_sum * 100.0),
+        format!("{}{}", if rad_calc_sum > 0.0 {"+"} else {""}, rad_calc_sum * 100.0),
+        format!("{}{}", if lum_sum > 0.0 {"+"} else {""}, lum_sum * 100.0),
+        format!("{}{}", if lum_ms_sum > 0.0 {"+"} else {""}, lum_ms_sum * 100.0),
+        format!("{}{}", if lum_calc_sum > 0.0 {"+"} else {""}, lum_calc_sum * 100.0),
+        format!("{}{}", if temp_sum > 0.0 {"+"} else {""}, temp_sum * 100.0),
+        format!("{}{}", if temp_ms_sum > 0.0 {"+"} else {""}, temp_ms_sum * 100.0),
+        format!("{}{}", if temp_calc_sum > 0.0 {"+"} else {""}, temp_calc_sum * 100.0),
+    );
+    }
+
+    fn print_real_to_generated_star_comparison(
+        star: &Star,
+        mass: f32,
+        final_radius: f32,
+        ms_radius: f32,
+        int_radius: f32,
+        calc_radius: f32,
+        final_luminosity: f32,
+        ms_luminosity: f32,
+        int_luminosity: f32,
+        calc_luminosity: f32,
+        final_temperature: f32,
+        ms_temperature: f32,
+        int_temperature: f32,
+        calc_temperature: f32,
+    ) {
+        println!(
+            "                   Real {} - mass: {}, rad: {}, lum: {}, temp: {}K, type: {}, age: {}",
+            star.name,
+            star.mass,
+            star.radius,
+            star.luminosity,
+            star.temperature,
+            star.spectral_type,
+            star.age
+        );
+        println!(
+            "Main sequence generated {} - mass: {}, rad: {} ({}), lum: {} ({}), temp: {}K ({}), type: {}",
+            star.name,
+            mass,
+            ms_radius,
+            get_difference_percentage_str(ms_radius, star.radius),
+            ms_luminosity,
+            get_difference_percentage_str(ms_luminosity, star.luminosity as f32),
+            ms_temperature,
+            get_difference_percentage_str(ms_temperature as f32, star.temperature as f32),
+            calculate_spectral_type(ms_temperature as u32)
+        );
+        println!(
+            "Interpolation generated {} - mass: {}, rad: {} ({}), lum: {} ({}), temp: {}K ({}), type: {}",
+            star.name,
+            mass,
+            int_radius,
+            get_difference_percentage_str(int_radius, star.radius),
+            int_luminosity,
+            get_difference_percentage_str(int_luminosity, star.luminosity as f32),
+            int_temperature,
+            get_difference_percentage_str(int_temperature as f32, star.temperature as f32),
+            calculate_spectral_type(int_temperature as u32)
+        );
+        println!(
+            "         Calc generated {} - mass: {}, rad: {} ({}), lum: {} ({}), temp: {}K ({}), type: {}",
+            star.name,
+            mass,
+            calc_radius,
+            get_difference_percentage_str(calc_radius, star.radius),
+            calc_luminosity,
+            get_difference_percentage_str(calc_luminosity, star.luminosity as f32),
+            calc_temperature,
+            get_difference_percentage_str(calc_temperature as f32, star.temperature as f32),
+            calculate_spectral_type(calc_temperature as u32)
+        );
+        println!(
+            "        Final generated {} - mass: {}, rad: {} ({}), lum: {} ({}), temp: {}K ({}), type: {}\n",
+            star.name,
+            mass,
+            final_radius,
+            get_difference_percentage_str(final_radius, star.radius),
+            final_luminosity,
+            get_difference_percentage_str(final_luminosity, star.luminosity as f32),
+            final_temperature,
+            get_difference_percentage_str(final_temperature as f32, star.temperature as f32),
+            calculate_spectral_type(final_temperature as u32)
+        );
     }
 }

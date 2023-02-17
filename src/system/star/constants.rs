@@ -14,6 +14,91 @@ pub const BLUE_GIANT_POP_0_MAX_MASS: f32 = 50.0;
 pub const BLUE_GIANT_POP_I_MAX_MASS: f32 = 100.0;
 pub const BLUE_GIANT_POP_II_MAX_MASS: f32 = 200.0;
 pub const BLUE_GIANT_POP_III_MAX_MASS: f32 = 500.0;
+/// The following array gives expected temperatures and luminosity (powers of 10) for solar masses at each stage of their lifespan
+/// 1st entry is "birth", 3rd is beginning of subgiant, 5th beginning of giant/supergiant, 7th end of giant/supergiant, and inbetween are mid-points
+pub const STAR_LIFECYCLE_DATASET: [[TemperatureAndLuminosity; 7]; 8] = [
+    // 0.4 solar masses
+    [
+        TemperatureAndLuminosity(3375.0, -2.05),
+        TemperatureAndLuminosity(4300.0, -0.8),
+        TemperatureAndLuminosity(4100.0, -0.2),
+        TemperatureAndLuminosity(3950.0, 0.7),
+        TemperatureAndLuminosity(3800.0, 1.2),
+        TemperatureAndLuminosity(3650.0, 1.75),
+        TemperatureAndLuminosity(3200.0, 0.5),
+    ],
+    // 0.5 solar masses
+    [
+        TemperatureAndLuminosity(4200.0, -1.3),
+        TemperatureAndLuminosity(4300.0, -0.8),
+        TemperatureAndLuminosity(4100.0, -0.2),
+        TemperatureAndLuminosity(3950.0, 0.7),
+        TemperatureAndLuminosity(3800.0, 1.2),
+        TemperatureAndLuminosity(3650.0, 1.75),
+        TemperatureAndLuminosity(3300.0, 2.3),
+    ],
+    // 1 solar mass
+    [
+        TemperatureAndLuminosity(5400.0, -0.1455),
+        TemperatureAndLuminosity(5805.0, 0.0126543),
+        TemperatureAndLuminosity(5500.0, 0.6),
+        TemperatureAndLuminosity(5200.0, 0.75),
+        TemperatureAndLuminosity(4300.0, 0.75),
+        TemperatureAndLuminosity(3900.0, 1.25),
+        TemperatureAndLuminosity(3500.0, 2.6),
+    ],
+    // 2 solar masses
+    [
+        TemperatureAndLuminosity(8450.0, 0.8),
+        TemperatureAndLuminosity(7800.0, 1.4),
+        TemperatureAndLuminosity(6700.0, 1.4),
+        TemperatureAndLuminosity(7500.0, 1.5),
+        TemperatureAndLuminosity(5100.0, 1.7),
+        TemperatureAndLuminosity(4500.0, 2.0),
+        TemperatureAndLuminosity(3950.0, 2.9),
+    ],
+    // 5 solar masses
+    [
+        TemperatureAndLuminosity(17000.0, 2.75),
+        TemperatureAndLuminosity(16000.0, 3.1),
+        TemperatureAndLuminosity(13800.0, 3.1),
+        TemperatureAndLuminosity(8000.0, 3.2),
+        TemperatureAndLuminosity(3600.0, 3.5),
+        TemperatureAndLuminosity(8600.0, 3.8),
+        TemperatureAndLuminosity(5500.0, 3.9),
+    ],
+    // 15 solar masses
+    [
+        TemperatureAndLuminosity(31000.0, 4.4),
+        TemperatureAndLuminosity(25000.0, 4.6),
+        TemperatureAndLuminosity(27000.0, 4.7),
+        TemperatureAndLuminosity(17000.0, 4.75),
+        TemperatureAndLuminosity(12000.0, 4.8),
+        TemperatureAndLuminosity(6000.0, 4.6),
+        TemperatureAndLuminosity(3600.0, 4.8),
+    ],
+    // 60 solar masses
+    [
+        TemperatureAndLuminosity(43520.0, 5.75),
+        TemperatureAndLuminosity(17000.0, 5.95),
+        TemperatureAndLuminosity(6000.0, 6.0),
+        TemperatureAndLuminosity(19000.0, 6.1),
+        TemperatureAndLuminosity(46000.0, 6.0),
+        TemperatureAndLuminosity(27000.0, 5.9),
+        TemperatureAndLuminosity(62000.0, 5.4),
+    ],
+    // 500 solar masses
+    [
+        TemperatureAndLuminosity(53000.0, 6.7),
+        TemperatureAndLuminosity(22000.0, 6.9),
+        TemperatureAndLuminosity(7000.0, 6.8),
+        TemperatureAndLuminosity(24000.0, 7.0),
+        TemperatureAndLuminosity(48000.0, 6.9),
+        TemperatureAndLuminosity(30000.0, 6.8),
+        TemperatureAndLuminosity(70000.0, 6.2),
+    ],
+];
+/// The following array contains equivalencies between temperatures and spectral types.
 pub const TEMPERATURE_TO_SPECTRAL_TYPE_DATASET: &[(u32, u32); 69] = &[
     (u32::MAX, 0), // WR
     (1500000, 0),
@@ -86,59 +171,8 @@ pub const TEMPERATURE_TO_SPECTRAL_TYPE_DATASET: &[(u32, u32); 69] = &[
     (0, 109),
 ];
 
-pub fn is_star_a_main_sequence_dwarf_or_giant(star: &Star) -> bool {
-    star.luminosity_class == StarLuminosityClass::V
-        && (discriminant(&star.spectral_type) == discriminant(&StarSpectralType::O(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::B(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::A(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::G(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::K(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::M(0)))
-}
-
-pub fn print_real_to_generated_stars_comparison_results(
-    rad_sum: f32,
-    lum_ms_sum: f32,
-    lum_calc_sum: f32,
-    temp_sum: f32,
-) {
-    println!(
-        "\nVariance from generated values to real ones - radius: {}%, main sequence luminosity: {}%, luminosity from temperature: {}%, temperature from luminosity: {}%\n",
-        format!("{}{}", if rad_sum > 0.0 {"+"} else {""}, rad_sum * 100.0),
-        format!("{}{}", if lum_ms_sum > 0.0 {"+"} else {""}, lum_ms_sum * 100.0),
-        format!("{}{}", if lum_calc_sum > 0.0 {"+"} else {""}, lum_calc_sum * 100.0),
-        format!("{}{}", if temp_sum > 0.0 {"+"} else {""}, temp_sum * 100.0),
-    );
-}
-
-pub fn print_real_to_generated_star_comparison(
-    star: &Star,
-    mass: f32,
-    radius: f32,
-    luminosity: f32,
-    calc_luminosity: f32,
-    temperature: u32,
-    spectral_type: StarSpectralType,
-) {
-    println!(
-        "Real {} - mass: {}, rad: {}, lum: {}, temp: {}K, type: {}",
-        star.name, star.mass, star.radius, star.luminosity, star.temperature, star.spectral_type
-    );
-    println!(
-        "Generated {} - mass: {}, rad: {} ({}), lum: {} (ms: {}, calc: {}), temp: {}K ({}), type: {}",
-        star.name,
-        mass,
-        radius,
-        get_difference_percentage_str(radius, star.radius),
-        luminosity,
-        get_difference_percentage_str(luminosity, star.luminosity as f32),
-        get_difference_percentage_str(calc_luminosity, star.luminosity as f32),
-        temperature,
-        get_difference_percentage_str(temperature as f32, star.temperature as f32),
-        spectral_type
-    );
-}
+#[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+pub struct TemperatureAndLuminosity(pub f32, pub f32);
 
 pub fn get_test_stars() -> Vec<Star> {
     vec![
@@ -181,6 +215,46 @@ pub fn get_test_stars() -> Vec<Star> {
             12100,    // Temperature
             StarSpectralType::F(8),
             StarLuminosityClass::Ia,
+        ),
+        Star::new(
+            "Epsilon Canis Majoris".to_string(),
+            12.6,    // Mass
+            38700.0, // Luminosity
+            13.9,    // Radius
+            0.022,   // Age
+            22900,   // Temperature
+            StarSpectralType::B(2),
+            StarLuminosityClass::II,
+        ),
+        Star::new(
+            "Canopus".to_string(),
+            8.0,     // Mass
+            10700.0, // Luminosity
+            71.0,    // Radius
+            0.025,   // Age
+            7400,    // Temperature
+            StarSpectralType::A(9),
+            StarLuminosityClass::II,
+        ),
+        Star::new(
+            "Beta Draconis".to_string(),
+            6.0,   // Mass
+            996.0, // Luminosity
+            40.0,  // Radius
+            0.095, // Age
+            5160,  // Temperature
+            StarSpectralType::G(2),
+            StarLuminosityClass::Ib,
+        ),
+        Star::new(
+            "Theta Scorpii".to_string(),
+            3.1,    // Mass
+            1400.0, // Luminosity
+            26.3,   // Radius
+            0.5,    // Age
+            6294,   // Temperature
+            StarSpectralType::F(0),
+            StarLuminosityClass::II,
         ),
         Star::new(
             "WISE 0855-0714".to_string(),
