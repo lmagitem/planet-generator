@@ -129,7 +129,13 @@ impl Star {
 
             // TODO: Change temperatures ranges according to population
             spectral_type = calculate_spectral_type(temperature);
-            luminosity_class = calculate_luminosity_class();
+            luminosity_class = calculate_luminosity_class(
+                luminosity,
+                spectral_type,
+                age,
+                main_lifespan,
+                subgiant_lifespan,
+            );
         }
 
         let name = get_star_name(
@@ -607,8 +613,51 @@ fn generate_white_dwarf_spectral_type(
 }
 
 // TODO: Calculate luminosity class
-fn calculate_luminosity_class() -> StarLuminosityClass {
-    StarLuminosityClass::Ia
+fn calculate_luminosity_class(
+    luminosity: f32,
+    spectral_type: StarSpectralType,
+    age: f32,
+    main_lifespan: f32,
+    subgiant_lifespan: f32,
+) -> StarLuminosityClass {
+    match spectral_type {
+        StarSpectralType::L(_) | StarSpectralType::T(_) | StarSpectralType::Y(_) => {
+            return StarLuminosityClass::Y
+        }
+        StarSpectralType::DA
+        | StarSpectralType::DB
+        | StarSpectralType::DC
+        | StarSpectralType::DO
+        | StarSpectralType::DZ
+        | StarSpectralType::DQ
+        | StarSpectralType::DX => {
+            return StarLuminosityClass::VII;
+        }
+        StarSpectralType::XNS => {
+            return StarLuminosityClass::XNS;
+        }
+        StarSpectralType::XBH => {
+            return StarLuminosityClass::XBH;
+        }
+        _ => (),
+    }
+    if age <= main_lifespan {
+        return StarLuminosityClass::V;
+    } else if age <= subgiant_lifespan {
+        return StarLuminosityClass::IV;
+    } else {
+        if luminosity <= 100.0 {
+            return StarLuminosityClass::III;
+        } else if luminosity <= 1000.0 {
+            return StarLuminosityClass::II;
+        } else if luminosity <= 31333.3 {
+            return StarLuminosityClass::Ib;
+        } else if luminosity <= 75000.0 {
+            return StarLuminosityClass::Ia;
+        } else {
+            return StarLuminosityClass::O;
+        }
+    }
 }
 
 fn calculate_remnant_mass(mass: f32, settings: &GenerationSettings) -> f32 {
@@ -803,6 +852,9 @@ mod tests {
                 let ms_radius = calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, galaxy);
                 let ms_temperature =
                     calculate_temperature_using_luminosity(ms_luminosity, ms_radius as f64) as u32;
+                let main_lifespan = calculate_lifespan(mass, ms_luminosity);
+                let subgiant_lifespan = calculate_subgiant_lifespan(mass, main_lifespan);
+                let spectral_type = calculate_spectral_type(ms_temperature);
 
                 n += 1;
                 rad_ms_sum += get_difference_percentage(ms_radius, star.radius);
@@ -816,8 +868,14 @@ mod tests {
                     ms_radius,
                     ms_luminosity,
                     ms_temperature,
-                    calculate_spectral_type(ms_temperature),
-                    calculate_luminosity_class(),
+                    spectral_type,
+                    calculate_luminosity_class(
+                        ms_luminosity,
+                        spectral_type,
+                        star.age,
+                        main_lifespan,
+                        subgiant_lifespan,
+                    ),
                     star.age,
                 );
 
@@ -908,6 +966,9 @@ mod tests {
                         interpolated_luminosity,
                         interpolated_temperature,
                     );
+                    let main_lifespan = calculate_lifespan(mass, ms_luminosity);
+                    let subgiant_lifespan = calculate_subgiant_lifespan(mass, main_lifespan);
+                    let spectral_type = calculate_spectral_type(interpolated_temperature);
 
                     n += 1;
                     rad_sum += get_difference_percentage(interpolated_radius, star.radius);
@@ -924,7 +985,13 @@ mod tests {
                         interpolated_luminosity,
                         interpolated_temperature,
                         calculate_spectral_type(interpolated_temperature),
-                        calculate_luminosity_class(),
+                        calculate_luminosity_class(
+                            interpolated_luminosity,
+                            spectral_type,
+                            star.age,
+                            main_lifespan,
+                            subgiant_lifespan,
+                        ),
                         age * 1000.0,
                     );
 
@@ -979,6 +1046,9 @@ mod tests {
                     calculate_luminosity_using_temperature(star.temperature, star.radius as f64);
                 let calc_temperature =
                     calculate_temperature_using_luminosity(star.luminosity, star.radius as f64);
+                let main_lifespan = calculate_lifespan(star.mass, calc_luminosity);
+                let subgiant_lifespan = calculate_subgiant_lifespan(star.mass, main_lifespan);
+                let spectral_type = calculate_spectral_type(calc_temperature as u32);
 
                 n += 1;
                 rad_calc_sum += get_difference_percentage(calc_radius, star.radius);
@@ -993,7 +1063,13 @@ mod tests {
                     calc_luminosity,
                     calc_temperature as u32,
                     calculate_spectral_type(calc_temperature as u32),
-                    calculate_luminosity_class(),
+                    calculate_luminosity_class(
+                        calc_luminosity,
+                        spectral_type,
+                        star.age,
+                        main_lifespan,
+                        subgiant_lifespan,
+                    ),
                     star.age,
                 );
 

@@ -91,6 +91,8 @@ pub enum StarLuminosityClass {
     VI,
     /// White dwarfs
     VII,
+    /// Brown dwarfs
+    Y,
     /// Made up category to indicate a neutron star
     XNS,
     /// Made up category to indicate a black hole
