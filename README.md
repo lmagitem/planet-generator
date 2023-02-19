@@ -26,9 +26,13 @@ This is the current roadmap of the library:
 - [ ] Star system generation
     - [x] Spawn chance according to density
     - [ ] Stars generation
-        - [ ] Age
-        - [ ] Spectral type
-        - [ ] Luminosity
+        - [x] Age
+        - [x] Spectral type
+        - [x] Luminosity
+        - [ ] Subdwarfs
+        - [ ] Spectral type according to population
+        - [ ] Name generation
+        - [ ] Configurable stars
     - [ ] Filling orbits
 - [ ] Planet generation
     - [ ] Resources

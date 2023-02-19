@@ -310,6 +310,7 @@ mod tests {
                 flat_map: true,
                 ..Default::default()
             },
+            ..Default::default()
         };
         let mut galaxy = Galaxy {
             seed: String::from("default"),

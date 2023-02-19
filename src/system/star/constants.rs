@@ -183,7 +183,7 @@ pub fn get_test_stars() -> Vec<Star> {
             0.014, // Radius
             9.0,   // Age
             16500, // Temperature
-            StarSpectralType::DA(4),
+            StarSpectralType::DA,
             StarLuminosityClass::VII,
         ),
         Star::new(
@@ -193,7 +193,7 @@ pub fn get_test_stars() -> Vec<Star> {
             0.0084, // Radius
             0.228,  // Age
             25200,  // Temperature
-            StarSpectralType::DA(2),
+            StarSpectralType::DA,
             StarLuminosityClass::VII,
         ),
         Star::new(
