@@ -1,8 +1,6 @@
 use crate::prelude::*;
 
-#[derive(
-    Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize,
-)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub enum AstronomicalObject {
     #[default]
     Void,
@@ -11,5 +9,5 @@ pub enum AstronomicalObject {
     GasGiant,
     Ring,
     Station,
-    Ship
+    Ship,
 }

@@ -244,7 +244,8 @@ fn generate_binary_relations(
     while stars_left.len() > 0 {
         // If at least two stars left, with a random chance of 1 in 4 or more
         if stars_left.len() > 1
-            && (rng.gen_u8() % 4 == 0 || (!first_turn && number_of_stars % 2 == 0 && rng.gen_u8() % 5 != 0))
+            && (rng.gen_u8() % 4 == 0
+                || (!first_turn && number_of_stars % 2 == 0 && rng.gen_u8() % 5 != 0))
         {
             // Make a pair and have it dance with the biggest mass/last pair.
             last_id += 1;
@@ -445,8 +446,8 @@ fn find_center_of_binary_pair(
     let barycentre_distance_from_most_massive =
         calculate_barycentre(actual_distance, most_massive_mass, less_massive_mass);
 
-    center.satellites.push(most_massive_point.id);
-    center.satellites.push(less_massive_point.id);
+    center.satellite_ids.push(most_massive_point.id);
+    center.satellite_ids.push(less_massive_point.id);
 
     let most_massive_distance_and_radius =
         most_massive_radius as f64 + barycentre_distance_from_most_massive;
@@ -458,13 +459,18 @@ fn find_center_of_binary_pair(
         less_massive_distance_and_radius as f32
     };
 
-    most_massive_point.primary_body = Some(next_id);
+    most_massive_point.primary_body_id = Some(next_id);
     most_massive_point.distance_from_primary = Some(barycentre_distance_from_most_massive);
-    less_massive_point.primary_body = Some(next_id);
+    less_massive_point.primary_body_id = Some(next_id);
     less_massive_point.distance_from_primary =
         Some(actual_distance - barycentre_distance_from_most_massive);
 
-    (center, most_massive_mass + less_massive_mass, radius, most_massive_distance_and_radius + less_massive_distance_and_radius)
+    (
+        center,
+        most_massive_mass + less_massive_mass,
+        radius,
+        most_massive_distance_and_radius + less_massive_distance_and_radius,
+    )
 }
 
 /// Calculates the Roche limit, which is the minimum distance there can be between two stars for them to have a stable binary relation.

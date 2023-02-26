@@ -3,9 +3,7 @@ pub mod generator;
 pub mod types;
 
 /// The smaller division on a galactic map, might contain one or multiple star systems.
-#[derive(
-    Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize,
-)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct GalacticHex {
     /// The index of this hex on the x, y and z axis.
     pub index: SpaceCoordinates,

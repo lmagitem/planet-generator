@@ -177,8 +177,21 @@ fn get_star_name(
         "Sun".to_string()
     } else {
         format!(
-            "{}:{}:{} {} - Star {} ({} {})",
-            coord.x, coord.y, coord.z, system_index, star_index, spectral_type, luminosity_class
+            "{}:{}:{} {} - Star {} ({}{}{})",
+            coord.x,
+            coord.y,
+            coord.z,
+            system_index,
+            star_index,
+            spectral_type,
+            if luminosity_class == StarLuminosityClass::XNS
+                || luminosity_class == StarLuminosityClass::XBH
+            {
+                ""
+            } else {
+                " "
+            },
+            luminosity_class
         )
     }
 }
@@ -855,9 +868,12 @@ mod tests {
 
                 n += 1;
                 rad_ms_sum += GeneratorUtils::get_difference_percentage(ms_radius, star.radius);
-                lum_ms_sum += GeneratorUtils::get_difference_percentage(ms_luminosity, star.luminosity);
-                temp_ms_sum +=
-                    GeneratorUtils::get_difference_percentage(ms_temperature as f32, star.temperature as f32);
+                lum_ms_sum +=
+                    GeneratorUtils::get_difference_percentage(ms_luminosity, star.luminosity);
+                temp_ms_sum += GeneratorUtils::get_difference_percentage(
+                    ms_temperature as f32,
+                    star.temperature as f32,
+                );
 
                 print_real_to_generated_star_comparison(
                     star,
@@ -968,8 +984,12 @@ mod tests {
                     let spectral_type = calculate_spectral_type(interpolated_temperature);
 
                     n += 1;
-                    rad_sum += GeneratorUtils::get_difference_percentage(interpolated_radius, star.radius);
-                    lum_sum += GeneratorUtils::get_difference_percentage(interpolated_luminosity, star.luminosity);
+                    rad_sum +=
+                        GeneratorUtils::get_difference_percentage(interpolated_radius, star.radius);
+                    lum_sum += GeneratorUtils::get_difference_percentage(
+                        interpolated_luminosity,
+                        star.luminosity,
+                    );
                     temp_sum += GeneratorUtils::get_difference_percentage(
                         interpolated_temperature as f32,
                         star.temperature as f32,
@@ -1049,9 +1069,12 @@ mod tests {
 
                 n += 1;
                 rad_calc_sum += GeneratorUtils::get_difference_percentage(calc_radius, star.radius);
-                lum_calc_sum += GeneratorUtils::get_difference_percentage(calc_luminosity, star.luminosity);
-                temp_calc_sum +=
-                    GeneratorUtils::get_difference_percentage(calc_temperature as f32, star.temperature as f32);
+                lum_calc_sum +=
+                    GeneratorUtils::get_difference_percentage(calc_luminosity, star.luminosity);
+                temp_calc_sum += GeneratorUtils::get_difference_percentage(
+                    calc_temperature as f32,
+                    star.temperature as f32,
+                );
 
                 print_real_to_generated_star_comparison(
                     star,
@@ -1152,8 +1175,12 @@ mod tests {
                 );
 
                 n += 1;
-                rad_sum += GeneratorUtils::get_difference_percentage(generated_star.radius, star.radius);
-                lum_sum += GeneratorUtils::get_difference_percentage(generated_star.luminosity, star.luminosity);
+                rad_sum +=
+                    GeneratorUtils::get_difference_percentage(generated_star.radius, star.radius);
+                lum_sum += GeneratorUtils::get_difference_percentage(
+                    generated_star.luminosity,
+                    star.luminosity,
+                );
                 temp_sum += GeneratorUtils::get_difference_percentage(
                     generated_star.temperature as f32,
                     star.temperature as f32,

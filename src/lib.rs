@@ -20,12 +20,12 @@ pub mod prelude {
     pub use crate::generator::*;
     pub use crate::system::neighborhood::types::*;
     pub use crate::system::neighborhood::*;
+    pub use crate::system::orbital_point::types::*;
+    pub use crate::system::orbital_point::*;
     pub use crate::system::planet::types::*;
     pub use crate::system::planet::*;
     pub use crate::system::star::types::*;
     pub use crate::system::star::*;
-    pub use crate::system::orbital_point::types::*;
-    pub use crate::system::orbital_point::*;
     pub use crate::system::types::*;
     pub use crate::system::*;
     pub use crate::universe::types::*;

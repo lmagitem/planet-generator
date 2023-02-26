@@ -35,7 +35,8 @@ impl Galaxy {
         }
     }
 
-    /// Returns the [GalacticMapDivision] at the level and coordinates given in parameters.
+    /// Returns the [GalacticMapDivision] at the level and coordinates given in parameters. 0 being the hex level and 9 being the highest
+    /// possible division level.
     pub fn get_division_at_level(
         &mut self,
         coord: SpaceCoordinates,

@@ -111,6 +111,7 @@ impl Display for StarLuminosityClass {
             StarLuminosityClass::V => write!(f, "V"),
             StarLuminosityClass::VI => write!(f, "VI"),
             StarLuminosityClass::VII => write!(f, "VII"),
+            StarLuminosityClass::Y => write!(f, "Y"),
             _ => write!(f, ""),
         }
     }
