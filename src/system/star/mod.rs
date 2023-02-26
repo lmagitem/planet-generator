@@ -2,6 +2,9 @@ use crate::prelude::*;
 pub mod generator;
 pub mod types;
 
+#[derive(
+    Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize,
+)]
 pub struct Star {
     // That star's name.
     pub name: String,

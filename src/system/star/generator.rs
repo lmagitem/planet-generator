@@ -10,7 +10,6 @@ impl Star {
         system_index: u16,
         coord: SpaceCoordinates,
         population: StellarEvolution,
-        system: &StarSystem,
         hex: &GalacticHex,
         galaxy: &Galaxy,
         settings: &GenerationSettings,
@@ -142,7 +141,6 @@ impl Star {
             star_index,
             system_index,
             coord,
-            system,
             hex,
             galaxy,
             settings,
@@ -169,7 +167,6 @@ fn get_star_name(
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
-    system: &StarSystem,
     hex: &GalacticHex,
     galaxy: &Galaxy,
     settings: &GenerationSettings,
@@ -857,10 +854,10 @@ mod tests {
                 let spectral_type = calculate_spectral_type(ms_temperature);
 
                 n += 1;
-                rad_ms_sum += get_difference_percentage(ms_radius, star.radius);
-                lum_ms_sum += get_difference_percentage(ms_luminosity, star.luminosity);
+                rad_ms_sum += GeneratorUtils::get_difference_percentage(ms_radius, star.radius);
+                lum_ms_sum += GeneratorUtils::get_difference_percentage(ms_luminosity, star.luminosity);
                 temp_ms_sum +=
-                    get_difference_percentage(ms_temperature as f32, star.temperature as f32);
+                    GeneratorUtils::get_difference_percentage(ms_temperature as f32, star.temperature as f32);
 
                 print_real_to_generated_star_comparison(
                     star,
@@ -971,9 +968,9 @@ mod tests {
                     let spectral_type = calculate_spectral_type(interpolated_temperature);
 
                     n += 1;
-                    rad_sum += get_difference_percentage(interpolated_radius, star.radius);
-                    lum_sum += get_difference_percentage(interpolated_luminosity, star.luminosity);
-                    temp_sum += get_difference_percentage(
+                    rad_sum += GeneratorUtils::get_difference_percentage(interpolated_radius, star.radius);
+                    lum_sum += GeneratorUtils::get_difference_percentage(interpolated_luminosity, star.luminosity);
+                    temp_sum += GeneratorUtils::get_difference_percentage(
                         interpolated_temperature as f32,
                         star.temperature as f32,
                     );
@@ -1051,10 +1048,10 @@ mod tests {
                 let spectral_type = calculate_spectral_type(calc_temperature as u32);
 
                 n += 1;
-                rad_calc_sum += get_difference_percentage(calc_radius, star.radius);
-                lum_calc_sum += get_difference_percentage(calc_luminosity, star.luminosity);
+                rad_calc_sum += GeneratorUtils::get_difference_percentage(calc_radius, star.radius);
+                lum_calc_sum += GeneratorUtils::get_difference_percentage(calc_luminosity, star.luminosity);
                 temp_calc_sum +=
-                    get_difference_percentage(calc_temperature as f32, star.temperature as f32);
+                    GeneratorUtils::get_difference_percentage(calc_temperature as f32, star.temperature as f32);
 
                 print_real_to_generated_star_comparison(
                     star,
@@ -1137,9 +1134,6 @@ mod tests {
                     0,
                     coord,
                     StellarEvolution::PopulationI,
-                    &StarSystem {
-                        ..Default::default()
-                    },
                     hex,
                     galaxy,
                     &settings,
@@ -1158,9 +1152,9 @@ mod tests {
                 );
 
                 n += 1;
-                rad_sum += get_difference_percentage(generated_star.radius, star.radius);
-                lum_sum += get_difference_percentage(generated_star.luminosity, star.luminosity);
-                temp_sum += get_difference_percentage(
+                rad_sum += GeneratorUtils::get_difference_percentage(generated_star.radius, star.radius);
+                lum_sum += GeneratorUtils::get_difference_percentage(generated_star.luminosity, star.luminosity);
+                temp_sum += GeneratorUtils::get_difference_percentage(
                     generated_star.temperature as f32,
                     star.temperature as f32,
                 );
@@ -1198,7 +1192,7 @@ mod tests {
         assert!(-0.2 <= temp_sum && temp_sum <= 0.2);
     }
 
-    // #[test]
+    #[test]
     fn generate_fake_stars() {
         let mut rng = SeededDiceRoller::new("seed", "step");
         for i in 0..100 {
@@ -1230,9 +1224,6 @@ mod tests {
                 0,
                 coord,
                 StellarEvolution::PopulationI,
-                &StarSystem {
-                    ..Default::default()
-                },
                 &hex,
                 &galaxy,
                 &settings,
@@ -1425,11 +1416,11 @@ mod tests {
             star.name,
             mass,
             radius,
-            get_difference_percentage_str(radius, star.radius),
+            GeneratorUtils::get_difference_percentage_str(radius, star.radius),
             luminosity,
-            get_difference_percentage_str(luminosity, star.luminosity as f32),
+            GeneratorUtils::get_difference_percentage_str(luminosity, star.luminosity as f32),
             temperature,
-            get_difference_percentage_str(temperature as f32, star.temperature as f32),
+            GeneratorUtils::get_difference_percentage_str(temperature as f32, star.temperature as f32),
             spectral_type,
             luminosity_class,
             age

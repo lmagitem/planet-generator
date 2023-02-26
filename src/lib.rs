@@ -3,6 +3,7 @@ mod galaxy;
 mod generator;
 mod system;
 mod universe;
+mod utils;
 
 pub mod prelude {
     pub use crate::galaxy::map::division::*;
@@ -23,14 +24,18 @@ pub mod prelude {
     pub use crate::system::planet::*;
     pub use crate::system::star::types::*;
     pub use crate::system::star::*;
+    pub use crate::system::orbital_point::types::*;
+    pub use crate::system::orbital_point::*;
     pub use crate::system::types::*;
     pub use crate::system::*;
     pub use crate::universe::types::*;
     pub use crate::universe::*;
+    pub use crate::utils::*;
     pub use log::*;
     pub use seeded_dice_roller::*;
     pub use serde::{Deserialize, Serialize};
     pub use smart_default::SmartDefault;
     pub use std::fmt::Display;
     pub use std::mem::discriminant;
+    pub use std::rc::Rc;
 }
