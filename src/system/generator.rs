@@ -239,7 +239,7 @@ fn generate_binary_relations(
     );
 
     let mut first_turn = true;
-    let mut previous_actual_distance = 0.05;
+    let mut previous_actual_distance = 0.005;
     // Then make binary pairs as long as you have stars
     while stars_left.len() > 0 {
         // If at least two stars left, with a random chance of 1 in 4 or more
@@ -300,7 +300,7 @@ fn generate_binary_relations(
                 less_massive_mass,
                 less_massive_radius,
                 less_massive_point,
-                previous_actual_distance,
+                previous_actual_distance * 10.0,
                 star_index,
                 system_index,
                 coord,
@@ -337,7 +337,7 @@ fn generate_binary_relations(
                 less_massive_mass,
                 less_massive_radius,
                 less_massive_point,
-                previous_actual_distance,
+                previous_actual_distance * 10.0,
                 star_index,
                 system_index,
                 coord,
@@ -361,7 +361,8 @@ fn generate_binary_relations(
     (center_id, main_star_id, last_id)
 }
 
-/// TODO : Doc
+/// Returns the last id used ([u32], res.0), the [OrbitalPoint] at the center of the newly made binary pair (res.1), the mass ([f32], res.2)
+/// and radius ([f32], res.3) of that pair, and the actual distance between the two elements ([f64], res.4) to use in further calculations.
 fn make_binary_pair(
     mut last_id: u32,
     mut most_massive_mass: f32,
@@ -398,7 +399,7 @@ fn make_binary_pair(
         &mut less_massive_point,
         less_massive_mass,
         less_massive_radius,
-        previous_actual_distance,
+        previous_actual_distance * 10.0,
         last_id,
         star_index as u16,
         system_index,
@@ -436,7 +437,7 @@ fn find_center_of_binary_pair(
         star_index as u16,
         system_index,
         roche_limit,
-        previous_actual_distance,
+        previous_actual_distance * 10.0,
         0,
         coord,
         galaxy,
