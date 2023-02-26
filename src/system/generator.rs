@@ -10,16 +10,32 @@ impl StarSystem {
         sub_sector: &GalacticMapDivision,
         galaxy: &mut Galaxy,
     ) -> Self {
-        let number_of_stars = generate_number_of_stars_in_system(system_index, coord, galaxy);
-        let mut stars = generate_stars(number_of_stars, system_index, coord, hex, sub_sector, galaxy);
-
-        let mut center_id: u32;
+        let center_id: u32;
         let main_star_id: u32;
+        let mut last_id = 0;
         let mut all_objects: Vec<OrbitalPoint> = vec![];
+
+        let number_of_stars = generate_number_of_stars_in_system(system_index, coord, galaxy);
+        let mut stars = generate_stars(
+            number_of_stars,
+            system_index,
+            coord,
+            hex,
+            sub_sector,
+            galaxy,
+        );
+
         if stars.len() > 1 {
-            let result = generate_binary_relations(&mut stars, &mut all_objects, system_index, coord, galaxy);
+            let result = generate_binary_relations(
+                &mut stars,
+                &mut all_objects,
+                system_index,
+                coord,
+                galaxy,
+            );
             center_id = result.0;
             main_star_id = result.1;
+            last_id = result.2;
         } else {
             let center = OrbitalPoint::new(
                 0,
@@ -48,30 +64,33 @@ fn generate_number_of_stars_in_system(
     );
     rng.get_result(&CopyableRollToProcess::new(
         vec![
-            CopyableWeightedResult::new(1, 100),
-            CopyableWeightedResult::new(2, 70),
-            CopyableWeightedResult::new(3, 30),
-            CopyableWeightedResult::new(4, 8),
-            CopyableWeightedResult::new(5, 5),
-            CopyableWeightedResult::new(6, 3),
-            CopyableWeightedResult::new(7, 1),
+            CopyableWeightedResult::new(1, 400),
+            CopyableWeightedResult::new(2, 280),
+            CopyableWeightedResult::new(3, 120),
+            CopyableWeightedResult::new(4, 32),
+            CopyableWeightedResult::new(5, 20),
+            CopyableWeightedResult::new(6, 12),
+            CopyableWeightedResult::new(7, 4),
+            CopyableWeightedResult::new(8, 2),
+            CopyableWeightedResult::new(9, 1),
         ],
         RollMethod::SimpleRoll,
     ))
     .unwrap()
 }
 
-fn generate_stars(number_of_stars: u16, system_index: u16, coord: SpaceCoordinates, hex: &GalacticHex, sub_sector: &GalacticMapDivision, galaxy: &mut Galaxy) -> Vec<Star> {
+fn generate_stars(
+    number_of_stars: u16,
+    system_index: u16,
+    coord: SpaceCoordinates,
+    hex: &GalacticHex,
+    sub_sector: &GalacticMapDivision,
+    galaxy: &mut Galaxy,
+) -> Vec<Star> {
     let mut stars = Vec::new();
     for star_index in 0..number_of_stars {
-        let evolution = generate_stellar_evolution(
-            star_index,
-            system_index,
-            coord,
-            hex,
-            sub_sector,
-            galaxy,
-        );
+        let evolution =
+            generate_stellar_evolution(star_index, system_index, coord, hex, sub_sector, galaxy);
 
         stars.push(Star::generate(
             star_index,
@@ -175,10 +194,26 @@ fn generate_stellar_evolution(
     result
 }
 
-fn generate_binary_relations(stars: &mut Vec<Star>, all_objects: &mut Vec<OrbitalPoint>, system_index: u16, coord: SpaceCoordinates, galaxy: &mut Galaxy) -> (u32, u32) {
-    let mut center_id;
-    let main_star_id;
-    let biggest_mass_in_vec = stars
+/// For a given list of stars, generates binary pairs and makes them dance together. Returns the id of the system's
+/// center point of gravity (res.0), the id of the system's main star (res.1) and the last id used for an object (res.2).
+fn generate_binary_relations(
+    stars_left: &mut Vec<Star>,
+    all_objects: &mut Vec<OrbitalPoint>,
+    system_index: u16,
+    coord: SpaceCoordinates,
+    galaxy: &mut Galaxy,
+) -> (u32, u32, u32) {
+    let mut rng = SeededDiceRoller::new(
+        &galaxy.seed,
+        &format!("sys_{}_{}_bin_rel", coord, system_index),
+    );
+    let mut center_id = 0;
+    let mut last_id = 0;
+    let main_star_id = last_id;
+    let number_of_stars = stars_left.len();
+
+    // Extract the biggest star of the bunch
+    let biggest_mass_in_vec = stars_left
         .iter()
         .map(|star| star.mass)
         .max_by(|a, b| {
@@ -186,91 +221,222 @@ fn generate_binary_relations(stars: &mut Vec<Star>, all_objects: &mut Vec<Orbita
                 .expect("There should be at least two stars to compare.")
         })
         .expect("There should be at least one star with some mass.");
-    let star_index = stars
+    let star_index = stars_left
         .iter()
         .position(|star| star.mass == biggest_mass_in_vec)
         .expect("I should be able to find the index of a star.");
+    let most_massive = stars_left.remove(star_index);
 
-    let most_massive = stars.remove(star_index);
-    let most_massive_mass = most_massive.mass;
-    let most_massive_radius = most_massive.radius;
+    // Use it as our first primary member in pairs
+    let mut most_massive_mass = most_massive.mass;
+    let mut most_massive_radius = most_massive.radius;
     let mut most_massive_point = OrbitalPoint::new(
-        1,
+        last_id,
         None,
         None,
         vec![],
         AstronomicalObject::Star(most_massive),
     );
-    main_star_id = most_massive_point.id;
 
-    let first_binary = stars.remove(0);
-    let first_binary_mass = first_binary.mass;
-    let first_binary_radius = first_binary.radius;
-    let mut first_binary_point = OrbitalPoint::new(
-        2,
-        None,
-        None,
-        vec![],
-        AstronomicalObject::Star(first_binary),
-    );
+    let mut first_turn = true;
+    let mut previous_actual_distance = 0.05;
+    // Then make binary pairs as long as you have stars
+    while stars_left.len() > 0 {
+        // If at least two stars left, with a random chance of 1 in 4 or more
+        if stars_left.len() > 1
+            && (rng.gen_u8() % 4 == 0 || (!first_turn && number_of_stars % 2 == 0 && rng.gen_u8() % 5 != 0))
+        {
+            // Make a pair and have it dance with the biggest mass/last pair.
+            last_id += 1;
+            let first_of_pair = stars_left.remove(0);
+            let first_of_pair_mass = first_of_pair.mass;
+            let first_of_pair_radius = first_of_pair.radius;
+            let first_of_pair_point = OrbitalPoint::new(
+                last_id,
+                None,
+                None,
+                vec![],
+                AstronomicalObject::Star(first_of_pair),
+            );
+            last_id += 1;
+            let second_of_pair = stars_left.remove(0);
+            let second_of_pair_mass = second_of_pair.mass;
+            let second_of_pair_radius = second_of_pair.radius;
+            let second_of_pair_point = OrbitalPoint::new(
+                last_id,
+                None,
+                None,
+                vec![],
+                AstronomicalObject::Star(second_of_pair),
+            );
 
-    while stars.len() > 0 {
-        if stars.len() == 1 {
+            // Generate our new pair
+            let result = make_binary_pair(
+                last_id,
+                first_of_pair_mass,
+                first_of_pair_radius,
+                first_of_pair_point,
+                second_of_pair_mass,
+                second_of_pair_radius,
+                second_of_pair_point,
+                0.05,
+                star_index,
+                system_index,
+                coord,
+                galaxy,
+                all_objects,
+            );
+            last_id = result.0;
+            let less_massive_point = result.1;
+            let less_massive_mass = result.2;
+            let less_massive_radius = result.3;
 
-        } else if stars.len() == 3 {
+            // Use the newly generated pair as the less massive member to generate the next pair
+            let result = make_binary_pair(
+                last_id,
+                most_massive_mass,
+                most_massive_radius,
+                most_massive_point,
+                less_massive_mass,
+                less_massive_radius,
+                less_massive_point,
+                previous_actual_distance,
+                star_index,
+                system_index,
+                coord,
+                galaxy,
+                all_objects,
+            );
+            last_id = result.0;
 
+            // Then update what values to use in the next turn
+            most_massive_point = result.1;
+            most_massive_mass = result.2;
+            most_massive_radius = result.3;
+            previous_actual_distance = result.4;
+            center_id = most_massive_point.id;
         } else {
+            // Take a single star and have it dance with the biggest mass/last pair.
+            last_id += 1;
+            let less_massive = stars_left.remove(0);
+            let less_massive_mass = less_massive.mass;
+            let less_massive_radius = less_massive.radius;
+            let less_massive_point = OrbitalPoint::new(
+                last_id,
+                None,
+                None,
+                vec![],
+                AstronomicalObject::Star(less_massive),
+            );
 
+            let result = make_binary_pair(
+                last_id,
+                most_massive_mass,
+                most_massive_radius,
+                most_massive_point,
+                less_massive_mass,
+                less_massive_radius,
+                less_massive_point,
+                previous_actual_distance,
+                star_index,
+                system_index,
+                coord,
+                galaxy,
+                all_objects,
+            );
+            last_id = result.0;
+
+            // Then update what values to use in the next turn
+            most_massive_point = result.1;
+            most_massive_mass = result.2;
+            most_massive_radius = result.3;
+            previous_actual_distance = result.4;
+            center_id = most_massive_point.id;
         }
+        first_turn = false;
+    }
+    // Finally, add the center point to the system's list of objects
+    all_objects.push(most_massive_point);
+
+    (center_id, main_star_id, last_id)
+}
+
+/// TODO : Doc
+fn make_binary_pair(
+    mut last_id: u32,
+    mut most_massive_mass: f32,
+    mut most_massive_radius: f32,
+    mut most_massive_point: OrbitalPoint,
+    mut less_massive_mass: f32,
+    mut less_massive_radius: f32,
+    mut less_massive_point: OrbitalPoint,
+    previous_actual_distance: f64,
+    star_index: usize,
+    system_index: u16,
+    coord: SpaceCoordinates,
+    galaxy: &mut Galaxy,
+    all_objects: &mut Vec<OrbitalPoint>,
+) -> (u32, OrbitalPoint, f32, f32, f64) {
+    // Switch stars if necessary so that most_massive_point is the most massive.
+    if less_massive_mass > most_massive_mass {
+        let temp_mass = less_massive_mass;
+        let temp_radius = less_massive_radius;
+        let temp_point = less_massive_point;
+        less_massive_mass = most_massive_mass;
+        less_massive_radius = most_massive_radius;
+        less_massive_point = most_massive_point;
+        most_massive_mass = temp_mass;
+        most_massive_radius = temp_radius;
+        most_massive_point = temp_point;
     }
 
-    let result = make_binary_pair(
+    last_id += 1;
+    let result = find_center_of_binary_pair(
         &mut most_massive_point,
         most_massive_mass,
         most_massive_radius,
-        &mut first_binary_point,
-        first_binary_mass,
-        first_binary_radius,
-        0,
+        &mut less_massive_point,
+        less_massive_mass,
+        less_massive_radius,
+        previous_actual_distance,
+        last_id,
         star_index as u16,
         system_index,
         coord,
         galaxy,
     );
-
-    let center = result.0;
-    center_id = center.id;
-
-    all_objects.push(center);
     all_objects.push(most_massive_point);
-    all_objects.push(first_binary_point);
+    all_objects.push(less_massive_point);
 
-    (center_id, main_star_id)
+    (last_id, result.0, result.1, result.2, result.3)
 }
 
 /// Organizes two elements (either stars or binary pairs) into a binary system, updates them, and returns said binary system's barycentre
-/// (an [OrbitalPoint], res.0), their mass ([f32], res.1) and radius ([f32], res.2) to use in further calculations.
-fn make_binary_pair(
+/// (an [OrbitalPoint], res.0), their mass ([f32], res.1) and radius ([f32], res.2), and the actual distance between the two elements
+/// ([f64], res.3) to use in further calculations.
+fn find_center_of_binary_pair(
     most_massive_point: &mut OrbitalPoint,
     most_massive_mass: f32,
     most_massive_radius: f32,
     less_massive_point: &mut OrbitalPoint,
     less_massive_mass: f32,
     less_massive_radius: f32,
+    previous_actual_distance: f64,
     next_id: u32,
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
-) -> (OrbitalPoint, f32, f32) {
+) -> (OrbitalPoint, f32, f32, f64) {
     let mut center = OrbitalPoint::new(next_id, None, None, vec![], AstronomicalObject::Void);
 
-    let min_distance =
+    let roche_limit =
         calculate_roche_limit(most_massive_radius, most_massive_mass, less_massive_mass);
     let actual_distance = generate_distance_between_stars(
         star_index as u16,
         system_index,
-        min_distance,
+        roche_limit,
+        previous_actual_distance,
         0,
         coord,
         galaxy,
@@ -294,13 +460,10 @@ fn make_binary_pair(
     most_massive_point.primary_body = Some(next_id);
     most_massive_point.distance_from_primary = Some(barycentre_distance_from_most_massive);
     less_massive_point.primary_body = Some(next_id);
-    less_massive_point.distance_from_primary = Some(actual_distance - barycentre_distance_from_most_massive);
+    less_massive_point.distance_from_primary =
+        Some(actual_distance - barycentre_distance_from_most_massive);
 
-    (
-        center,
-        most_massive_mass + less_massive_mass,
-        radius,
-    )
+    (center, most_massive_mass + less_massive_mass, radius, most_massive_distance_and_radius + less_massive_distance_and_radius)
 }
 
 /// Calculates the Roche limit, which is the minimum distance there can be between two stars for them to have a stable binary relation.
@@ -317,6 +480,7 @@ fn calculate_roche_limit(
 fn generate_distance_between_stars(
     star_index: u16,
     system_index: u16,
+    roche_limit: f64,
     min_distance: f64,
     modifier: i32,
     coord: SpaceCoordinates,
@@ -331,27 +495,27 @@ fn generate_distance_between_stars(
             vec![
                 // Very close
                 CopyableWeightedResult {
-                    result: (0.0, 0.05),
+                    result: (roche_limit, roche_limit * 1.5),
                     weight: 3,
                 },
                 // Close
                 CopyableWeightedResult {
-                    result: (0.051, 0.5),
+                    result: (roche_limit * 1.501, roche_limit * 10.0),
                     weight: 3,
                 },
                 // Moderate
                 CopyableWeightedResult {
-                    result: (0.501, 2.0),
+                    result: (roche_limit * 10.001, roche_limit * 100.0),
                     weight: 3,
                 },
                 // Wide
                 CopyableWeightedResult {
-                    result: (2.001, 10.0),
+                    result: (roche_limit * 100.001, roche_limit * 1000.0),
                     weight: 2,
                 },
                 // Distant
                 CopyableWeightedResult {
-                    result: (10.001, 50.0),
+                    result: (roche_limit * 1000.001, roche_limit * 10000.0),
                     weight: 3,
                 },
             ],
