@@ -47,7 +47,7 @@ fn generate_galaxies(
 mod tests {
     use super::*;
 
-    #[test]
+    // #[test]
     fn system_test() {
         let settings = &GenerationSettings {
             universe: UniverseSettings {

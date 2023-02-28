@@ -280,7 +280,7 @@ fn generate_binary_relations(
                 second_of_pair_mass,
                 second_of_pair_radius,
                 second_of_pair_point,
-                0.05,
+                0.0,
                 star_index,
                 system_index,
                 coord,
@@ -372,7 +372,7 @@ fn make_binary_pair(
     mut less_massive_mass: f32,
     mut less_massive_radius: f32,
     mut less_massive_point: OrbitalPoint,
-    previous_actual_distance: f64,
+    min_distance_between_bodies: f64,
     star_index: usize,
     system_index: u16,
     coord: SpaceCoordinates,
@@ -400,7 +400,7 @@ fn make_binary_pair(
         &mut less_massive_point,
         less_massive_mass,
         less_massive_radius,
-        previous_actual_distance * 10.0,
+        min_distance_between_bodies,
         last_id,
         star_index as u16,
         system_index,
@@ -423,7 +423,7 @@ fn find_center_of_binary_pair(
     less_massive_point: &mut OrbitalPoint,
     less_massive_mass: f32,
     less_massive_radius: f32,
-    previous_actual_distance: f64,
+    min_distance: f64,
     next_id: u32,
     star_index: u16,
     system_index: u16,
@@ -438,7 +438,7 @@ fn find_center_of_binary_pair(
         star_index as u16,
         system_index,
         roche_limit,
-        previous_actual_distance * 10.0,
+        min_distance,
         0,
         coord,
         galaxy,
@@ -507,22 +507,22 @@ fn generate_distance_between_stars(
                 },
                 // Close
                 CopyableWeightedResult {
-                    result: (roche_limit * 1.501, roche_limit * 10.0),
+                    result: (roche_limit * 1.501, roche_limit * 5.0),
                     weight: 3,
                 },
                 // Moderate
                 CopyableWeightedResult {
-                    result: (roche_limit * 10.001, roche_limit * 100.0),
+                    result: (roche_limit * 5.501, roche_limit * 10.0),
                     weight: 3,
                 },
                 // Wide
                 CopyableWeightedResult {
-                    result: (roche_limit * 100.001, roche_limit * 1000.0),
+                    result: (roche_limit * 10.001, roche_limit * 100.0),
                     weight: 2,
                 },
                 // Distant
                 CopyableWeightedResult {
-                    result: (roche_limit * 1000.001, roche_limit * 10000.0),
+                    result: (roche_limit * 100.001, roche_limit * 1000.0),
                     weight: 3,
                 },
             ],
@@ -540,4 +540,49 @@ fn generate_distance_between_stars(
 /// Finds where the barycentre between two stars or centers of mass is.
 fn calculate_barycentre(distance_between: f64, heaviest_mass: f32, lowest_mass: f32) -> f64 {
     distance_between * (lowest_mass as f64 / (heaviest_mass as f64 + lowest_mass as f64))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // #[test]
+    fn distance_test() {
+        let settings = &GenerationSettings {
+            universe: UniverseSettings {
+                use_ours: true,
+                ..Default::default()
+            },
+            galaxy: GalaxySettings {
+                use_ours: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut highest_distance = 0.0;
+        for i in 0..50000 {
+            let seed = String::from(&i.to_string());
+            let universe = Universe::generate(&seed, &settings);
+            let neighborhood = GalacticNeighborhood::generate(universe, &seed, &settings);
+            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            let coord = SpaceCoordinates::new(0, 0, 0);
+            let sub_sector = galaxy
+                .get_division_at_level(coord, 1)
+                .expect("Should have returned a sub-sector.");
+            let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
+            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
+            // Find in objects the one with the highest distance from primary body.
+            let higher_distance = system
+                .all_objects
+                .iter()
+                .map(|o| o.distance_from_primary.unwrap_or(0.0))
+                .max_by(|a, b| a.total_cmp(b))
+                .unwrap();
+            if higher_distance > highest_distance {
+                highest_distance = higher_distance;
+                println!("\n{:#?}", highest_distance);
+                println!("\n{:#?}", system);
+            };
+        }
+    }
 }
