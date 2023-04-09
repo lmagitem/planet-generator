@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 /// Shamelessly stolen from: https://github.com/treyhunner/names
 pub fn get_random_names() -> Vec<String> {
     vec![

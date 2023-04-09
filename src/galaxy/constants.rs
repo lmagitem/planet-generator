@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::prelude::*;
 
 /// The current age of the Milky Way.

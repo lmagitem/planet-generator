@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::prelude::*;
 
 pub const BROWN_DWARF_MIN_MASS: f32 = 0.015;

@@ -1,23 +1,26 @@
 # Planet Generator
-A Rust library that generates galaxies, sectors, solar systems, planets with maps and their inhabitants alongside tons of narrative elements and ideas.
+A Rust library that aims to generate galaxies, sectors, solar systems, planets with maps, and their inhabitants, along with tons of narrative elements and ideas.
 
-[An explorer](https://github.com/lmagitem/galactic-explorer) will allow to play with the generator. The library is also intended to be used in game development to generate believable worlds usable in Roguelikes, 4X or whatever suits your imagination.
+The library is intended for use in game development to generate believable worlds for Roguelikes, 4X games, or any other project that sparks your imagination.
 
-As I am not an astrophysician myself and my limited knowledge on the matter isn't enough to build something of that level, the generator is put together using ideas shamelessly borrowed from various other generators I previously used and loved, mostly from RPGs. Those include but are not limited to : [the RTT Complicated Star System Generator](https://wiki.rpg.net/index.php/RTT_Worldgen), [Instant Universe](https://www.drivethrurpg.com/product/153512/Instant-Universe), and generators from various editions of [GURPS Traveller](https://en.wikipedia.org/wiki/GURPS_Traveller), [Stars Without Number](https://www.drivethrurpg.com/product/226996/Stars-Without-Number-Revised-Edition), [Rogue Trader](https://en.wikipedia.org/wiki/Rogue_Trader_(role-playing_game)) and [Alternity](https://en.wikipedia.org/wiki/Alternity).
+I've tried my best to use realistic formulas and up-to-date data when possible for generation. However, as I am not an astrophysicist myself, and my limited knowledge on the subject isn't sufficient to build something entirely accurate, I've compensated for my shortfalls by borrowing ideas from various other generators I have previously used and loved, mostly from RPGs. These include, but are not limited to: [the RTT Complicated Star System Generator](https://wiki.rpg.net/index.php/RTT_Worldgen), [Instant Universe](https://www.drivethrurpg.com/product/153512/Instant-Universe), and generators from various editions of [GURPS Traveller](https://en.wikipedia.org/wiki/GURPS_Traveller), [Stars Without Number](https://www.drivethrurpg.com/product/226996/Stars-Without-Number-Revised-Edition), [Rogue Trader](https://en.wikipedia.org/wiki/Rogue_Trader_(role-playing_game)) and [Alternity](https://en.wikipedia.org/wiki/Alternity).
+
+## Example
+An example of how to use this library can be found in [this project, a simple Actix server that serves generated results](https://github.com/lmagitem/galactic-scanner). A web app that displays the generation results using the previous project [is available here](https://galactic-explorer.n42c.dev/) - please note that it is also a work in progress, and not all library features are available yet.
 
 ## Roadmap
 This is the current roadmap of the library:
 - [x] Universe generation
     - [x] Age
     - [x] Era
-- [ ] Galaxy generation
+- [x] Galaxy generation
     - [x] Neighborhood
     - [x] Age
     - [x] Shape
     - [x] Peculiarities
     - [ ] Names
     - [ ] Our local group galaxies
-- [ ] Sector and subsector generation
+- [x] Sector and subsector generation
     - [x] Configurable divisions
     - [x] Hex and division calculations
     - [ ] Temporary region mapping
@@ -25,13 +28,13 @@ This is the current roadmap of the library:
     - [ ] Names
 - [ ] Star system generation
     - [x] Spawn chance according to density
-    - [ ] Stars generation
+    - [x] Stars generation
         - [x] Age
         - [x] Spectral type
         - [x] Luminosity
         - [ ] Subdwarfs
         - [ ] Spectral type according to population
-        - [ ] Name generation
+        - [x] Name generation
         - [ ] Configurable stars
     - [ ] Filling orbits
 - [ ] Planet generation
@@ -51,7 +54,7 @@ This is the current roadmap of the library:
     - [ ] Add methods to generate populated objects "directly"
 
 ## Contribute
-I'd be happy to receive issues asking for new features or bug fixes. Also feel free to point out where code could be improved (either in performance, readability, documentation, following best practices...) and/or make pull requests yourselves.
+I'd be happy to receive issues requesting new features or reporting bug fixes. Feel free to point out areas where the code could be improved, whether in terms of performance, readability, documentation, or adherence to best practices, and/or submit pull requests yourselves.
 
 ##### License:
 Licensed under [MIT license](https://github.com/lmagitem/seeded-dice-roller/blob/master/LICENSE.md).

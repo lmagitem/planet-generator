@@ -138,11 +138,7 @@ impl Star {
             );
         }
 
-        let name = get_star_name(
-            star_index,
-            system_name.clone(),
-            settings,
-        );
+        let name = get_star_name(star_index, system_name.clone(), settings);
         Self {
             name,
             mass,
@@ -157,11 +153,7 @@ impl Star {
 }
 
 /// Returns the name of the star by combining its index and the system name.
-fn get_star_name(
-    star_index: u16,
-    name: String,
-    settings: &GenerationSettings,
-) -> String {
+fn get_star_name(star_index: u16, name: String, settings: &GenerationSettings) -> String {
     if settings.star.use_ours {
         "Sun".to_string()
     } else {
@@ -661,7 +653,7 @@ fn calculate_luminosity_class(
     }
 }
 
-fn calculate_remnant_mass(mass: f32, settings: &GenerationSettings) -> f32 {
+fn calculate_remnant_mass(mass: f32, _settings: &GenerationSettings) -> f32 {
     if mass < 2.7 {
         0.096 * mass + 0.429
     } else {
@@ -768,39 +760,6 @@ fn get_nearest_star_lifecycle_dataset_cells(
     let d = STAR_LIFECYCLE_DATASET[y1][x1];
 
     [a, b, c, d]
-}
-
-/// Returns true if the star is currently in the main sequence phase of its life.
-fn is_star_a_main_sequence_dwarf(star: &Star) -> bool {
-    star.luminosity_class == StarLuminosityClass::V
-        && (discriminant(&star.spectral_type) == discriminant(&StarSpectralType::WR(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::O(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::B(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::A(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::G(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::K(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::M(0)))
-}
-
-/// Returns true if the star is currently in the main sequence, subgiant or giant phase of its life.
-fn is_star_main_sequence_or_giant(star: &Star) -> bool {
-    (star.luminosity_class == StarLuminosityClass::O
-        || star.luminosity_class == StarLuminosityClass::Ia
-        || star.luminosity_class == StarLuminosityClass::Ib
-        || star.luminosity_class == StarLuminosityClass::II
-        || star.luminosity_class == StarLuminosityClass::III
-        || star.luminosity_class == StarLuminosityClass::IV
-        || star.luminosity_class == StarLuminosityClass::V
-        || star.luminosity_class == StarLuminosityClass::IV)
-        && (discriminant(&star.spectral_type) == discriminant(&StarSpectralType::WR(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::O(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::B(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::A(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::G(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::K(0))
-            || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::M(0)))
 }
 
 fn interpolate_f32(x0_y0: f32, x1_y0: f32, x0_y1: f32, x1_y1: f32, x: f32, y: f32) -> f32 {
@@ -1370,6 +1329,7 @@ mod tests {
     }
 
     // #[test]
+    #[allow(dead_code)]
     fn generate_fake_stars() {
         let mut rng = SeededDiceRoller::new("seed", "step");
         for i in 0..100 {
@@ -1454,17 +1414,36 @@ mod tests {
         );
     }
 
-    fn print_generated_star(star: &Star) {
-        println!(
-            "{} - mass: {}, rad: {}, lum: {}, temp: {}K, type: {} {}, age: {}",
-            star.name,
-            star.mass,
-            star.radius,
-            star.luminosity,
-            star.temperature,
-            star.spectral_type,
-            star.luminosity_class,
-            star.age
-        );
+    /// Returns true if the star is currently in the main sequence phase of its life.
+    fn is_star_a_main_sequence_dwarf(star: &Star) -> bool {
+        star.luminosity_class == StarLuminosityClass::V
+            && (discriminant(&star.spectral_type) == discriminant(&StarSpectralType::WR(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::O(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::B(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::A(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::G(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::K(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::M(0)))
+    }
+
+    /// Returns true if the star is currently in the main sequence, subgiant or giant phase of its life.
+    fn is_star_main_sequence_or_giant(star: &Star) -> bool {
+        (star.luminosity_class == StarLuminosityClass::O
+            || star.luminosity_class == StarLuminosityClass::Ia
+            || star.luminosity_class == StarLuminosityClass::Ib
+            || star.luminosity_class == StarLuminosityClass::II
+            || star.luminosity_class == StarLuminosityClass::III
+            || star.luminosity_class == StarLuminosityClass::IV
+            || star.luminosity_class == StarLuminosityClass::V
+            || star.luminosity_class == StarLuminosityClass::IV)
+            && (discriminant(&star.spectral_type) == discriminant(&StarSpectralType::WR(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::O(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::B(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::A(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::G(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::K(0))
+                || discriminant(&star.spectral_type) == discriminant(&StarSpectralType::M(0)))
     }
 }

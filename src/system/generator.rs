@@ -15,7 +15,6 @@ impl StarSystem {
     ) -> Self {
         let center_id: u32;
         let main_star_id: u32;
-        let mut last_id = 0;
         let mut all_objects: Vec<OrbitalPoint> = vec![];
 
         let name = get_system_name(system_index, coord, galaxy);
@@ -41,7 +40,6 @@ impl StarSystem {
             );
             center_id = result.0;
             main_star_id = result.1;
-            last_id = result.2;
         } else {
             let center = OrbitalPoint::new(
                 0,
