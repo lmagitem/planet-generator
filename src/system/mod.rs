@@ -8,15 +8,26 @@ pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct StarSystem {
-    center_id: u32,
-    main_star_id: u32,
+    /// That star's name.
+    pub name: String,
+    /// The id of the [OrbitalPoint] at the center of the system.
+    pub center_id: u32,
+    /// The id of the [OrbitalPoint] containing the main star of the system.
+    pub main_star_id: u32,
+    /// The list of [OrbitalPoint]s that can be found in the system.
     pub all_objects: Vec<OrbitalPoint>,
 }
 
 impl StarSystem {
     /// Creates a new star system with the given array of [OrbitalPoint], and the id of the system's main star.
-    pub fn new(all_objects: Vec<OrbitalPoint>, center_id: u32, main_star_id: u32) -> Self {
+    pub fn new(
+        name: String,
+        center_id: u32,
+        main_star_id: u32,
+        all_objects: Vec<OrbitalPoint>,
+    ) -> Self {
         Self {
+            name,
             center_id,
             main_star_id,
             all_objects,

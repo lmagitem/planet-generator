@@ -5,7 +5,6 @@ pub mod division;
 pub mod division_level;
 pub mod hex;
 pub mod types;
-use constants::*;
 
 impl Galaxy {
     /// Returns the [GalacticHex] whose coordinates have been given in parameters.
@@ -87,7 +86,6 @@ impl Galaxy {
                 result.push(division.clone())
             } else {
                 let new_division = GalacticMapDivision::generate(
-                    coord,
                     index,
                     i,
                     &self
@@ -218,21 +216,21 @@ mod tests {
     #[test]
     fn returns_proper_start_center_and_end_points() {
         let galaxy = Galaxy {
-            seed: String::from("default"),
             settings: GenerationSettings {
+                seed: String::from("default"),
                 ..Default::default()
             },
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
             index: 0,
-            name: String::from(OUR_GALAXYS_NAME),
-            age: OUR_GALAXYS_AGE,
+            name: String::from(constants::OUR_GALAXYS_NAME),
+            age: constants::OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
             category: GalaxyCategory::Irregular(5, 4, 1),
-            sub_category: OUR_GALAXYS_SUB_CATEGORY,
-            special_traits: vec![NO_SPECIAL_TRAIT],
+            sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
@@ -248,21 +246,21 @@ mod tests {
     #[test]
     fn checks_coordinates_validity_properly() {
         let galaxy = Galaxy {
-            seed: String::from("default"),
             settings: GenerationSettings {
+                seed: String::from("default"),
                 ..Default::default()
             },
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
             index: 0,
-            name: String::from(OUR_GALAXYS_NAME),
-            age: OUR_GALAXYS_AGE,
+            name: String::from(constants::OUR_GALAXYS_NAME),
+            age: constants::OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
             category: GalaxyCategory::Irregular(5, 4, 1),
-            sub_category: OUR_GALAXYS_SUB_CATEGORY,
-            special_traits: vec![NO_SPECIAL_TRAIT],
+            sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
@@ -297,6 +295,7 @@ mod tests {
     #[test]
     fn hexes_and_divs_are_at_expected_coordinates() {
         let settings = GenerationSettings {
+            seed: String::from("default"),
             universe: UniverseSettings {
                 ..Default::default()
             },
@@ -314,19 +313,18 @@ mod tests {
             ..Default::default()
         };
         let mut galaxy = Galaxy {
-            seed: String::from("default"),
             settings: settings.clone(),
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
             index: 0,
-            name: String::from(OUR_GALAXYS_NAME),
-            age: OUR_GALAXYS_AGE,
+            name: String::from(constants::OUR_GALAXYS_NAME),
+            age: constants::OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
             category: GalaxyCategory::Irregular(100, 5, 1),
-            sub_category: OUR_GALAXYS_SUB_CATEGORY,
-            special_traits: vec![NO_SPECIAL_TRAIT],
+            sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
             divisions: vec![],
             hexes: vec![],

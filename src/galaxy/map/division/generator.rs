@@ -2,7 +2,6 @@ use crate::prelude::*;
 
 impl GalacticMapDivision {
     pub fn generate(
-        coord: SpaceCoordinates,
         index: SpaceCoordinates,
         level: u8,
         parent_division_level: &GalacticMapDivisionLevel,

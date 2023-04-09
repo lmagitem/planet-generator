@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 impl GalacticNeighborhood {
     /// Generates a brand new [GalacticNeighborhood] using the given seed and [GenerationSettings].
-    pub fn generate(universe: Universe, seed: &String, settings: &GenerationSettings) -> Self {
+    pub fn generate(universe: Universe, settings: &GenerationSettings) -> Self {
         let density;
 
         if let Some(fixed_neighborhood) = settings.galaxy.fixed_neighborhood {
@@ -10,7 +10,7 @@ impl GalacticNeighborhood {
         } else if settings.galaxy.use_ours {
             density = GalacticNeighborhoodDensity::Group(2, 36);
         } else {
-            let mut rng = SeededDiceRoller::new(seed.as_str(), "gal_den");
+            let mut rng = SeededDiceRoller::new(&settings.seed.clone(), "gal_den");
             let is_group = rng.roll(1, 4, 0) != 4;
 
             if is_group {
@@ -108,14 +108,11 @@ mod tests {
     fn generate_a_galactic_neighborhood() {
         for i in 0..10000 {
             let settings = GenerationSettings {
+                seed: String::from(&i.to_string()),
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
             match neighborhood.density {
                 GalacticNeighborhoodDensity::Void(galaxies, _) => assert!(galaxies < 4),
                 GalacticNeighborhoodDensity::Group(galaxies, _) => {
@@ -132,6 +129,7 @@ mod tests {
     fn generate_our_galactic_neighborhood() {
         for i in 0..100 {
             let settings = GenerationSettings {
+                seed: String::from(&i.to_string()),
                 universe: UniverseSettings {
                     use_ours: true,
                     ..Default::default()
@@ -142,12 +140,8 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
             assert_eq!(
                 neighborhood.density,
                 GalacticNeighborhoodDensity::Group(2, 36)
@@ -194,11 +188,8 @@ mod tests {
                 ..Default::default()
             };
             let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
             assert_eq!(neighborhood.density, fixed_neighborhood);
         }
     }

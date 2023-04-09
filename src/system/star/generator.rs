@@ -8,6 +8,7 @@ impl Star {
     pub fn generate(
         star_index: u16,
         system_index: u16,
+        system_name: String,
         coord: SpaceCoordinates,
         population: StellarEvolution,
         hex: &GalacticHex,
@@ -139,13 +140,8 @@ impl Star {
 
         let name = get_star_name(
             star_index,
-            system_index,
-            coord,
-            hex,
-            galaxy,
+            system_name.clone(),
             settings,
-            spectral_type,
-            luminosity_class,
         );
         Self {
             name,
@@ -160,39 +156,16 @@ impl Star {
     }
 }
 
-/// TODO: Have the following format:
-/// [X in base62 numbers of each division]:[Y in base62 numbers of each division]:[Z in base62 numbers of each division]
-/// [System number] - [Some made up words] [Star letter if more than one] ([Spectral type] [Luminosity Class])
+/// Returns the name of the star by combining its index and the system name.
 fn get_star_name(
     star_index: u16,
-    system_index: u16,
-    coord: SpaceCoordinates,
-    hex: &GalacticHex,
-    galaxy: &Galaxy,
+    name: String,
     settings: &GenerationSettings,
-    spectral_type: StarSpectralType,
-    luminosity_class: StarLuminosityClass,
 ) -> String {
     if settings.star.use_ours {
         "Sun".to_string()
     } else {
-        format!(
-            "{}:{}:{} {} - Star {} ({}{}{})",
-            coord.x,
-            coord.y,
-            coord.z,
-            system_index,
-            star_index,
-            spectral_type,
-            if luminosity_class == StarLuminosityClass::XNS
-                || luminosity_class == StarLuminosityClass::XBH
-            {
-                ""
-            } else {
-                " "
-            },
-            luminosity_class
-        )
+        format!("{} {}", name, star_index + 1)
     }
 }
 
@@ -242,7 +215,7 @@ fn generate_mass(
     galaxy: &Galaxy,
 ) -> f32 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("star_{}_{}_{}_mass", coord, system_index, star_index),
     );
     let range = rng
@@ -382,7 +355,7 @@ fn calculate_radius(
     galaxy: &Galaxy,
 ) -> f32 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("star_{}_{}_{}_radius", coord, system_index, star_index),
     );
     let mut radius = mass.powf(0.8);
@@ -452,7 +425,7 @@ fn generate_age(
     universe: &Universe,
 ) -> f32 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("star_{}_{}_{}_age", coord, system_index, star_index),
     );
     let mut age = if let StellarNeighborhoodAge::Ancient(years)
@@ -601,7 +574,7 @@ fn generate_white_dwarf_spectral_type(
     galaxy: &Galaxy,
 ) -> StarSpectralType {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("star_{}_{}_{}_wd_st", coord, system_index, star_index),
     );
     rng.get_result(&CopyableRollToProcess::new(
@@ -1118,6 +1091,7 @@ mod tests {
                 let mut generated_star = Star::generate(
                     0,
                     0,
+                    String::from("Test"),
                     coord,
                     StellarEvolution::PopulationI,
                     hex,
@@ -1204,6 +1178,7 @@ mod tests {
         let mut generated = vec![];
         for expected in expected_values.iter() {
             let settings = GenerationSettings {
+                seed: String::from(&expected.0.to_string()),
                 universe: UniverseSettings {
                     use_ours: true,
                     ..Default::default()
@@ -1219,13 +1194,9 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let seed = String::from(&expected.0.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
-            let mut galaxy = Galaxy::generate(neighborhood, 0, &seed, &settings);
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let mut galaxy = Galaxy::generate(neighborhood, 0, &settings);
             let coord = SpaceCoordinates::new(0, 0, 0);
             let hex = galaxy
                 .get_hex(coord.rel(galaxy.get_galactic_start()))
@@ -1234,6 +1205,7 @@ mod tests {
             let generated_star = Star::generate(
                 0,
                 0,
+                String::from("Test"),
                 coord,
                 StellarEvolution::PopulationI,
                 &hex,
@@ -1246,10 +1218,8 @@ mod tests {
 
         for i in 0..expected_values.len() {
             assert!(
-                expected_values[i].1 - 1000
-                    <= generated[i].temperature
-                    && generated[i].temperature
-                        <= expected_values[i].1 + 1000
+                expected_values[i].1 - 1000 <= generated[i].temperature
+                    && generated[i].temperature <= expected_values[i].1 + 1000
             );
         }
     }
@@ -1259,18 +1229,15 @@ mod tests {
         for i in 0..1000 {
             let mut rng = SeededDiceRoller::new(&format!("{}", i), &"test_age");
             let settings = &GenerationSettings {
+                seed: String::from(&i.to_string()),
                 galaxy: GalaxySettings {
                     ..Default::default()
                 },
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
-            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let gal_end = galaxy.get_galactic_end();
             let x = rng.gen_u32() as i64 % gal_end.x;
             let y = rng.gen_u32() as i64 % gal_end.y;
@@ -1407,19 +1374,16 @@ mod tests {
         let mut rng = SeededDiceRoller::new("seed", "step");
         for i in 0..100 {
             let settings = GenerationSettings {
+                seed: String::from(&i.to_string()),
                 star: StarSettings {
                     fixed_mass: Some(i as f32 / 50.0),
                     ..Default::default()
                 },
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
-            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let gal_end = galaxy.get_galactic_end();
             let x = rng.gen_u32() as i64 % gal_end.x;
             let y = rng.gen_u32() as i64 % gal_end.y;
@@ -1432,6 +1396,7 @@ mod tests {
             let generated_star = Star::generate(
                 i,
                 0,
+                String::from("Test"),
                 coord,
                 StellarEvolution::PopulationI,
                 &hex,

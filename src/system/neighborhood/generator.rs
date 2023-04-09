@@ -40,7 +40,10 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
         _ => (),
     });
 
-    let mut rng = SeededDiceRoller::new(&galaxy.seed, &format!("ste_nei_{}_age", sub_sector.index));
+    let mut rng = SeededDiceRoller::new(
+        &galaxy.settings.seed,
+        &format!("ste_nei_{}_age", sub_sector.index),
+    );
     let mut age = rng
         .get_result(&CopyableRollToProcess {
             possible_results: vec![
@@ -119,18 +122,15 @@ mod tests {
         let mut rng = SeededDiceRoller::new("seed", "step");
         for i in 0..10000 {
             let settings = &GenerationSettings {
+                seed: String::from(&i.to_string()),
                 galaxy: GalaxySettings {
                     ..Default::default()
                 },
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
-            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let gal_end = galaxy.get_galactic_end();
             let x = rng.gen_u32() as i64 % gal_end.x;
             let y = rng.gen_u32() as i64 % gal_end.y;

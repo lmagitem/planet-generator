@@ -1,5 +1,8 @@
 use super::StarSystem;
 use crate::prelude::*;
+#[path = "./constants.rs"]
+mod constants;
+use constants::*;
 
 impl StarSystem {
     /// Generates a brand new star system at the given coordinates
@@ -15,10 +18,13 @@ impl StarSystem {
         let mut last_id = 0;
         let mut all_objects: Vec<OrbitalPoint> = vec![];
 
+        let name = get_system_name(system_index, coord, galaxy);
+
         let number_of_stars = generate_number_of_stars_in_system(system_index, coord, galaxy);
         let mut stars = generate_stars(
             number_of_stars,
             system_index,
+            name.clone(),
             coord,
             hex,
             sub_sector,
@@ -49,7 +55,22 @@ impl StarSystem {
             all_objects.push(center);
         }
 
-        Self::new(all_objects, center_id, main_star_id)
+        Self::new(name, center_id, main_star_id, all_objects)
+    }
+}
+
+/// Temporary name generation
+fn get_system_name(system_index: u16, coord: SpaceCoordinates, galaxy: &Galaxy) -> String {
+    let settings = &galaxy.settings;
+    if settings.star.use_ours {
+        "Sol".to_string()
+    } else {
+        let mut rng = SeededDiceRoller::new(
+            &galaxy.settings.seed,
+            &format!("sys_{}_{}_ste_evo", coord, system_index),
+        );
+        let random_names = get_random_names();
+        random_names[rng.gen_usize() % random_names.len()].clone()
     }
 }
 
@@ -59,7 +80,7 @@ fn generate_number_of_stars_in_system(
     galaxy: &mut Galaxy,
 ) -> u16 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("sys_{}_{}_ste_evo", coord, system_index),
     );
     rng.get_result(&CopyableRollToProcess::new(
@@ -82,6 +103,7 @@ fn generate_number_of_stars_in_system(
 fn generate_stars(
     number_of_stars: u16,
     system_index: u16,
+    system_name: String,
     coord: SpaceCoordinates,
     hex: &GalacticHex,
     sub_sector: &GalacticMapDivision,
@@ -95,6 +117,7 @@ fn generate_stars(
         stars.push(Star::generate(
             star_index,
             system_index,
+            system_name.clone(),
             coord,
             evolution,
             hex,
@@ -114,14 +137,20 @@ fn generate_stellar_evolution(
     sub_sector: &GalacticMapDivision,
     galaxy: &mut Galaxy,
 ) -> StellarEvolution {
-    let mut subsector_rng =
-        SeededDiceRoller::new(&galaxy.seed, &format!("sys_{}_ste_evo", sub_sector.index));
-    let mut hex_rng = SeededDiceRoller::new(&galaxy.seed, &format!("sys_{}_ste_evo", hex.index));
+    let mut subsector_rng = SeededDiceRoller::new(
+        &galaxy.settings.seed,
+        &format!("sys_{}_ste_evo", sub_sector.index),
+    );
+    let mut hex_rng =
+        SeededDiceRoller::new(&galaxy.settings.seed, &format!("sys_{}_ste_evo", hex.index));
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("sys_{}_{}_ste_evo", coord, system_index),
     );
-    let mut coord_rng = SeededDiceRoller::new(&galaxy.seed, &format!("sys_{}_ste_evo", star_index));
+    let mut coord_rng = SeededDiceRoller::new(
+        &galaxy.settings.seed,
+        &format!("sys_{}_ste_evo", star_index),
+    );
 
     let mut modifier = 0;
     match galaxy.neighborhood.universe.era {
@@ -204,7 +233,7 @@ fn generate_binary_relations(
     galaxy: &mut Galaxy,
 ) -> (u32, u32, u32) {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("sys_{}_{}_bin_rel", coord, system_index),
     );
     let mut center_id = 0;
@@ -244,7 +273,7 @@ fn generate_binary_relations(
     while stars_left.len() > 0 {
         // If at least two stars left, with a random chance of 1 in 4 or more
         if stars_left.len() > 1
-            && (rng.gen_u8() % 4 == 0
+            && (rng.gen_u8() % 7 != 0
                 || (!first_turn && number_of_stars % 2 == 0 && rng.gen_u8() % 5 != 0))
         {
             // Make a pair and have it dance with the biggest mass/last pair.
@@ -494,7 +523,7 @@ fn generate_distance_between_stars(
     galaxy: &Galaxy,
 ) -> f64 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.seed,
+        &galaxy.settings.seed,
         &format!("star_{}_{}_{}_mass", coord, system_index, star_index),
     );
     let range = rng
@@ -546,31 +575,23 @@ fn calculate_barycentre(distance_between: f64, heaviest_mass: f32, lowest_mass: 
 mod tests {
     use super::*;
 
-    // #[test]
+    #[test]
     fn distance_test() {
-        let settings = &GenerationSettings {
-            universe: UniverseSettings {
-                use_ours: true,
-                ..Default::default()
-            },
-            galaxy: GalaxySettings {
-                use_ours: true,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
         let mut highest_distance = 0.0;
-        for i in 0..50000 {
-            let seed = String::from(&i.to_string());
-            let universe = Universe::generate(&seed, &settings);
-            let neighborhood = GalacticNeighborhood::generate(universe, &seed, &settings);
-            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+        for i in 0..200000 {
+            let settings = &GenerationSettings {
+                seed: String::from(&i.to_string()),
+                ..Default::default()
+            };
+            let universe = Universe::generate(&settings);
+            let neighborhood = GalacticNeighborhood::generate(universe, &settings);
+            let mut galaxy = Galaxy::generate(neighborhood, 0, &settings);
             let coord = SpaceCoordinates::new(0, 0, 0);
             let sub_sector = galaxy
                 .get_division_at_level(coord, 1)
                 .expect("Should have returned a sub-sector.");
             let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
-            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
+            let system = StarSystem::generate(0, coord, &hex, &sub_sector, &mut galaxy);
             // Find in objects the one with the highest distance from primary body.
             let higher_distance = system
                 .all_objects
@@ -578,9 +599,126 @@ mod tests {
                 .map(|o| o.distance_from_primary.unwrap_or(0.0))
                 .max_by(|a, b| a.total_cmp(b))
                 .unwrap();
-            if higher_distance > highest_distance {
+            if
+            /* higher_distance > highest_distance */
+            system.center_id >= 13
+                && (system
+                    .all_objects
+                    .iter()
+                    .filter(|o| {
+                        let mut result = false;
+                        if let AstronomicalObject::Star(star) = &o.object {
+                            match star.spectral_type {
+                                StarSpectralType::WR(_)
+                                | StarSpectralType::O(_)
+                                | StarSpectralType::B(_)
+                                | StarSpectralType::A(_)
+                                | StarSpectralType::F(_)
+                                | StarSpectralType::G(_)
+                                | StarSpectralType::Y(_)
+                                | StarSpectralType::DA
+                                | StarSpectralType::DB
+                                | StarSpectralType::DC
+                                | StarSpectralType::DO
+                                | StarSpectralType::DZ
+                                | StarSpectralType::DQ
+                                | StarSpectralType::DX
+                                | StarSpectralType::XNS
+                                | StarSpectralType::XBH => {
+                                    result = true;
+                                }
+                                _ => (),
+                            }
+                            match star.luminosity_class {
+                                StarLuminosityClass::O
+                                | StarLuminosityClass::Ia
+                                | StarLuminosityClass::Ib
+                                | StarLuminosityClass::II
+                                | StarLuminosityClass::III
+                                | StarLuminosityClass::IV
+                                | StarLuminosityClass::VII
+                                | StarLuminosityClass::XNS
+                                | StarLuminosityClass::XBH => {
+                                    result = true;
+                                }
+                                _ => (),
+                            }
+                        }
+                        result
+                    })
+                    .count()
+                    > 4
+                    || (system
+                        .all_objects
+                        .iter()
+                        .filter(|o| {
+                            let mut result = false;
+                            if let AstronomicalObject::Star(star) = &o.object {
+                                match star.spectral_type {
+                                    StarSpectralType::WR(_)
+                                    | StarSpectralType::O(_)
+                                    | StarSpectralType::B(_)
+                                    | StarSpectralType::A(_)
+                                    | StarSpectralType::F(_)
+                                    | StarSpectralType::G(_)
+                                    | StarSpectralType::Y(_)
+                                    | StarSpectralType::DA
+                                    | StarSpectralType::DB
+                                    | StarSpectralType::DC
+                                    | StarSpectralType::DO
+                                    | StarSpectralType::DZ
+                                    | StarSpectralType::DQ
+                                    | StarSpectralType::DX
+                                    | StarSpectralType::XNS
+                                    | StarSpectralType::XBH => {
+                                        result = true;
+                                    }
+                                    _ => (),
+                                }
+                                match star.luminosity_class {
+                                    StarLuminosityClass::O
+                                    | StarLuminosityClass::Ia
+                                    | StarLuminosityClass::Ib
+                                    | StarLuminosityClass::II
+                                    | StarLuminosityClass::III
+                                    | StarLuminosityClass::IV
+                                    | StarLuminosityClass::VII
+                                    | StarLuminosityClass::XNS
+                                    | StarLuminosityClass::XBH => {
+                                        result = true;
+                                    }
+                                    _ => (),
+                                }
+                            }
+                            result
+                        })
+                        .count()
+                        > 1
+                        && system
+                            .all_objects
+                            .iter()
+                            .filter(|o| {
+                                let mut result = false;
+                                if let AstronomicalObject::Star(star) = &o.object {
+                                    match star.spectral_type {
+                                        StarSpectralType::WR(_)
+                                        | StarSpectralType::O(_)
+                                        | StarSpectralType::B(_)
+                                        | StarSpectralType::A(_)
+                                        | StarSpectralType::XNS
+                                        | StarSpectralType::XBH => {
+                                            result = true;
+                                        }
+                                        _ => (),
+                                    }
+                                }
+                                result
+                            })
+                            .count()
+                            > 0))
+            {
                 highest_distance = higher_distance;
-                println!("\n{:#?}", highest_distance);
+                println!("\nseed: {}, distance: {}", settings.seed, highest_distance);
                 println!("\n{:#?}", system);
             };
         }

@@ -10,8 +10,6 @@ pub mod types;
 /// Data allowing us to model a galaxy.
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Galaxy {
-    /// The generation seed to use when generating content.
-    pub seed: String,
     /// The settings to use when generating content.
     pub settings: GenerationSettings,
     /// The neighborhood this galaxy belongs to.
@@ -43,7 +41,6 @@ pub struct Galaxy {
 impl Default for Galaxy {
     fn default() -> Self {
         Self {
-            seed: String::from("default"),
             settings: GenerationSettings {
                 ..Default::default()
             },
@@ -88,7 +85,6 @@ impl Display for Galaxy {
 impl Galaxy {
     /// Returns a new [Galaxy] using the given arguments.
     pub fn new(
-        seed: String,
         settings: GenerationSettings,
         neighborhood: GalacticNeighborhood,
         index: u16,
@@ -101,7 +97,6 @@ impl Galaxy {
         special_traits: Vec<GalaxySpecialTrait>,
     ) -> Self {
         Self {
-            seed,
             settings,
             neighborhood,
             index,

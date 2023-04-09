@@ -8,9 +8,9 @@ impl Galaxy {
     pub fn generate(
         neighborhood: GalacticNeighborhood,
         index: u16,
-        seed: &String,
         settings: &GenerationSettings,
     ) -> Self {
+        let seed = &settings.seed.clone();
         let name;
         let is_dominant;
         let is_major;
@@ -70,7 +70,6 @@ impl Galaxy {
         let division_levels = GalacticMapDivisionLevel::generate_division_levels(settings);
 
         Self {
-            seed: seed.to_string(),
             settings: settings.clone(),
             neighborhood,
             index,
@@ -1342,19 +1341,17 @@ mod tests {
     #[test]
     fn generate_a_galaxy_with_sensible_age() {
         for i in 0..10000 {
+            let seed = String::from(&i.to_string());
             let settings = &GenerationSettings {
+                seed: seed.clone(),
                 galaxy: GalaxySettings {
                     ..Default::default()
                 },
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
-            let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             assert!(galaxy.age <= neighborhood.universe.age - 0.2)
         }
     }
@@ -1369,12 +1366,9 @@ mod tests {
                 ..Default::default()
             };
             let seed = String::from(&i.to_string());
-            let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&seed, &settings),
-                &seed,
-                &settings,
-            );
-            let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &seed, &settings);
+            let neighborhood =
+                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
 
             let category = galaxy.category;
             let sub_category = galaxy.sub_category;

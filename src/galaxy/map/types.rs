@@ -52,6 +52,9 @@ pub struct SectorSettings {
     /// for each cubic parsec inside the hex.
     #[default = true]
     pub density_by_hex_instead_of_parsec: bool,
+    /// If set to true, the maximum number of systems per hex is one.
+    #[default = true]
+    pub max_one_system_per_hex: bool,
 }
 
 /// Represents the different kind of places a star could be in the galaxy.

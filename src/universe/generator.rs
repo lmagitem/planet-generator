@@ -6,8 +6,9 @@ use constants::*;
 impl Universe {
     /// Generates a brand new [Universe] using the given seed and [GenerationSettings]. If an appropriate age or era cannot be generated from
     /// the given settings, our own universe's age and/or era will be used.
-    pub fn generate(seed: &String, settings: &GenerationSettings) -> Self {
-        trace!("seed: {}, settings: {}", seed, settings.universe);
+    pub fn generate(settings: &GenerationSettings) -> Self {
+        let seed = &settings.seed.clone();
+        trace!("settings: {}", settings.universe);
         let mut age = generate_age(settings, seed);
         let mut era = get_era_from_age(age);
         if !are_age_and_era_valid(era, age) {
@@ -220,12 +221,10 @@ mod tests {
     #[test]
     fn generate_a_universe() {
         for i in 0..10000 {
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    ..Default::default()
-                },
-            );
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                ..Default::default()
+            });
             let era = universe.era;
             let age = universe.age;
             assert!(are_age_and_era_valid(era, age));
@@ -235,16 +234,14 @@ mod tests {
     #[test]
     fn generate_our_universe() {
         for i in 0..100 {
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        use_ours: true,
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    use_ours: true,
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert_eq!(universe.era, OUR_UNIVERSES_ERA);
             assert_eq!(universe.age, OUR_UNIVERSES_AGE);
             assert!(are_age_and_era_valid(universe.era, universe.age));
@@ -262,16 +259,14 @@ mod tests {
                 3 => StelliferousEra::LateStelliferous,
                 _ => StelliferousEra::EndStelliferous,
             };
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        fixed_era: Some(era),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    fixed_era: Some(era),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert_eq!(universe.era, era);
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
@@ -282,16 +277,14 @@ mod tests {
         for i in 0..100 {
             let age = SeededDiceRoller::new(&i.to_string(), "t").gen_f32() % 99999.6
                 + MIN_ANCIENT_STELLIFEROUS;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        fixed_age: Some(age),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    fixed_age: Some(age),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert_eq!(universe.age, age);
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
@@ -303,16 +296,14 @@ mod tests {
             let era = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        era_after: Some(era),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    era_after: Some(era),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
 
@@ -320,16 +311,14 @@ mod tests {
             let era = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        era_before: Some(era),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    era_before: Some(era),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
     }
@@ -341,16 +330,14 @@ mod tests {
                 + MIN_ANCIENT_STELLIFEROUS * 100.0)
                 .round()
                 / 100.0;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        age_after: Some(age),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    age_after: Some(age),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert!(universe.age >= age);
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
@@ -360,16 +347,14 @@ mod tests {
                 + MIN_ANCIENT_STELLIFEROUS * 100.0)
                 .round()
                 / 100.0;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        age_before: Some(age),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    age_before: Some(age),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert!(universe.age < age);
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
@@ -388,17 +373,15 @@ mod tests {
                 + MIN_ANCIENT_STELLIFEROUS * 100.0)
                 .round()
                 / 100.0;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        age_before: Some(age_before),
-                        age_after: Some(age_after),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    age_before: Some(age_before),
+                    age_after: Some(age_after),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             if age_after < age_before {
                 assert!(universe.age < age_before);
                 assert!(universe.age >= age_after);
@@ -413,17 +396,15 @@ mod tests {
             let era_before = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        era_after: Some(era_after),
-                        era_before: Some(era_before),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    era_after: Some(era_after),
+                    era_before: Some(era_before),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
 
@@ -444,19 +425,17 @@ mod tests {
             let era_before = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(
-                &String::from(i.to_string()),
-                &GenerationSettings {
-                    universe: UniverseSettings {
-                        era_after: Some(era_after),
-                        era_before: Some(era_before),
-                        age_before: Some(age_before),
-                        age_after: Some(age_after),
-                        ..Default::default()
-                    },
+            let universe = Universe::generate(&GenerationSettings {
+                seed: String::from(i.to_string()),
+                universe: UniverseSettings {
+                    era_after: Some(era_after),
+                    era_before: Some(era_before),
+                    age_before: Some(age_before),
+                    age_after: Some(age_after),
                     ..Default::default()
                 },
-            );
+                ..Default::default()
+            });
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
     }
