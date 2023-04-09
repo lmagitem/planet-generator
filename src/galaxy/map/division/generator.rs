@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use std::collections::HashMap;
 
 impl GalacticMapDivision {
     pub fn generate(
@@ -23,10 +24,10 @@ impl GalacticMapDivision {
 }
 
 fn get_region(division: &mut GalacticMapDivision, galaxy: &Galaxy) -> GalacticRegion {
-    let mut region = GalacticRegion::Multiple;
     let start = division.get_top_left_up(galaxy);
     let size = division.get_size(galaxy);
     let half_size = size / SpaceCoordinates::new(2, 2, 2);
+    let mut region_count = HashMap::new();
 
     for xi in 0..3 {
         let x = if xi == 0 {
@@ -52,33 +53,62 @@ fn get_region(division: &mut GalacticMapDivision, galaxy: &Galaxy) -> GalacticRe
                 } else {
                     size.z
                 };
-                region = generate_region(SpaceCoordinates::new(x, y, z), galaxy);
-                // TODO: for each of these points, checks in which region it is
-                // TODO: If all points are in the same region, select that region, otherwise set region to multiple
+
+                // Finds which region this point belongs to and remembers it
+                let point_region = generate_region(SpaceCoordinates::new(x, y, z), galaxy);
+                *region_count.entry(point_region).or_insert(0) += 1;
             }
         }
     }
-    region
+
+    // If there was only one region in the whole division, set that division's region to it, otherwise use Multiple.
+    if region_count.len() == 1 {
+        let (region, _) = region_count.into_iter().next().unwrap();
+        region
+    } else {
+        GalacticRegion::Multiple
+    }
 }
 
-// TODO
+/// Returns the proper region for a given coordinate.
+/// TODO: Generate regions properly
 fn generate_region(coord: SpaceCoordinates, galaxy: &Galaxy) -> GalacticRegion {
-    GalacticRegion::Multiple
+    let spheroid_sizes = match galaxy.category {
+        GalaxyCategory::Spiral(r, _) | GalaxyCategory::Lenticular(r, _) => {
+            SpaceCoordinates::new(r as i64 * 2, r as i64 * 2, (r as i64 * 2) / 10)
+        }
+        GalaxyCategory::Elliptical(r) | GalaxyCategory::DominantElliptical(r) => {
+            SpaceCoordinates::new(r as i64 * 2, r as i64 * 2, r as i64 * 2)
+        }
+        _ => return GalacticRegion::Multiple,
+    };
+
+    let abs_coord = coord.abs(galaxy.get_galactic_start());
+    if is_within_sphere_in_non_equal_planes(abs_coord, spheroid_sizes, galaxy) {
+        GalacticRegion::Ellipse
+    } else {
+        GalacticRegion::Void
+    }
 }
 
-///
+/// Returns true it the given point is within the area the given galaxy (that must be a spheroid).
 fn is_within_sphere_in_non_equal_planes(
     coord: SpaceCoordinates,
     sizes: SpaceCoordinates,
     galaxy: &Galaxy,
-) {
-    // Find biggest size
-    // Produit en croix
-    // ? = coord.? x biggest_size / size
-    // plus qu'à utiliser ? comme **point** dans is_within_sphere, et biggest_size comme radius
+) -> bool {
+    let biggest_size = sizes.x.max(sizes.y).max(sizes.z);
+    let scaled_point = SpaceCoordinates {
+        x: coord.x * biggest_size / sizes.x,
+        y: coord.y * biggest_size / sizes.y,
+        z: coord.z * biggest_size / sizes.z,
+    };
+    let center = galaxy.get_galactic_center();
+
+    is_within_sphere(scaled_point, center, biggest_size)
 }
 
-/// returns true if the given point is within the area of the sphere whose center and radius are given in parameters.
+/// Returns true if the given point is within the area of the sphere whose center and radius are given in parameters.
 fn is_within_sphere(point: SpaceCoordinates, center: SpaceCoordinates, radius: i64) -> bool {
     i64::pow(point.x - center.x, 2)
         + i64::pow(point.y - center.y, 2)
