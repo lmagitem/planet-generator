@@ -186,6 +186,7 @@ pub fn get_test_stars() -> Vec<Star> {
             16500, // Temperature
             StarSpectralType::DA,
             StarLuminosityClass::VII,
+            0.0,
         ),
         Star::new(
             "Sirius B".to_string(),
@@ -196,6 +197,7 @@ pub fn get_test_stars() -> Vec<Star> {
             25200,  // Temperature
             StarSpectralType::DA,
             StarLuminosityClass::VII,
+            0.0,
         ),
         Star::new(
             "Cygnus OB2-12".to_string(),
@@ -206,6 +208,7 @@ pub fn get_test_stars() -> Vec<Star> {
             13700,     // Temperature
             StarSpectralType::B(3),
             StarLuminosityClass::Ia,
+            0.0,
         ),
         Star::new(
             "Rigel A".to_string(),
@@ -216,6 +219,7 @@ pub fn get_test_stars() -> Vec<Star> {
             12100,    // Temperature
             StarSpectralType::F(8),
             StarLuminosityClass::Ia,
+            0.0,
         ),
         Star::new(
             "Epsilon Canis Majoris".to_string(),
@@ -226,6 +230,7 @@ pub fn get_test_stars() -> Vec<Star> {
             22900,   // Temperature
             StarSpectralType::B(2),
             StarLuminosityClass::II,
+            0.0,
         ),
         Star::new(
             "Canopus".to_string(),
@@ -236,6 +241,7 @@ pub fn get_test_stars() -> Vec<Star> {
             7400,    // Temperature
             StarSpectralType::A(9),
             StarLuminosityClass::II,
+            0.0,
         ),
         Star::new(
             "Beta Draconis".to_string(),
@@ -246,6 +252,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5160,  // Temperature
             StarSpectralType::G(2),
             StarLuminosityClass::Ib,
+            0.0,
         ),
         Star::new(
             "Theta Scorpii".to_string(),
@@ -256,6 +263,7 @@ pub fn get_test_stars() -> Vec<Star> {
             6294,   // Temperature
             StarSpectralType::F(0),
             StarLuminosityClass::II,
+            0.0,
         ),
         Star::new(
             "WISE 0855-0714".to_string(),
@@ -266,6 +274,7 @@ pub fn get_test_stars() -> Vec<Star> {
             240,       // Temperature
             StarSpectralType::Y(4),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Luhman 16".to_string(),
@@ -276,6 +285,7 @@ pub fn get_test_stars() -> Vec<Star> {
             1350,      // Temperature
             StarSpectralType::L(7),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Wolf 359".to_string(),
@@ -286,6 +296,7 @@ pub fn get_test_stars() -> Vec<Star> {
             2749,    // Temperature
             StarSpectralType::M(6),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Proxima Centauri".to_string(),
@@ -296,6 +307,7 @@ pub fn get_test_stars() -> Vec<Star> {
             2992,     // Temperature
             StarSpectralType::M(5),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Barnard's Star".to_string(),
@@ -306,6 +318,7 @@ pub fn get_test_stars() -> Vec<Star> {
             3134,   // Temperature
             StarSpectralType::M(4),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Ross 154".to_string(),
@@ -316,6 +329,7 @@ pub fn get_test_stars() -> Vec<Star> {
             3248,     // Temperature
             StarSpectralType::M(3),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "40 Eridani C".to_string(),
@@ -326,6 +340,7 @@ pub fn get_test_stars() -> Vec<Star> {
             3100,   // Temperature
             StarSpectralType::M(4),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Lalande 21185".to_string(),
@@ -336,6 +351,7 @@ pub fn get_test_stars() -> Vec<Star> {
             3547,   // Temperature
             StarSpectralType::M(2),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Lacaille 9352".to_string(),
@@ -346,6 +362,7 @@ pub fn get_test_stars() -> Vec<Star> {
             3672,   // Temperature
             StarSpectralType::M(0),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "TW Piscis Austrini".to_string(),
@@ -356,6 +373,7 @@ pub fn get_test_stars() -> Vec<Star> {
             4711,  // Temperature
             StarSpectralType::K(5),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "40 Eridani A".to_string(),
@@ -366,6 +384,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5072,  // Temperature
             StarSpectralType::K(0),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Ran".to_string(),
@@ -376,6 +395,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5084,  // Temperature
             StarSpectralType::K(2),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Alpha Centauri B".to_string(),
@@ -386,6 +406,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5260,   // Temperature
             StarSpectralType::K(1),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "61 Ursae Majoris".to_string(),
@@ -396,6 +417,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5488,  // Temperature
             StarSpectralType::G(8),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Beta Canum Venaticorum".to_string(),
@@ -406,6 +428,7 @@ pub fn get_test_stars() -> Vec<Star> {
             6043,  // Temperature
             StarSpectralType::G(0),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Sun".to_string(),
@@ -416,6 +439,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5772, // Temperature
             StarSpectralType::G(2),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Kappa Ceti".to_string(),
@@ -426,6 +450,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5708,  // Temperature
             StarSpectralType::G(5),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Alpha Centauri A".to_string(),
@@ -436,6 +461,7 @@ pub fn get_test_stars() -> Vec<Star> {
             5790,   // Temperature
             StarSpectralType::G(2),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Upsilon Andromedae".to_string(),
@@ -446,6 +472,7 @@ pub fn get_test_stars() -> Vec<Star> {
             6213, // Temperature
             StarSpectralType::F(8),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Tau Boötis".to_string(),
@@ -456,6 +483,7 @@ pub fn get_test_stars() -> Vec<Star> {
             6399, // Temperature
             StarSpectralType::F(7),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Procyon A".to_string(),
@@ -466,6 +494,7 @@ pub fn get_test_stars() -> Vec<Star> {
             6550,  // Temperature
             StarSpectralType::F(5),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Altair".to_string(),
@@ -476,6 +505,7 @@ pub fn get_test_stars() -> Vec<Star> {
             7760, // Temperature
             StarSpectralType::A(7),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Fomalhaut".to_string(),
@@ -486,6 +516,7 @@ pub fn get_test_stars() -> Vec<Star> {
             8590,  // Temperature
             StarSpectralType::A(3),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Delta Capricorni".to_string(),
@@ -496,6 +527,7 @@ pub fn get_test_stars() -> Vec<Star> {
             7301,  // Temperature
             StarSpectralType::A(7),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Sirius A".to_string(),
@@ -506,6 +538,7 @@ pub fn get_test_stars() -> Vec<Star> {
             9940,  // Temperature
             StarSpectralType::A(0),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "HD 21071".to_string(),
@@ -516,6 +549,7 @@ pub fn get_test_stars() -> Vec<Star> {
             14768, // Temperature
             StarSpectralType::B(7),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "Eta Aurigae".to_string(),
@@ -526,6 +560,7 @@ pub fn get_test_stars() -> Vec<Star> {
             17201, // Temperature
             StarSpectralType::B(3),
             StarLuminosityClass::V,
+            0.0,
         ),
         Star::new(
             "10 Lacertae".to_string(),
@@ -536,6 +571,7 @@ pub fn get_test_stars() -> Vec<Star> {
             36000,    // Temperature
             StarSpectralType::O(9),
             StarLuminosityClass::V,
+            0.0,
         ),
     ]
 }

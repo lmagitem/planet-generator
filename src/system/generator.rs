@@ -45,6 +45,7 @@ impl StarSystem {
                 0,
                 None,
                 None,
+                None,
                 vec![],
                 AstronomicalObject::Star(stars.remove(0)),
             );
@@ -261,6 +262,7 @@ fn generate_binary_relations(
         last_id,
         None,
         None,
+        None,
         vec![],
         AstronomicalObject::Star(most_massive),
     );
@@ -283,6 +285,7 @@ fn generate_binary_relations(
                 last_id,
                 None,
                 None,
+                None,
                 vec![],
                 AstronomicalObject::Star(first_of_pair),
             );
@@ -292,6 +295,7 @@ fn generate_binary_relations(
             let second_of_pair_radius = second_of_pair.radius;
             let second_of_pair_point = OrbitalPoint::new(
                 last_id,
+                None,
                 None,
                 None,
                 vec![],
@@ -307,7 +311,7 @@ fn generate_binary_relations(
                 second_of_pair_mass,
                 second_of_pair_radius,
                 second_of_pair_point,
-                0.0,
+                minimum_distance(first_of_pair_radius as f64, second_of_pair_radius as f64),
                 star_index,
                 system_index,
                 coord,
@@ -328,7 +332,7 @@ fn generate_binary_relations(
                 less_massive_mass,
                 less_massive_radius,
                 less_massive_point,
-                previous_actual_distance * 10.0,
+                previous_actual_distance,
                 star_index,
                 system_index,
                 coord,
@@ -353,6 +357,7 @@ fn generate_binary_relations(
                 last_id,
                 None,
                 None,
+                None,
                 vec![],
                 AstronomicalObject::Star(less_massive),
             );
@@ -365,7 +370,7 @@ fn generate_binary_relations(
                 less_massive_mass,
                 less_massive_radius,
                 less_massive_point,
-                previous_actual_distance * 10.0,
+                previous_actual_distance,
                 star_index,
                 system_index,
                 coord,
@@ -457,14 +462,11 @@ fn find_center_of_binary_pair(
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
 ) -> (OrbitalPoint, f32, f32, f64) {
-    let mut center = OrbitalPoint::new(next_id, None, None, vec![], AstronomicalObject::Void);
+    let mut center = OrbitalPoint::new(next_id, None, None, None, vec![], AstronomicalObject::Void);
 
-    let roche_limit =
-        calculate_roche_limit(most_massive_radius, most_massive_mass, less_massive_mass);
     let actual_distance = generate_distance_between_stars(
         star_index as u16,
         system_index,
-        roche_limit,
         min_distance,
         0,
         coord,
@@ -488,9 +490,11 @@ fn find_center_of_binary_pair(
 
     most_massive_point.primary_body_id = Some(next_id);
     most_massive_point.distance_from_primary = Some(barycentre_distance_from_most_massive);
+    most_massive_point.orbital_eccentricity = Some(0.0);
     less_massive_point.primary_body_id = Some(next_id);
     less_massive_point.distance_from_primary =
         Some(actual_distance - barycentre_distance_from_most_massive);
+    less_massive_point.orbital_eccentricity = Some(0.0);
 
     (
         center,
@@ -500,21 +504,27 @@ fn find_center_of_binary_pair(
     )
 }
 
-/// Calculates the Roche limit, which is the minimum distance there can be between two stars for them to have a stable binary relation.
+/// Calculates the Roche limit, which is the minimum distance there can be between two objects for them to have a stable binary relation.
 /// The radius of the heaviest star is in solar radii, but the return of the function is in AU.
 fn calculate_roche_limit(
-    radius_heaviest_star: f32,
-    mass_heaviest_star: f32,
-    mass_lighter_star: f32,
+    radius_heaviest_object: f32,
+    mass_heaviest_object: f32,
+    mass_lighter_object: f32,
 ) -> f64 {
-    ConversionUtils::solar_radii_to_astronomical_units(radius_heaviest_star as f64)
-        * (2.0 * mass_heaviest_star as f64 / mass_lighter_star as f64).powf(1.0 / 3.0)
+    ConversionUtils::solar_radii_to_astronomical_units(radius_heaviest_object as f64)
+        * (2.0 * mass_heaviest_object as f64 / mass_lighter_object as f64).powf(1.0 / 3.0)
+}
+
+/// Calculates the minimum distance there can be between two stars.
+/// The radius are in solar radii, but the return of the function is in AU.
+fn minimum_distance(radius_first_star: f64, radius_second_star: f64) -> f64 {
+    ConversionUtils::solar_radii_to_astronomical_units(radius_first_star)
+        + ConversionUtils::solar_radii_to_astronomical_units(radius_second_star)
 }
 
 fn generate_distance_between_stars(
     star_index: u16,
     system_index: u16,
-    roche_limit: f64,
     min_distance: f64,
     modifier: i32,
     coord: SpaceCoordinates,
@@ -524,32 +534,62 @@ fn generate_distance_between_stars(
         &galaxy.settings.seed,
         &format!("star_{}_{}_{}_mass", coord, system_index, star_index),
     );
+    let min_distance_multiplied = if min_distance < 0.5 {
+        min_distance * 6000.0
+    } else if min_distance < 2.5 {
+        min_distance * 600.0
+    } else if min_distance < 10.0 {
+        min_distance * 60.0
+    } else if min_distance < 25.0 {
+        min_distance * 10.0
+    } else {
+        min_distance * 2.0
+    };
     let range = rng
         .get_result(&CopyableRollToProcess::new(
             vec![
                 // Very close
                 CopyableWeightedResult {
-                    result: (roche_limit, roche_limit * 1.5),
+                    result: (
+                        if min_distance < 15.0 {
+                            min_distance
+                        } else {
+                            min_distance_multiplied
+                        },
+                        min_distance_multiplied + 0.48,
+                    ),
                     weight: 3,
                 },
                 // Close
                 CopyableWeightedResult {
-                    result: (roche_limit * 1.501, roche_limit * 5.0),
+                    result: (
+                        min_distance_multiplied + 0.48,
+                        min_distance_multiplied + 6.0,
+                    ),
                     weight: 3,
                 },
                 // Moderate
                 CopyableWeightedResult {
-                    result: (roche_limit * 5.501, roche_limit * 10.0),
+                    result: (
+                        min_distance_multiplied + 6.0,
+                        min_distance_multiplied + 72.0,
+                    ),
                     weight: 3,
                 },
                 // Wide
                 CopyableWeightedResult {
-                    result: (roche_limit * 10.001, roche_limit * 100.0),
+                    result: (
+                        min_distance_multiplied + 72.0,
+                        min_distance_multiplied + 120.0,
+                    ),
                     weight: 2,
                 },
                 // Distant
                 CopyableWeightedResult {
-                    result: (roche_limit * 100.001, roche_limit * 1000.0),
+                    result: (
+                        min_distance_multiplied + 120.0,
+                        min_distance_multiplied + 600.0,
+                    ),
                     weight: 3,
                 },
             ],
@@ -557,11 +597,7 @@ fn generate_distance_between_stars(
         ))
         .expect("Should return a range to generate a the distance between two stars.");
     let generated = rng.gen_f64() % (range.1 - range.0) + range.0;
-    if generated < min_distance {
-        min_distance
-    } else {
-        generated
-    }
+    generated
 }
 
 /// Finds where the barycentre between two stars or centers of mass is.

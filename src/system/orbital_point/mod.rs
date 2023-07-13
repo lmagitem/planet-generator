@@ -10,6 +10,8 @@ pub struct OrbitalPoint {
     pub primary_body_id: Option<u32>,
     /// The distance there is between the object placed at this point and its primary body. In Astronomical Units.
     pub distance_from_primary: Option<f64>,
+    /// The eccentricity of this orbital point's orbit around its primary body.
+    pub orbital_eccentricity: Option<f32>,
     /// The list of ids of any satellites this point might have.
     pub satellite_ids: Vec<u32>,
     /// The object placed at this point.
@@ -22,6 +24,7 @@ impl OrbitalPoint {
         id: u32,
         primary_body_id: Option<u32>,
         distance_from_primary: Option<f64>,
+        orbital_eccentricity: Option<f32>,
         satellite_ids: Vec<u32>,
         object: AstronomicalObject,
     ) -> Self {
@@ -29,6 +32,7 @@ impl OrbitalPoint {
             id,
             primary_body_id,
             distance_from_primary,
+            orbital_eccentricity,
             satellite_ids,
             object,
         }

@@ -20,6 +20,8 @@ pub struct Star {
     pub spectral_type: StarSpectralType,
     /// Luminosity class.
     pub luminosity_class: StarLuminosityClass,
+    /// The eccentricity of this star around its primary body.
+    pub orbital_eccentricity: f32,
 }
 
 impl Star {
@@ -32,6 +34,7 @@ impl Star {
         temperature: u32,
         spectral_type: StarSpectralType,
         luminosity_class: StarLuminosityClass,
+        orbital_eccentricity: f32,
     ) -> Self {
         Self {
             name,
@@ -42,6 +45,7 @@ impl Star {
             temperature,
             spectral_type,
             luminosity_class,
+            orbital_eccentricity,
         }
     }
 
@@ -77,5 +81,15 @@ impl Star {
                 || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::G(0))
                 || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::K(0))
                 || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::M(0)))
+    }
+
+    /// Returns the beggining of the minimum orbital separation between this object and the one it orbits in AU.
+    pub fn get_minimum_orbital_separation(&self) -> f64 {
+        ((1.0 - self.orbital_eccentricity) * self.radius) as f64
+    }
+
+    /// Returns the end of the minimum orbital separation between this object and the one it orbits in AU.
+    pub fn get_maximum_orbital_separation(&self) -> f64 {
+        ((1.0 + self.orbital_eccentricity) * self.radius) as f64
     }
 }

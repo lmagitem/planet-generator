@@ -148,6 +148,7 @@ impl Star {
             temperature,
             spectral_type,
             luminosity_class,
+            orbital_eccentricity: 0.0,
         }
     }
 }
@@ -605,7 +606,6 @@ fn generate_white_dwarf_spectral_type(
     .expect("Should return a white dwarf spectral type.")
 }
 
-// TODO: Calculate luminosity class
 fn calculate_luminosity_class(
     luminosity: f32,
     spectral_type: StarSpectralType,
@@ -1326,46 +1326,6 @@ mod tests {
         result = interpolate_f32(x0_y0, x1_y0, x0_y1, x1_y1, x, y);
         expected = 1000.0;
         assert!((result - expected).abs() < 0.001);
-    }
-
-    // #[test]
-    #[allow(dead_code)]
-    fn generate_fake_stars() {
-        let mut rng = SeededDiceRoller::new("seed", "step");
-        for i in 0..100 {
-            let settings = GenerationSettings {
-                seed: String::from(&i.to_string()),
-                star: StarSettings {
-                    fixed_mass: Some(i as f32 / 50.0),
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
-            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
-            let gal_end = galaxy.get_galactic_end();
-            let x = rng.gen_u32() as i64 % gal_end.x;
-            let y = rng.gen_u32() as i64 % gal_end.y;
-            let z = rng.gen_u32() as i64 % gal_end.z;
-            let coord = SpaceCoordinates::new(x, y, z);
-            let hex = galaxy
-                .get_hex(coord.rel(galaxy.get_galactic_start()))
-                .expect("Should have generated a hex.");
-
-            let generated_star = Star::generate(
-                i,
-                0,
-                String::from("Test"),
-                coord,
-                StellarEvolution::PopulationI,
-                &hex,
-                &galaxy,
-                &settings,
-            );
-
-            print_generated_star(&generated_star);
-        }
     }
 
     fn print_real_to_generated_stars_comparison_results(rad_sum: f32, lum_sum: f32, temp_sum: f32) {
