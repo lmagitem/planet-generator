@@ -49,14 +49,7 @@ impl StarSystem {
         }
 
         // Assign star own orbit so they can work with it in zone calculations
-        all_objects.iter_mut().for_each(|o| {
-            match &mut o.object {
-                AstronomicalObject::Star(star) => {
-                    star.orbit = o.own_orbit.clone();
-                },
-                _ => {}
-            }
-        });
+        all_objects.iter_mut().for_each(|o| o.update_object_own_orbit());
 
         Self::new(name, center_id, main_star_id, all_objects)
     }
@@ -460,14 +453,8 @@ fn find_center_of_binary_pair(
 ) -> (OrbitalPoint, f32, f32, f64) {
     let mut center = OrbitalPoint::new(next_id, None, AstronomicalObject::Void, vec![]);
 
-    let actual_distance = generate_distance_between_stars(
-        star_index,
-        system_index,
-        min_distance,
-        0,
-        coord,
-        galaxy,
-    );
+    let actual_distance =
+        generate_distance_between_stars(star_index, system_index, min_distance, 0, coord, galaxy);
     let barycentre_distance_from_most_massive =
         calculate_barycentre(actual_distance, most_massive_mass, less_massive_mass);
 
@@ -487,8 +474,8 @@ fn find_center_of_binary_pair(
     center.orbits.push(most_massive_orbit.clone());
     center.orbits.push(less_massive_orbit.clone());
 
-    most_massive_point.own_orbit = Some(most_massive_orbit);
-    less_massive_point.own_orbit = Some(less_massive_orbit);
+    most_massive_point.set_own_orbit(most_massive_orbit);
+    less_massive_point.set_own_orbit(less_massive_orbit);
 
     let most_massive_distance_and_radius =
         most_massive_radius as f64 + barycentre_distance_from_most_massive;
@@ -635,8 +622,7 @@ mod tests {
                 .all_objects
                 .iter()
                 .map(|o| {
-                    o.own_orbit
-                        .clone()
+                    o.get_own_orbit()
                         .unwrap_or(Orbit {
                             ..Default::default()
                         })

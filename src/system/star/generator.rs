@@ -652,7 +652,7 @@ fn calculate_luminosity_class(
         } else {
             StarLuminosityClass::O
         }
-    }
+    };
 }
 
 fn calculate_remnant_mass(mass: f32, _settings: &GenerationSettings) -> f32 {
@@ -712,7 +712,7 @@ fn get_age_range_in_star_lifecycle_dataset(
         4.0 + ((age - to_subgiant_lifespan) / to_giant_lifespan) * 2.0
     } else {
         7.0
-    }
+    };
 }
 
 fn get_mass_range_in_star_lifecycle_dataset(mass: f32) -> f32 {
@@ -734,7 +734,7 @@ fn get_mass_range_in_star_lifecycle_dataset(mass: f32) -> f32 {
         6.0 + ((mass - 60.0) / (500.0 - 60.0))
     } else {
         8.0
-    }
+    };
 }
 
 fn get_nearest_star_lifecycle_dataset_cells(
