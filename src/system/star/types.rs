@@ -12,6 +12,25 @@ pub struct StarSettings {
     pub use_ours: bool,
 }
 
+#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+pub struct StarZone {
+    /// The beginning of the zone in AU
+    pub start: f64,
+    /// The end of the zone in AU
+    pub end: f64,
+    /// The type of the zone
+    pub zone_type: ZoneType,
+}
+
+#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+pub enum ZoneType {
+    #[default]
+    Forbidden,
+    Inner,
+    Habitable,
+    Outer,
+}
+
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
 )]

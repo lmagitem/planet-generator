@@ -20,8 +20,12 @@ pub struct Star {
     pub spectral_type: StarSpectralType,
     /// Luminosity class.
     pub luminosity_class: StarLuminosityClass,
-    /// The eccentricity of this star around its primary body.
-    pub orbital_eccentricity: f32,
+    /// The id of the orbital point this star inhabits.
+    pub orbital_point_id: u32,
+    /// The star's own orbit, around which it revolves.
+    pub orbit: Option<Orbit>,
+    /// The various zones around this star. The zones give various informations about star orbits.
+    pub zones: Vec<StarZone>,
 }
 
 impl Star {
@@ -34,7 +38,9 @@ impl Star {
         temperature: u32,
         spectral_type: StarSpectralType,
         luminosity_class: StarLuminosityClass,
-        orbital_eccentricity: f32,
+        orbital_point_id: u32,
+        orbit: Option<Orbit>,
+        zones: Vec<StarZone>,
     ) -> Self {
         Self {
             name,
@@ -45,12 +51,14 @@ impl Star {
             temperature,
             spectral_type,
             luminosity_class,
-            orbital_eccentricity,
+            orbital_point_id,
+            orbit,
+            zones,
         }
     }
 
     /// Returns true if the star is currently in the main sequence phase of its life.
-    pub fn is_main_sequence_dwarf(self) -> bool {
+    pub fn is_main_sequence_dwarf(&self) -> bool {
         (self.luminosity_class == StarLuminosityClass::V
             || self.luminosity_class == StarLuminosityClass::IV)
             && (discriminant(&self.spectral_type) == discriminant(&StarSpectralType::WR(0))
@@ -64,7 +72,7 @@ impl Star {
     }
 
     /// Returns true if the star is currently in the main sequence, subgiant or giant phase of its life.
-    pub fn is_main_sequence_or_giant(self) -> bool {
+    pub fn is_main_sequence_or_giant(&self) -> bool {
         (self.luminosity_class == StarLuminosityClass::O
             || self.luminosity_class == StarLuminosityClass::Ia
             || self.luminosity_class == StarLuminosityClass::Ib
@@ -85,11 +93,27 @@ impl Star {
 
     /// Returns the beggining of the minimum orbital separation between this object and the one it orbits in AU.
     pub fn get_minimum_orbital_separation(&self) -> f64 {
-        ((1.0 - self.orbital_eccentricity) * self.radius) as f64
+        ((1.0
+            - self
+                .orbit
+                .clone()
+                .unwrap_or(Orbit {
+                    ..Default::default()
+                })
+                .eccentricity)
+            * self.radius) as f64
     }
 
     /// Returns the end of the minimum orbital separation between this object and the one it orbits in AU.
     pub fn get_maximum_orbital_separation(&self) -> f64 {
-        ((1.0 + self.orbital_eccentricity) * self.radius) as f64
+        ((1.0
+            + self
+                .orbit
+                .clone()
+                .unwrap_or(Orbit {
+                    ..Default::default()
+                })
+                .eccentricity)
+            * self.radius) as f64
     }
 }

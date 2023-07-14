@@ -332,64 +332,64 @@ mod tests {
         let first_hex = galaxy
             .get_hex(SpaceCoordinates::new(-49, -2, 0))
             .expect("Should return a hex.");
-        assert!(first_hex.index == SpaceCoordinates::new(0, 0, 0));
+        assert_eq!(first_hex.index, SpaceCoordinates::new(0, 0, 0));
         let first_hex_but_second_parsec = galaxy
             .get_hex(SpaceCoordinates::new(-48, -2, 0))
             .expect("Should return a hex.");
-        assert!(first_hex_but_second_parsec.index == SpaceCoordinates::new(0, 0, 0));
+        assert_eq!(first_hex_but_second_parsec.index, SpaceCoordinates::new(0, 0, 0));
         let another_hex = galaxy
             .get_hex(SpaceCoordinates::new(-10, -2, 0))
             .expect("Should return a hex.");
-        assert!(another_hex.index == SpaceCoordinates::new(9, 0, 0));
+        assert_eq!(another_hex.index, SpaceCoordinates::new(9, 0, 0));
         let another_hex_with_different_y = galaxy
             .get_hex(SpaceCoordinates::new(-10, 0, 0))
             .expect("Should return a hex.");
-        assert!(another_hex_with_different_y.index == SpaceCoordinates::new(9, 1, 0));
+        assert_eq!(another_hex_with_different_y.index, SpaceCoordinates::new(9, 1, 0));
         let last_hex = galaxy
             .get_hex(SpaceCoordinates::new(50, 2, 0))
             .expect("Should return a hex.");
-        assert!(last_hex.index == SpaceCoordinates::new(24, 2, 0));
+        assert_eq!(last_hex.index, SpaceCoordinates::new(24, 2, 0));
 
         let first_div = galaxy
             .get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 1)
             .expect("Should return a div.");
-        assert!(first_div.index == SpaceCoordinates::new(0, 0, 0));
+        assert_eq!(first_div.index, SpaceCoordinates::new(0, 0, 0));
         let first_div_but_fourth_parsec = galaxy
             .get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 1)
             .expect("Should return a div.");
-        assert!(first_div_but_fourth_parsec.index == SpaceCoordinates::new(0, 0, 0));
+        assert_eq!(first_div_but_fourth_parsec.index, SpaceCoordinates::new(0, 0, 0));
         let another_div = galaxy
             .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)
             .expect("Should return a div.");
-        assert!(another_div.index == SpaceCoordinates::new(4, 0, 0));
+        assert_eq!(another_div.index, SpaceCoordinates::new(4, 0, 0));
         let another_div_with_different_y = galaxy
             .get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 1)
             .expect("Should return a div.");
-        assert!(another_div_with_different_y.index == SpaceCoordinates::new(4, 0, 0));
+        assert_eq!(another_div_with_different_y.index, SpaceCoordinates::new(4, 0, 0));
         let last_div = galaxy
             .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 1)
             .expect("Should return a div.");
-        assert!(last_div.index == SpaceCoordinates::new(12, 1, 0));
+        assert_eq!(last_div.index, SpaceCoordinates::new(12, 1, 0));
 
         let first_second_level_div = galaxy
             .get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 2)
             .expect("Should return a div.");
-        assert!(first_second_level_div.index == SpaceCoordinates::new(0, 0, 0));
+        assert_eq!(first_second_level_div.index, SpaceCoordinates::new(0, 0, 0));
         let first_second_level_div_but_fourth_parsec = galaxy
             .get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 2)
             .expect("Should return a div.");
-        assert!(first_second_level_div_but_fourth_parsec.index == SpaceCoordinates::new(0, 0, 0));
+        assert_eq!(first_second_level_div_but_fourth_parsec.index, SpaceCoordinates::new(0, 0, 0));
         let another_second_level_div = galaxy
             .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 2)
             .expect("Should return a div.");
-        assert!(another_second_level_div.index == SpaceCoordinates::new(1, 0, 0));
+        assert_eq!(another_second_level_div.index, SpaceCoordinates::new(1, 0, 0));
         let another_second_level_div_with_different_y = galaxy
             .get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 2)
             .expect("Should return a div.");
-        assert!(another_second_level_div_with_different_y.index == SpaceCoordinates::new(1, 0, 0));
+        assert_eq!(another_second_level_div_with_different_y.index, SpaceCoordinates::new(1, 0, 0));
         let last_second_level_div = galaxy
             .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 2)
             .expect("Should return a div.");
-        assert!(last_second_level_div.index == SpaceCoordinates::new(4, 0, 0));
+        assert_eq!(last_second_level_div.index, SpaceCoordinates::new(4, 0, 0));
     }
 }

@@ -148,7 +148,9 @@ impl Star {
             temperature,
             spectral_type,
             luminosity_class,
-            orbital_eccentricity: 0.0,
+            orbital_point_id: star_index as u32,
+            orbit: None,
+            zones: vec![],
         }
     }
 }
@@ -164,7 +166,7 @@ fn get_star_name(star_index: u16, name: String, settings: &GenerationSettings) -
 
 fn calculate_temperature_using_luminosity(luminosity: f32, radius: f64) -> f32 {
     let pi = std::f64::consts::PI;
-    let area = 4.0 * pi * (radius as f64).powf(2.0);
+    let area = 4.0 * pi * (radius).powf(2.0);
     // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
     // in order to get working results.
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
@@ -177,7 +179,7 @@ fn calculate_temperature_using_luminosity(luminosity: f32, radius: f64) -> f32 {
 
 fn calculate_luminosity_using_temperature(temperature: u32, radius: f64) -> f32 {
     let pi = std::f64::consts::PI;
-    let area = 4.0 * pi * (radius as f64).powf(2.0);
+    let area = 4.0 * pi * (radius).powf(2.0);
     // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
     // in order to get working results.
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
@@ -429,8 +431,8 @@ fn generate_age(
     } else if universe.era == StelliferousEra::AncientStelliferous
         || universe.era == StelliferousEra::EarlyStelliferous
     {
-        (((universe.age * 1000.0) as f32) - 300.0)
-            .min(((universe.age) as f32 * 1000.0) - rng.roll(1, 9000, 0) as f32)
+        ((universe.age * 1000.0) - 300.0)
+            .min(((universe.age) * 1000.0) - rng.roll(1, 9000, 0) as f32)
     } else {
         rng.roll(1, 9000, 999) as f32
     };
@@ -446,7 +448,7 @@ fn generate_age(
 
 /// In millions of years.
 fn calculate_lifespan(mass: f32, luminosity: f32) -> f32 {
-    f32::powi(10.0, 4) * mass as f32 / luminosity as f32
+    f32::powi(10.0, 4) * mass / luminosity
 }
 
 fn calculate_subgiant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
@@ -476,7 +478,7 @@ fn get_interpolated_radius(
     } else {
         calculate_radius_using_luminosity_and_temperature(
             interpolated_luminosity,
-            interpolated_temperature as u32,
+            interpolated_temperature,
         )
     }
 }
@@ -634,21 +636,21 @@ fn calculate_luminosity_class(
         }
         _ => (),
     }
-    if age <= main_lifespan {
-        return StarLuminosityClass::V;
+    return if age <= main_lifespan {
+        StarLuminosityClass::V
     } else if age <= subgiant_lifespan {
-        return StarLuminosityClass::IV;
+        StarLuminosityClass::IV
     } else {
         if luminosity <= 100.0 {
-            return StarLuminosityClass::III;
+            StarLuminosityClass::III
         } else if luminosity <= 1000.0 {
-            return StarLuminosityClass::II;
+            StarLuminosityClass::II
         } else if luminosity <= 31333.3 {
-            return StarLuminosityClass::Ib;
+            StarLuminosityClass::Ib
         } else if luminosity <= 75000.0 {
-            return StarLuminosityClass::Ia;
+            StarLuminosityClass::Ia
         } else {
-            return StarLuminosityClass::O;
+            StarLuminosityClass::O
         }
     }
 }
@@ -702,36 +704,36 @@ fn get_age_range_in_star_lifecycle_dataset(
 ) -> f32 {
     let to_subgiant_lifespan = main_lifespan + subgiant_lifespan;
     let to_giant_lifespan = to_subgiant_lifespan + giant_lifespan;
-    if age >= 0.0 && age <= main_lifespan {
-        return (age / main_lifespan) * 2.0;
+    return if age >= 0.0 && age <= main_lifespan {
+        (age / main_lifespan) * 2.0
     } else if age > main_lifespan && age <= to_subgiant_lifespan {
-        return 2.0 + ((age - main_lifespan) / to_subgiant_lifespan) * 2.0;
+        2.0 + ((age - main_lifespan) / to_subgiant_lifespan) * 2.0
     } else if age > to_subgiant_lifespan && age <= to_giant_lifespan {
-        return 4.0 + ((age - to_subgiant_lifespan) / to_giant_lifespan) * 2.0;
+        4.0 + ((age - to_subgiant_lifespan) / to_giant_lifespan) * 2.0
     } else {
-        return 7.0;
+        7.0
     }
 }
 
 fn get_mass_range_in_star_lifecycle_dataset(mass: f32) -> f32 {
-    if mass < 0.4 {
-        return 0.0;
+    return if mass < 0.4 {
+        0.0
     } else if mass >= 0.4 && mass <= 0.5 {
-        return mass / 0.5;
+        mass / 0.5
     } else if mass > 0.5 && mass <= 1.0 {
-        return 1.0 + ((mass - 0.5) / (1.0 - 0.5));
+        1.0 + ((mass - 0.5) / (1.0 - 0.5))
     } else if mass > 1.0 && mass <= 2.0 {
-        return 2.0 + ((mass - 1.0) / (2.0 - 1.0));
+        2.0 + ((mass - 1.0) / (2.0 - 1.0))
     } else if mass > 2.0 && mass <= 5.0 {
-        return 3.0 + ((mass - 2.0) / (5.0 - 2.0));
+        3.0 + ((mass - 2.0) / (5.0 - 2.0))
     } else if mass > 5.0 && mass <= 15.0 {
-        return 4.0 + ((mass - 5.0) / (15.0 - 5.0));
+        4.0 + ((mass - 5.0) / (15.0 - 5.0))
     } else if mass > 15.0 && mass <= 60.0 {
-        return 5.0 + ((mass - 15.0) / (60.0 - 15.0));
+        5.0 + ((mass - 15.0) / (60.0 - 15.0))
     } else if mass > 60.0 && mass <= 500.0 {
-        return 6.0 + ((mass - 60.0) / (500.0 - 60.0));
+        6.0 + ((mass - 60.0) / (500.0 - 60.0))
     } else {
-        return 8.0;
+        8.0
     }
 }
 
@@ -985,7 +987,7 @@ mod tests {
                 lum_calc_sum +=
                     GeneratorUtils::get_difference_percentage(calc_luminosity, star.luminosity);
                 temp_calc_sum += GeneratorUtils::get_difference_percentage(
-                    calc_temperature as f32,
+                    calc_temperature,
                     star.temperature as f32,
                 );
 
@@ -1064,7 +1066,7 @@ mod tests {
                     generated_star.mass,
                     generated_star.radius,
                     generated_star.luminosity,
-                    generated_star.temperature as u32,
+                    generated_star.temperature,
                     generated_star.spectral_type,
                     generated_star.luminosity_class,
                     generated_star.age,
@@ -1148,7 +1150,7 @@ mod tests {
                 },
                 star: StarSettings {
                     fixed_mass: Some(expected.0 as f32),
-                    fixed_age: Some(0.00001 as f32),
+                    fixed_age: Some(0.00001f32),
                     ..Default::default()
                 },
                 ..Default::default()
@@ -1217,72 +1219,72 @@ mod tests {
 
     #[test]
     fn calculate_proper_spectral_type() {
-        assert!(calculate_spectral_type(380000) == StarSpectralType::WR(2));
-        assert!(calculate_spectral_type(170000) == StarSpectralType::WR(3));
-        assert!(calculate_spectral_type(117000) == StarSpectralType::WR(4));
-        assert!(calculate_spectral_type(54000) == StarSpectralType::O(2));
-        assert!(calculate_spectral_type(45000) == StarSpectralType::O(3));
-        assert!(calculate_spectral_type(43300) == StarSpectralType::O(4));
-        assert!(calculate_spectral_type(40600) == StarSpectralType::O(5));
-        assert!(calculate_spectral_type(39500) == StarSpectralType::O(6));
-        assert!(calculate_spectral_type(37100) == StarSpectralType::O(7));
-        assert!(calculate_spectral_type(35100) == StarSpectralType::O(8));
-        assert!(calculate_spectral_type(33300) == StarSpectralType::O(9));
-        assert!(calculate_spectral_type(29200) == StarSpectralType::B(0));
-        assert!(calculate_spectral_type(23000) == StarSpectralType::B(1));
-        assert!(calculate_spectral_type(21000) == StarSpectralType::B(2));
-        assert!(calculate_spectral_type(17600) == StarSpectralType::B(3));
-        assert!(calculate_spectral_type(15200) == StarSpectralType::B(5));
-        assert!(calculate_spectral_type(14300) == StarSpectralType::B(6));
-        assert!(calculate_spectral_type(13500) == StarSpectralType::B(7));
-        assert!(calculate_spectral_type(12300) == StarSpectralType::B(8));
-        assert!(calculate_spectral_type(11400) == StarSpectralType::B(9));
-        assert!(calculate_spectral_type(9600) == StarSpectralType::A(0));
-        assert!(calculate_spectral_type(9330) == StarSpectralType::A(1));
-        assert!(calculate_spectral_type(9040) == StarSpectralType::A(2));
-        assert!(calculate_spectral_type(8750) == StarSpectralType::A(3));
-        assert!(calculate_spectral_type(8480) == StarSpectralType::A(4));
-        assert!(calculate_spectral_type(8310) == StarSpectralType::A(5));
-        assert!(calculate_spectral_type(7920) == StarSpectralType::A(7));
-        assert!(calculate_spectral_type(7350) == StarSpectralType::F(0));
-        assert!(calculate_spectral_type(7200) == StarSpectralType::F(1));
-        assert!(calculate_spectral_type(7050) == StarSpectralType::F(2));
-        assert!(calculate_spectral_type(6850) == StarSpectralType::F(3));
-        assert!(calculate_spectral_type(6700) == StarSpectralType::F(5));
-        assert!(calculate_spectral_type(6550) == StarSpectralType::F(6));
-        assert!(calculate_spectral_type(6400) == StarSpectralType::F(7));
-        assert!(calculate_spectral_type(6300) == StarSpectralType::F(8));
-        assert!(calculate_spectral_type(6050) == StarSpectralType::G(0));
-        assert!(calculate_spectral_type(5930) == StarSpectralType::G(1));
-        assert!(calculate_spectral_type(5800) == StarSpectralType::G(2));
-        assert!(calculate_spectral_type(5660) == StarSpectralType::G(5));
-        assert!(calculate_spectral_type(5440) == StarSpectralType::G(8));
-        assert!(calculate_spectral_type(5240) == StarSpectralType::K(0));
-        assert!(calculate_spectral_type(5110) == StarSpectralType::K(1));
-        assert!(calculate_spectral_type(4960) == StarSpectralType::K(2));
-        assert!(calculate_spectral_type(4800) == StarSpectralType::K(3));
-        assert!(calculate_spectral_type(4600) == StarSpectralType::K(4));
-        assert!(calculate_spectral_type(4400) == StarSpectralType::K(5));
-        assert!(calculate_spectral_type(4000) == StarSpectralType::K(7));
-        assert!(calculate_spectral_type(3750) == StarSpectralType::M(0));
-        assert!(calculate_spectral_type(3700) == StarSpectralType::M(1));
-        assert!(calculate_spectral_type(3600) == StarSpectralType::M(2));
-        assert!(calculate_spectral_type(3500) == StarSpectralType::M(3));
-        assert!(calculate_spectral_type(3400) == StarSpectralType::M(4));
-        assert!(calculate_spectral_type(3200) == StarSpectralType::M(5));
-        assert!(calculate_spectral_type(3100) == StarSpectralType::M(6));
-        assert!(calculate_spectral_type(2900) == StarSpectralType::M(7));
-        assert!(calculate_spectral_type(2700) == StarSpectralType::M(8));
-        assert!(calculate_spectral_type(2600) == StarSpectralType::L(0));
-        assert!(calculate_spectral_type(2200) == StarSpectralType::L(3));
-        assert!(calculate_spectral_type(1500) == StarSpectralType::L(8));
-        assert!(calculate_spectral_type(1400) == StarSpectralType::T(2));
-        assert!(calculate_spectral_type(1000) == StarSpectralType::T(6));
-        assert!(calculate_spectral_type(800) == StarSpectralType::T(8));
-        assert!(calculate_spectral_type(370) == StarSpectralType::Y(0));
-        assert!(calculate_spectral_type(350) == StarSpectralType::Y(1));
-        assert!(calculate_spectral_type(320) == StarSpectralType::Y(2));
-        assert!(calculate_spectral_type(250) == StarSpectralType::Y(4));
+        assert_eq!(calculate_spectral_type(380000), StarSpectralType::WR(2));
+        assert_eq!(calculate_spectral_type(170000), StarSpectralType::WR(3));
+        assert_eq!(calculate_spectral_type(117000), StarSpectralType::WR(4));
+        assert_eq!(calculate_spectral_type(54000), StarSpectralType::O(2));
+        assert_eq!(calculate_spectral_type(45000), StarSpectralType::O(3));
+        assert_eq!(calculate_spectral_type(43300), StarSpectralType::O(4));
+        assert_eq!(calculate_spectral_type(40600), StarSpectralType::O(5));
+        assert_eq!(calculate_spectral_type(39500), StarSpectralType::O(6));
+        assert_eq!(calculate_spectral_type(37100), StarSpectralType::O(7));
+        assert_eq!(calculate_spectral_type(35100), StarSpectralType::O(8));
+        assert_eq!(calculate_spectral_type(33300), StarSpectralType::O(9));
+        assert_eq!(calculate_spectral_type(29200), StarSpectralType::B(0));
+        assert_eq!(calculate_spectral_type(23000), StarSpectralType::B(1));
+        assert_eq!(calculate_spectral_type(21000), StarSpectralType::B(2));
+        assert_eq!(calculate_spectral_type(17600), StarSpectralType::B(3));
+        assert_eq!(calculate_spectral_type(15200), StarSpectralType::B(5));
+        assert_eq!(calculate_spectral_type(14300), StarSpectralType::B(6));
+        assert_eq!(calculate_spectral_type(13500), StarSpectralType::B(7));
+        assert_eq!(calculate_spectral_type(12300), StarSpectralType::B(8));
+        assert_eq!(calculate_spectral_type(11400), StarSpectralType::B(9));
+        assert_eq!(calculate_spectral_type(9600), StarSpectralType::A(0));
+        assert_eq!(calculate_spectral_type(9330), StarSpectralType::A(1));
+        assert_eq!(calculate_spectral_type(9040), StarSpectralType::A(2));
+        assert_eq!(calculate_spectral_type(8750), StarSpectralType::A(3));
+        assert_eq!(calculate_spectral_type(8480), StarSpectralType::A(4));
+        assert_eq!(calculate_spectral_type(8310), StarSpectralType::A(5));
+        assert_eq!(calculate_spectral_type(7920), StarSpectralType::A(7));
+        assert_eq!(calculate_spectral_type(7350), StarSpectralType::F(0));
+        assert_eq!(calculate_spectral_type(7200), StarSpectralType::F(1));
+        assert_eq!(calculate_spectral_type(7050), StarSpectralType::F(2));
+        assert_eq!(calculate_spectral_type(6850), StarSpectralType::F(3));
+        assert_eq!(calculate_spectral_type(6700), StarSpectralType::F(5));
+        assert_eq!(calculate_spectral_type(6550), StarSpectralType::F(6));
+        assert_eq!(calculate_spectral_type(6400), StarSpectralType::F(7));
+        assert_eq!(calculate_spectral_type(6300), StarSpectralType::F(8));
+        assert_eq!(calculate_spectral_type(6050), StarSpectralType::G(0));
+        assert_eq!(calculate_spectral_type(5930), StarSpectralType::G(1));
+        assert_eq!(calculate_spectral_type(5800), StarSpectralType::G(2));
+        assert_eq!(calculate_spectral_type(5660), StarSpectralType::G(5));
+        assert_eq!(calculate_spectral_type(5440), StarSpectralType::G(8));
+        assert_eq!(calculate_spectral_type(5240), StarSpectralType::K(0));
+        assert_eq!(calculate_spectral_type(5110), StarSpectralType::K(1));
+        assert_eq!(calculate_spectral_type(4960), StarSpectralType::K(2));
+        assert_eq!(calculate_spectral_type(4800), StarSpectralType::K(3));
+        assert_eq!(calculate_spectral_type(4600), StarSpectralType::K(4));
+        assert_eq!(calculate_spectral_type(4400), StarSpectralType::K(5));
+        assert_eq!(calculate_spectral_type(4000), StarSpectralType::K(7));
+        assert_eq!(calculate_spectral_type(3750), StarSpectralType::M(0));
+        assert_eq!(calculate_spectral_type(3700), StarSpectralType::M(1));
+        assert_eq!(calculate_spectral_type(3600), StarSpectralType::M(2));
+        assert_eq!(calculate_spectral_type(3500), StarSpectralType::M(3));
+        assert_eq!(calculate_spectral_type(3400), StarSpectralType::M(4));
+        assert_eq!(calculate_spectral_type(3200), StarSpectralType::M(5));
+        assert_eq!(calculate_spectral_type(3100), StarSpectralType::M(6));
+        assert_eq!(calculate_spectral_type(2900), StarSpectralType::M(7));
+        assert_eq!(calculate_spectral_type(2700), StarSpectralType::M(8));
+        assert_eq!(calculate_spectral_type(2600), StarSpectralType::L(0));
+        assert_eq!(calculate_spectral_type(2200), StarSpectralType::L(3));
+        assert_eq!(calculate_spectral_type(1500), StarSpectralType::L(8));
+        assert_eq!(calculate_spectral_type(1400), StarSpectralType::T(2));
+        assert_eq!(calculate_spectral_type(1000), StarSpectralType::T(6));
+        assert_eq!(calculate_spectral_type(800), StarSpectralType::T(8));
+        assert_eq!(calculate_spectral_type(370), StarSpectralType::Y(0));
+        assert_eq!(calculate_spectral_type(350), StarSpectralType::Y(1));
+        assert_eq!(calculate_spectral_type(320), StarSpectralType::Y(2));
+        assert_eq!(calculate_spectral_type(250), StarSpectralType::Y(4));
     }
 
     #[test]
@@ -1365,7 +1367,7 @@ mod tests {
             radius,
             GeneratorUtils::get_difference_percentage_str(radius, star.radius),
             luminosity,
-            GeneratorUtils::get_difference_percentage_str(luminosity, star.luminosity as f32),
+            GeneratorUtils::get_difference_percentage_str(luminosity, star.luminosity),
             temperature,
             GeneratorUtils::get_difference_percentage_str(temperature as f32, star.temperature as f32),
             spectral_type,

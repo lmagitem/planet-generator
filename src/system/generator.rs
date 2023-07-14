@@ -41,18 +41,22 @@ impl StarSystem {
             center_id = result.0;
             main_star_id = result.1;
         } else {
-            let center = OrbitalPoint::new(
-                0,
-                None,
-                None,
-                None,
-                vec![],
-                AstronomicalObject::Star(stars.remove(0)),
-            );
+            let center =
+                OrbitalPoint::new(0, None, AstronomicalObject::Star(stars.remove(0)), vec![]);
             center_id = 0;
             main_star_id = 0;
             all_objects.push(center);
         }
+
+        // Assign star own orbit so they can work with it in zone calculations
+        all_objects.iter_mut().for_each(|o| {
+            match &mut o.object {
+                AstronomicalObject::Star(star) => {
+                    star.orbit = o.own_orbit.clone();
+                },
+                _ => {}
+            }
+        });
 
         Self::new(name, center_id, main_star_id, all_objects)
     }
@@ -69,7 +73,7 @@ fn get_system_name(system_index: u16, coord: SpaceCoordinates, galaxy: &Galaxy) 
             &format!("sys_{}_{}_ste_evo", coord, system_index),
         );
         let random_names = get_random_names();
-        random_names[rng.gen_usize() % random_names.len()].clone()
+        String::from(random_names[rng.gen_usize() % random_names.len()])
     }
 }
 
@@ -261,10 +265,8 @@ fn generate_binary_relations(
     let mut most_massive_point = OrbitalPoint::new(
         last_id,
         None,
-        None,
-        None,
-        vec![],
         AstronomicalObject::Star(most_massive),
+        vec![],
     );
 
     let mut first_turn = true;
@@ -284,10 +286,8 @@ fn generate_binary_relations(
             let first_of_pair_point = OrbitalPoint::new(
                 last_id,
                 None,
-                None,
-                None,
-                vec![],
                 AstronomicalObject::Star(first_of_pair),
+                vec![],
             );
             last_id += 1;
             let second_of_pair = stars_left.remove(0);
@@ -296,10 +296,8 @@ fn generate_binary_relations(
             let second_of_pair_point = OrbitalPoint::new(
                 last_id,
                 None,
-                None,
-                None,
-                vec![],
                 AstronomicalObject::Star(second_of_pair),
+                vec![],
             );
 
             // Generate our new pair
@@ -356,10 +354,8 @@ fn generate_binary_relations(
             let less_massive_point = OrbitalPoint::new(
                 last_id,
                 None,
-                None,
-                None,
-                vec![],
                 AstronomicalObject::Star(less_massive),
+                vec![],
             );
 
             let result = make_binary_pair(
@@ -462,10 +458,10 @@ fn find_center_of_binary_pair(
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
 ) -> (OrbitalPoint, f32, f32, f64) {
-    let mut center = OrbitalPoint::new(next_id, None, None, None, vec![], AstronomicalObject::Void);
+    let mut center = OrbitalPoint::new(next_id, None, AstronomicalObject::Void, vec![]);
 
     let actual_distance = generate_distance_between_stars(
-        star_index as u16,
+        star_index,
         system_index,
         min_distance,
         0,
@@ -475,8 +471,24 @@ fn find_center_of_binary_pair(
     let barycentre_distance_from_most_massive =
         calculate_barycentre(actual_distance, most_massive_mass, less_massive_mass);
 
-    center.satellite_ids.push(most_massive_point.id);
-    center.satellite_ids.push(less_massive_point.id);
+    let most_massive_orbit = Orbit::new(
+        next_id,
+        vec![most_massive_point.id],
+        barycentre_distance_from_most_massive,
+        0.0,
+    );
+    let less_massive_orbit = Orbit::new(
+        next_id,
+        vec![less_massive_point.id],
+        actual_distance - barycentre_distance_from_most_massive,
+        0.0,
+    );
+
+    center.orbits.push(most_massive_orbit.clone());
+    center.orbits.push(less_massive_orbit.clone());
+
+    most_massive_point.own_orbit = Some(most_massive_orbit);
+    less_massive_point.own_orbit = Some(less_massive_orbit);
 
     let most_massive_distance_and_radius =
         most_massive_radius as f64 + barycentre_distance_from_most_massive;
@@ -487,14 +499,6 @@ fn find_center_of_binary_pair(
     } else {
         less_massive_distance_and_radius as f32
     };
-
-    most_massive_point.primary_body_id = Some(next_id);
-    most_massive_point.distance_from_primary = Some(barycentre_distance_from_most_massive);
-    most_massive_point.orbital_eccentricity = Some(0.0);
-    less_massive_point.primary_body_id = Some(next_id);
-    less_massive_point.distance_from_primary =
-        Some(actual_distance - barycentre_distance_from_most_massive);
-    less_massive_point.orbital_eccentricity = Some(0.0);
 
     (
         center,
@@ -609,10 +613,10 @@ fn calculate_barycentre(distance_between: f64, heaviest_mass: f32, lowest_mass: 
 mod tests {
     use super::*;
 
-    #[test]
-    fn distance_test() {
+    // #[test]
+    fn generate_interesting_example_systems() {
         let mut highest_distance = 0.0;
-        for i in 0..200000 {
+        for i in 0..10000 {
             let settings = &GenerationSettings {
                 seed: String::from(&i.to_string()),
                 ..Default::default()
@@ -630,7 +634,14 @@ mod tests {
             let higher_distance = system
                 .all_objects
                 .iter()
-                .map(|o| o.distance_from_primary.unwrap_or(0.0))
+                .map(|o| {
+                    o.own_orbit
+                        .clone()
+                        .unwrap_or(Orbit {
+                            ..Default::default()
+                        })
+                        .average_distance
+                })
                 .max_by(|a, b| a.total_cmp(b))
                 .unwrap();
             if

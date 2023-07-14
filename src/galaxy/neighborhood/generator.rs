@@ -55,7 +55,7 @@ impl GalacticNeighborhood {
                     );
                 }
             } else {
-                let mut galaxies = 0 as u8;
+                let mut galaxies = 0u8;
                 let mut dominant = 0;
                 let mut roll = 0;
                 let mut turn = 0;
@@ -72,15 +72,15 @@ impl GalacticNeighborhood {
                     if universe.era == StelliferousEra::EndStelliferous {
                         1
                     } else if universe.era == StelliferousEra::LateStelliferous {
-                        1.max(dominant) as u8
+                        1.max(dominant)
                     } else {
                         dominant
                     },
                     // Major galaxies
                     if universe.era == StelliferousEra::EndStelliferous {
-                        0.max(rng.roll(1, 2, 0) as u8) as u8
+                        0.max(rng.roll(1, 2, 0) as u8)
                     } else if universe.era == StelliferousEra::LateStelliferous {
-                        1.max(galaxies / 2) as u8
+                        1.max(galaxies / 2)
                     } else {
                         galaxies
                     },
@@ -187,7 +187,6 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
             let neighborhood =
                 GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
             assert_eq!(neighborhood.density, fixed_neighborhood);

@@ -40,6 +40,7 @@ impl Display for SpaceCoordinates {
 }
 
 impl Add for SpaceCoordinates {
+    type Output = Self;
     fn add(self, o: Self) -> Self {
         Self {
             x: self.x + o.x,
@@ -47,10 +48,10 @@ impl Add for SpaceCoordinates {
             z: self.z + o.z,
         }
     }
-    type Output = Self;
 }
 
 impl Sub for SpaceCoordinates {
+    type Output = Self;
     fn sub(self, o: Self) -> Self {
         Self {
             x: self.x - o.x,
@@ -58,10 +59,10 @@ impl Sub for SpaceCoordinates {
             z: self.z - o.z,
         }
     }
-    type Output = Self;
 }
 
 impl Mul for SpaceCoordinates {
+    type Output = Self;
     fn mul(self, o: Self) -> Self {
         Self {
             x: self.x * o.x,
@@ -69,10 +70,10 @@ impl Mul for SpaceCoordinates {
             z: self.z * o.z,
         }
     }
-    type Output = Self;
 }
 
 impl Div for SpaceCoordinates {
+    type Output = Self;
     fn div(self, o: Self) -> Self {
         Self {
             x: self.x / o.x,
@@ -80,5 +81,4 @@ impl Div for SpaceCoordinates {
             z: self.z / o.z,
         }
     }
-    type Output = Self;
 }

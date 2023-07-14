@@ -1365,7 +1365,6 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let seed = String::from(&i.to_string());
             let neighborhood =
                 GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
             let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
