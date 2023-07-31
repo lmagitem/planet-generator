@@ -61,14 +61,7 @@ impl Star {
     pub fn is_main_sequence_dwarf(&self) -> bool {
         (self.luminosity_class == StarLuminosityClass::V
             || self.luminosity_class == StarLuminosityClass::IV)
-            && (discriminant(&self.spectral_type) == discriminant(&StarSpectralType::WR(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::O(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::B(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::A(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::F(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::G(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::K(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::M(0)))
+            && self.is_more_luminous_than_brown_dwarf()
     }
 
     /// Returns true if the star is currently in the main sequence, subgiant or giant phase of its life.
@@ -81,14 +74,19 @@ impl Star {
             || self.luminosity_class == StarLuminosityClass::IV
             || self.luminosity_class == StarLuminosityClass::V
             || self.luminosity_class == StarLuminosityClass::IV)
-            && (discriminant(&self.spectral_type) == discriminant(&StarSpectralType::WR(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::O(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::B(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::A(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::F(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::G(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::K(0))
-                || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::M(0)))
+            && self.is_more_luminous_than_brown_dwarf()
+    }
+
+    /// Returns true if the star is of a higher spectral type than a brown dwarf.
+    pub fn is_more_luminous_than_brown_dwarf(&self) -> bool {
+        (discriminant(&self.spectral_type) == discriminant(&StarSpectralType::WR(0))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::O(0))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::B(0))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::A(0))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::F(0))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::G(0))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::K(0))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::M(0)))
     }
 
     /// Returns the beggining of the minimum orbital separation between this object and the one it orbits in AU.

@@ -11,3 +11,4 @@ log = "0.4.17"
 simple_logger = "4.0.0"
 serde = { version = "1.0.147", features = ["derive", "rc"] }
 smart-default = "0.7.1"
+ordered-float = "3.7.0"

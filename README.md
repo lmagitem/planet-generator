@@ -41,7 +41,7 @@ This is the current roadmap of the library:
     - [x] Name generation
     - [ ] Configurable stars
     - [ ] Multiple star system orbit eccentricity
-  - [ ] Orbital zones
+  - [x] Orbital zones
   - [ ] Filling orbits
   - [ ] Orbit eccentricity
 - [ ] Planet generation

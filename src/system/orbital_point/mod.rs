@@ -7,7 +7,7 @@ pub struct OrbitalPoint {
     /// The id of this orbital point.
     pub id: u32,
     /// This point's own orbit, around which it revolves.
-    own_orbit: Option<Orbit>,
+    pub own_orbit: Option<Orbit>,
     /// The object placed at this point.
     pub object: AstronomicalObject,
     /// The orbits of this point.

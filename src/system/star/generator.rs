@@ -685,7 +685,12 @@ fn calculate_neutron_star_temperature(age: f32, full_lifespan: f32) -> u32 {
     let initial_temp = 1_000_000.0;
     let t_cool = 1.0 / (0.02 * (neutron_star_age / 10.0).powf(1.5)); // Cooling timescale in years
     let t_sec = 3.15e7 * t_cool; // Cooling timescale in seconds
-    (initial_temp * ((t_sec / 1.0e6).ln() / (neutron_star_age / 10.0))) as u32
+    let temperature = initial_temp * ((t_sec / 1.0e6).ln() / (neutron_star_age / 10.0));
+    return if temperature < 0.0 {
+        0
+    } else {
+        temperature as u32
+    };
 }
 
 fn calculate_precise_radius_of_neutron_star_or_black_hole(mass: f32) -> f64 {

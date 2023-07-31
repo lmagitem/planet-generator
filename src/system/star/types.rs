@@ -22,13 +22,38 @@ pub struct StarZone {
     pub zone_type: ZoneType,
 }
 
+impl StarZone {
+    pub fn new(start: f64, end: f64, zone_type: ZoneType) -> Self {
+        Self {
+            start,
+            end,
+            zone_type,
+        }
+    }
+}
+
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub enum ZoneType {
+    /// Everything in this zone lies within the star's corona.
+    Corona,
+    /// The gravitational forces from the star would tear apart any forming planet in this zone.
+    /// No stable planet can form or exist here.
+    InnerLimit,
+    /// In this region, we can find every orbit that lies before the "Snow Line" (also known as the
+    /// "Frost Line" or "Ice Line"), which means that substances such as water, ammonia, methane,
+    /// and carbon dioxide not situated on planets can only be found in gaseous form.
+    InnerZone,
+    /// This is the region where liquid water would be the most likely to exist on a planet's
+    /// surface in the system, given suitable atmospheric conditions.
+    BioZone,
+    /// In this region, we can find every orbit strong enough to hold planets that lies after the
+    /// "Snow Line" (also known as the "Frost Line" or "Ice Line"), which means that substances such
+    /// as water, ammonia, methane, and carbon dioxide can condense into solid ice.
+    OuterZone,
+    /// No planet can maintain a stable orbit here, either because of the attraction of another body
+    /// or because it's too far from a star.
     #[default]
-    Forbidden,
-    Inner,
-    Habitable,
-    Outer,
+    ForbiddenZone,
 }
 
 #[derive(

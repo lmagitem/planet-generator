@@ -32,6 +32,7 @@ pub mod prelude {
     pub use crate::universe::*;
     pub use crate::utils::*;
     pub use log::*;
+    pub use ordered_float::OrderedFloat;
     pub use seeded_dice_roller::*;
     pub use serde::{Deserialize, Serialize};
     pub use smart_default::SmartDefault;
