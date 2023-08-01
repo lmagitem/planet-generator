@@ -541,11 +541,16 @@ fn calculate_star_zones(orbital_point: &mut OrbitalPoint, all_objects: &[Orbital
         calculate_inner_zone(star);
         calculate_bio_zone(star);
         calculate_outer_zone(star);
+        adjust_zones_for_bio(star);
 
         // If the star is orbiting a barycentre, it means that it's in a binary relationship
         if star.orbit.is_some() {
             calculate_forbidden_zone(star, &orbital_point_clone, all_objects);
+            adjust_zones_for_forbidden(star);
         }
+
+        split_zones(star);
+        sort_zones(star);
     }
 }
 
@@ -640,6 +645,34 @@ fn calculate_outer_zone(star: &mut Star) {
     }
 }
 
+fn adjust_zones_for_bio(star: &mut Star) {
+    if let Some(bio_zone) = star
+        .zones
+        .iter_mut()
+        .find(|zone| zone.zone_type == ZoneType::BioZone)
+        .cloned()
+    {
+        let other_zones: Vec<_> = star
+            .zones
+            .iter()
+            .filter(|zone| {
+                zone.zone_type != ZoneType::BioZone && zone.zone_type != ZoneType::ForbiddenZone
+            })
+            .cloned()
+            .collect();
+
+        for zone in star.zones.iter_mut() {
+            if zone.zone_type == ZoneType::BioZone {
+                for other_zone in &other_zones {
+                    if zone.is_overlapping(other_zone) {
+                        zone.adjust_for_overlap(other_zone);
+                    }
+                }
+            }
+        }
+    }
+}
+
 fn calculate_forbidden_zone(
     star: &mut Star,
     orbital_point: &OrbitalPoint,
@@ -656,6 +689,71 @@ fn calculate_forbidden_zone(
         forbidden_zone_outer_edge,
         ZoneType::ForbiddenZone,
     ));
+}
+
+fn adjust_zones_for_forbidden(star: &mut Star) {
+    let forbidden_zones: Vec<_> = star
+        .zones
+        .iter()
+        .filter(|zone| zone.zone_type == ZoneType::ForbiddenZone)
+        .cloned()
+        .collect();
+
+    star.zones.retain(|zone| {
+        zone.zone_type == ZoneType::ForbiddenZone
+            || !forbidden_zones
+                .iter()
+                .any(|forbidden| zone.is_inside(forbidden))
+    });
+
+    let mut new_zones = Vec::new();
+    for zone in &mut star.zones {
+        for forbidden in &forbidden_zones {
+            if zone.is_overlapping(forbidden) {
+                if let Some(new_zone) = zone.adjust_for_overlap(forbidden) {
+                    new_zones.push(new_zone);
+                }
+            }
+        }
+    }
+
+    star.zones.append(&mut new_zones);
+}
+
+/// Splits any zones that are fully contained within another ones
+fn split_zones(star: &mut Star) {
+    let all_zones = star.zones.clone();
+
+    let mut new_zones = star.zones.clone();
+    let mut zones_to_remove = Vec::new();
+
+    for zone in all_zones.iter() {
+        let containing_zones: Vec<_> = all_zones
+            .iter()
+            .filter(|other_zone| other_zone.contains(zone) && *other_zone != zone)
+            .collect();
+
+        for containing_zone in containing_zones {
+            let split_zones = containing_zone.split(zone);
+            if let Some((zone1, zone2)) = split_zones {
+                zones_to_remove.push(containing_zone.clone());
+                new_zones.push(zone1);
+                new_zones.push(zone2);
+            }
+        }
+    }
+
+    new_zones.retain(|zone| !zones_to_remove.contains(zone));
+
+    star.zones = new_zones;
+}
+
+fn sort_zones(star: &mut Star) {
+    star.zones.sort_by(|a, b| {
+        a.start
+            .partial_cmp(&b.start)
+            .expect("A comparison should work between two zones.")
+    });
 }
 
 fn generate_distance_between_stars(
@@ -836,54 +934,9 @@ mod tests {
                 .unwrap();
             if
             /* higher_distance > highest_distance */
-            system.center_id >= 13
-                && (system
-                    .all_objects
-                    .iter()
-                    .filter(|o| {
-                        let mut result = false;
-                        if let AstronomicalObject::Star(star) = &o.object {
-                            match star.spectral_type {
-                                StarSpectralType::WR(_)
-                                | StarSpectralType::O(_)
-                                | StarSpectralType::B(_)
-                                | StarSpectralType::A(_)
-                                | StarSpectralType::F(_)
-                                | StarSpectralType::G(_)
-                                | StarSpectralType::Y(_)
-                                | StarSpectralType::DA
-                                | StarSpectralType::DB
-                                | StarSpectralType::DC
-                                | StarSpectralType::DO
-                                | StarSpectralType::DZ
-                                | StarSpectralType::DQ
-                                | StarSpectralType::DX
-                                | StarSpectralType::XNS
-                                | StarSpectralType::XBH => {
-                                    result = true;
-                                }
-                                _ => (),
-                            }
-                            match star.luminosity_class {
-                                StarLuminosityClass::O
-                                | StarLuminosityClass::Ia
-                                | StarLuminosityClass::Ib
-                                | StarLuminosityClass::II
-                                | StarLuminosityClass::III
-                                | StarLuminosityClass::IV
-                                | StarLuminosityClass::VII
-                                | StarLuminosityClass::XNS
-                                | StarLuminosityClass::XBH => {
-                                    result = true;
-                                }
-                                _ => (),
-                            }
-                        }
-                        result
-                    })
-                    .count()
-                    > 4
-                    || (system
+            i % 500 == 0
+                || system.center_id >= 13
+                    && (system
                         .all_objects
                         .iter()
                         .filter(|o| {
@@ -928,8 +981,8 @@ mod tests {
                             result
                         })
                         .count()
-                        > 1
-                        && system
+                        > 4
+                        || (system
                             .all_objects
                             .iter()
                             .filter(|o| {
@@ -940,8 +993,32 @@ mod tests {
                                         | StarSpectralType::O(_)
                                         | StarSpectralType::B(_)
                                         | StarSpectralType::A(_)
+                                        | StarSpectralType::F(_)
+                                        | StarSpectralType::G(_)
+                                        | StarSpectralType::Y(_)
+                                        | StarSpectralType::DA
+                                        | StarSpectralType::DB
+                                        | StarSpectralType::DC
+                                        | StarSpectralType::DO
+                                        | StarSpectralType::DZ
+                                        | StarSpectralType::DQ
+                                        | StarSpectralType::DX
                                         | StarSpectralType::XNS
                                         | StarSpectralType::XBH => {
+                                            result = true;
+                                        }
+                                        _ => (),
+                                    }
+                                    match star.luminosity_class {
+                                        StarLuminosityClass::O
+                                        | StarLuminosityClass::Ia
+                                        | StarLuminosityClass::Ib
+                                        | StarLuminosityClass::II
+                                        | StarLuminosityClass::III
+                                        | StarLuminosityClass::IV
+                                        | StarLuminosityClass::VII
+                                        | StarLuminosityClass::XNS
+                                        | StarLuminosityClass::XBH => {
                                             result = true;
                                         }
                                         _ => (),
@@ -950,7 +1027,29 @@ mod tests {
                                 result
                             })
                             .count()
-                            > 0))
+                            > 1
+                            && system
+                                .all_objects
+                                .iter()
+                                .filter(|o| {
+                                    let mut result = false;
+                                    if let AstronomicalObject::Star(star) = &o.object {
+                                        match star.spectral_type {
+                                            StarSpectralType::WR(_)
+                                            | StarSpectralType::O(_)
+                                            | StarSpectralType::B(_)
+                                            | StarSpectralType::A(_)
+                                            | StarSpectralType::XNS
+                                            | StarSpectralType::XBH => {
+                                                result = true;
+                                            }
+                                            _ => (),
+                                        }
+                                    }
+                                    result
+                                })
+                                .count()
+                                > 0))
             {
                 highest_distance = higher_distance;
                 println!("\nseed: {}, distance: {}", settings.seed, highest_distance);

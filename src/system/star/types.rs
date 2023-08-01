@@ -30,9 +30,53 @@ impl StarZone {
             zone_type,
         }
     }
+
+    /// Returns true if the current zone is entirely inside a given zone.
+    pub fn is_inside(&self, other: &StarZone) -> bool {
+        self.start >= other.start && self.end <= other.end
+    }
+
+    /// Returns true if the current zone overlaps with a given zone at all.
+    pub fn is_overlapping(&self, other: &StarZone) -> bool {
+        self.start < other.end && self.end > other.start
+    }
+
+    /// Adjusts the current zone to avoid overlap with a given zone.
+    pub fn adjust_for_overlap(&mut self, other: &Self) -> Option<StarZone> {
+        if other.start > self.start && other.end < self.end {
+            let new_zone = StarZone::new(other.end, self.end, self.zone_type);
+            self.end = other.start;
+            Some(new_zone)
+        } else if other.start > self.start && other.start < self.end {
+            self.end = other.start;
+            None
+        } else if other.end > self.start && other.end < self.end {
+            self.start = other.end;
+            None
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if the current zone fully contains the other zone.
+    pub fn contains(&self, other: &StarZone) -> bool {
+        self.start <= other.start && self.end >= other.end
+    }
+
+    /// Splits the current zone into two zones at the boundaries of the other zone.
+    /// Returns the two new zones. If the other zone is not fully contained within the current zone, returns None.
+    pub fn split(&self, other: &StarZone) -> Option<(StarZone, StarZone)> {
+        if self.contains(other) {
+            let first_zone = StarZone::new(self.start, other.start, self.zone_type);
+            let second_zone = StarZone::new(other.end, self.end, self.zone_type);
+            Some((first_zone, second_zone))
+        } else {
+            None
+        }
+    }
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub enum ZoneType {
     /// Everything in this zone lies within the star's corona.
     Corona,
