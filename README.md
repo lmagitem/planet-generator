@@ -37,7 +37,7 @@ This is the current roadmap of the library:
     - [x] Spectral type
     - [x] Luminosity
     - [ ] Subdwarfs
-    - [ ] Spectral type according to population
+    - [x] Star differences according to population
     - [x] Name generation
     - [ ] Configurable stars
     - [ ] Multiple star system orbit eccentricity

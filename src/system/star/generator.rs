@@ -32,8 +32,7 @@ impl Star {
             settings.star.fixed_mass.unwrap()
         } else {
             let generated_mass = generate_mass(star_index, system_index, coord, galaxy);
-            let adjusted_mass = adjust_mass_to_population(generated_mass, population);
-            simulate_mass_loss_over_the_years(adjusted_mass, age)
+            simulate_mass_loss_over_the_years(generated_mass, age)
         };
 
         // Main sequence estimations
@@ -42,7 +41,8 @@ impl Star {
         let ms_temperature =
             calculate_temperature_using_luminosity(ms_luminosity, ms_radius as f64) as u32;
 
-        let main_lifespan = calculate_lifespan(mass, ms_luminosity);
+        let mut main_lifespan = calculate_lifespan(mass, ms_luminosity);
+        main_lifespan = adjust_lifespan_to_population(main_lifespan, population);
         let subgiant_lifespan = calculate_subgiant_lifespan(mass, main_lifespan);
         let giant_lifespan = calculate_giant_lifespan(mass, main_lifespan);
         let full_lifespan = main_lifespan + subgiant_lifespan + giant_lifespan;
@@ -54,11 +54,12 @@ impl Star {
             giant_lifespan,
         );
 
-        let radius: f32;
-        let luminosity: f32;
+        let mut radius: f32;
+        let mut luminosity: f32;
         let temperature: u32;
         let spectral_type: StarSpectralType;
         let luminosity_class: StarLuminosityClass;
+        mass = adjust_mass_to_population(mass, population);
 
         if age_range > 6.0 {
             // If remnant
@@ -127,7 +128,6 @@ impl Star {
                 main_lifespan,
             ) as u32;
 
-            // TODO: Change temperatures ranges according to population
             spectral_type = calculate_spectral_type(temperature);
             luminosity_class = calculate_luminosity_class(
                 luminosity,
@@ -137,6 +137,9 @@ impl Star {
                 subgiant_lifespan,
             );
         }
+
+        radius = adjust_radius_to_population(radius, population);
+        luminosity = adjust_luminosity_to_population(luminosity, population);
 
         let name = get_star_name(star_index, system_name.clone(), settings);
         Self {
@@ -218,31 +221,31 @@ fn generate_mass(
             vec![
                 // Brown dwarf
                 CopyableWeightedResult {
-                    result: (BROWN_DWARF_MIN_MASS, RED_DWARF_POP_0_MIN_MASS - 0.001),
+                    result: (BROWN_DWARF_MIN_MASS, RED_DWARF_POP_HYPERDWARF_MIN_MASS - 0.001),
                     weight: 920,
                 },
                 // Red dwarf Pop 0
                 CopyableWeightedResult {
-                    result: (RED_DWARF_POP_0_MIN_MASS, RED_DWARF_POP_I_MIN_MASS - 0.001),
+                    result: (RED_DWARF_POP_HYPERDWARF_MIN_MASS, RED_DWARF_POP_DWARF_MIN_MASS - 0.001),
                     weight: 1078,
                 },
                 // Red dwarf Pop I
                 CopyableWeightedResult {
-                    result: (RED_DWARF_POP_I_MIN_MASS, RED_DWARF_POP_II_MIN_MASS - 0.001),
+                    result: (RED_DWARF_POP_DWARF_MIN_MASS, RED_DWARF_POP_SUBDWARF_MIN_MASS - 0.001),
                     weight: 1013,
                 },
                 // Red dwarf Pop II
                 CopyableWeightedResult {
-                    result: (RED_DWARF_POP_II_MIN_MASS, 0.25),
+                    result: (RED_DWARF_POP_SUBDWARF_MIN_MASS, 0.25),
                     weight: 2252,
                 },
                 CopyableWeightedResult {
-                    result: (0.251, RED_DWARF_POP_III_MIN_MASS - 0.001),
+                    result: (0.251, RED_DWARF_POP_PALEODWARF_MIN_MASS - 0.001),
                     weight: 1344,
                 },
                 // Red dwarf Pop III
                 CopyableWeightedResult {
-                    result: (RED_DWARF_POP_III_MIN_MASS, ORANGE_DWARF_MIN_MASS - 0.001),
+                    result: (RED_DWARF_POP_PALEODWARF_MIN_MASS, ORANGE_DWARF_MIN_MASS - 0.001),
                     weight: 896,
                 },
                 // Orange
@@ -271,27 +274,27 @@ fn generate_mass(
                     weight: 24,
                 },
                 CopyableWeightedResult {
-                    result: (20.001, BLUE_GIANT_POP_0_MAX_MASS),
+                    result: (20.001, BLUE_GIANT_POP_HYPERDWARF_MAX_MASS),
                     weight: 2,
                 },
                 // Pop I
                 CopyableWeightedResult {
-                    result: (BLUE_GIANT_POP_0_MAX_MASS + 0.001, BLUE_GIANT_POP_I_MAX_MASS),
+                    result: (BLUE_GIANT_POP_HYPERDWARF_MAX_MASS + 0.001, BLUE_GIANT_POP_DWARF_MAX_MASS),
                     weight: 1,
                 },
                 // Pop II
                 CopyableWeightedResult {
                     result: (
-                        BLUE_GIANT_POP_I_MAX_MASS + 0.001,
-                        BLUE_GIANT_POP_II_MAX_MASS,
+                        BLUE_GIANT_POP_DWARF_MAX_MASS + 0.001,
+                        BLUE_GIANT_POP_SUBDWARF_MAX_MASS,
                     ),
                     weight: 1,
                 },
                 // Pop III
                 CopyableWeightedResult {
                     result: (
-                        BLUE_GIANT_POP_II_MAX_MASS + 0.001,
-                        BLUE_GIANT_POP_III_MAX_MASS,
+                        BLUE_GIANT_POP_SUBDWARF_MAX_MASS + 0.001,
+                        BLUE_GIANT_POP_PALEODWARF_MAX_MASS,
                     ),
                     weight: 1,
                 },
@@ -304,28 +307,89 @@ fn generate_mass(
 
 fn adjust_mass_to_population(mass: f32, population: StellarEvolution) -> f32 {
     match population {
-        StellarEvolution::Population0 => {
-            if mass > BLUE_GIANT_POP_0_MAX_MASS {
-                BLUE_GIANT_POP_0_MAX_MASS
+        StellarEvolution::Hyperdwarf => {
+            if mass > BLUE_GIANT_POP_HYPERDWARF_MAX_MASS {
+                BLUE_GIANT_POP_HYPERDWARF_MAX_MASS
             } else {
                 mass
             }
         }
-        StellarEvolution::PopulationI => {
-            if mass > BLUE_GIANT_POP_I_MAX_MASS {
-                BLUE_GIANT_POP_I_MAX_MASS
+        StellarEvolution::Superdwarf => {
+            if mass > BLUE_GIANT_POP_SUPERDWARF_MAX_MASS {
+                BLUE_GIANT_POP_SUPERDWARF_MAX_MASS
             } else {
                 mass
             }
         }
-        StellarEvolution::PopulationII => {
-            if mass > BLUE_GIANT_POP_II_MAX_MASS {
-                BLUE_GIANT_POP_II_MAX_MASS
+        StellarEvolution::Subdwarf => {
+            if mass > BLUE_GIANT_POP_SUBDWARF_MAX_MASS {
+                BLUE_GIANT_POP_SUBDWARF_MAX_MASS
+            } else {
+                mass
+            }
+        }
+        StellarEvolution::Paleodwarf => {
+            if mass > BLUE_GIANT_POP_PALEODWARF_MAX_MASS {
+                BLUE_GIANT_POP_PALEODWARF_MAX_MASS
             } else {
                 mass
             }
         }
         _ => mass,
+    }
+}
+
+fn adjust_lifespan_to_population(lifespan: f32, population: StellarEvolution) -> f32 {
+    match population {
+        StellarEvolution::Hyperdwarf => {
+            lifespan * 0.5
+        }
+        StellarEvolution::Superdwarf => {
+            lifespan * 2.0
+        }
+        StellarEvolution::Subdwarf => {
+            lifespan * 0.5
+        }
+        StellarEvolution::Paleodwarf => {
+            lifespan * 0.1
+        }
+        _ => lifespan,
+    }
+}
+
+fn adjust_radius_to_population(radius: f32, population: StellarEvolution) -> f32 {
+    match population {
+        StellarEvolution::Hyperdwarf => {
+            radius * 1.5
+        }
+        StellarEvolution::Superdwarf => {
+            radius * 1.25
+        }
+        StellarEvolution::Subdwarf => {
+            radius * 0.75
+        }
+        StellarEvolution::Paleodwarf => {
+            radius * 0.5
+        }
+        _ => radius,
+    }
+}
+
+fn adjust_luminosity_to_population(luminosity: f32, population: StellarEvolution) -> f32 {
+    match population {
+        StellarEvolution::Hyperdwarf => {
+            luminosity * 0.5
+        }
+        StellarEvolution::Superdwarf => {
+            luminosity * 0.75
+        }
+        StellarEvolution::Subdwarf => {
+            luminosity * 1.25
+        }
+        StellarEvolution::Paleodwarf => {
+            luminosity * 1.5
+        }
+        _ => luminosity,
     }
 }
 
@@ -438,8 +502,8 @@ fn generate_age(
     };
     age = if age >= universe.age * 1000.0 - 40.0 {
         universe.age * 1000.0 - 40.0
-    } else if age < 50.0 {
-        50.0
+    } else if age < 1.0 {
+        1.0
     } else {
         age
     };
@@ -452,7 +516,7 @@ fn calculate_lifespan(mass: f32, luminosity: f32) -> f32 {
 }
 
 fn calculate_subgiant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
-    if mass > RED_DWARF_POP_III_MIN_MASS {
+    if mass > RED_DWARF_POP_PALEODWARF_MIN_MASS {
         main_lifespan * 0.15
     } else {
         0.0
@@ -460,7 +524,7 @@ fn calculate_subgiant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
 }
 
 fn calculate_giant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
-    if mass > RED_DWARF_POP_III_MIN_MASS {
+    if mass > RED_DWARF_POP_PALEODWARF_MIN_MASS {
         main_lifespan * 0.0917
     } else {
         0.0
@@ -1059,7 +1123,7 @@ mod tests {
                     0,
                     String::from("Test"),
                     coord,
-                    StellarEvolution::PopulationI,
+                    StellarEvolution::Dwarf,
                     hex,
                     galaxy,
                     &settings,
@@ -1173,7 +1237,7 @@ mod tests {
                 0,
                 String::from("Test"),
                 coord,
-                StellarEvolution::PopulationI,
+                StellarEvolution::Dwarf,
                 &hex,
                 &galaxy,
                 &settings,

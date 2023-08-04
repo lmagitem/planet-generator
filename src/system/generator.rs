@@ -1,5 +1,7 @@
 use super::StarSystem;
 use crate::prelude::*;
+use std::cmp::Ordering;
+use std::collections::HashSet;
 #[path = "./constants.rs"]
 mod constants;
 use constants::*;
@@ -41,10 +43,10 @@ impl StarSystem {
             center_id = result.0;
             main_star_id = result.1;
 
-            // TODO: Calculate distance from system center in each orbit, so that we can use it to
-            //       know for each orbit if it's in different zones of different stars
-            //       We probably only need to add the parent's distance to each of the objects
-            //       it's orbited by
+            let mut calculated_ids = HashSet::new();
+            for id in all_objects.iter().map(|op| op.id).collect::<Vec<u32>>() {
+                calculate_distance_from_system_center(id, &mut all_objects, &mut calculated_ids);
+            }
         } else {
             let center =
                 OrbitalPoint::new(0, None, AstronomicalObject::Star(stars.remove(0)), vec![]);
@@ -55,6 +57,15 @@ impl StarSystem {
 
         update_objects_orbits(&mut all_objects);
         generate_star_zones(&mut all_objects);
+        let mut all_zones = collect_all_zones(&all_objects);
+        // if all_zones.len() >= 24 {
+        //     println!("{:#?}", galaxy.settings.seed);
+        //     for zone in all_zones {
+        //         println!("{:#?}", zone);
+        //     }
+        // }
+        // TODO: Generate orbits
+        // TODO: Populate orbits (first pass with Gas giants?)
 
         Self::new(name, center_id, main_star_id, all_objects)
     }
@@ -213,13 +224,15 @@ fn generate_stellar_evolution(
         + rng.roll(1, 4, -1)
         + modifier;
     let result = if roll < -10 {
-        StellarEvolution::PopulationIII
+        StellarEvolution::Paleodwarf
     } else if roll < 3 {
-        StellarEvolution::PopulationII
-    } else if roll < 21 {
-        StellarEvolution::PopulationI
+        StellarEvolution::Subdwarf
+    } else if roll < 10 {
+        StellarEvolution::Dwarf
+    } else if roll < 20 {
+        StellarEvolution::Superdwarf
     } else {
-        StellarEvolution::Population0
+        StellarEvolution::Hyperdwarf
     };
     result
 }
@@ -307,7 +320,10 @@ fn generate_binary_relations(
                 second_of_pair_mass,
                 second_of_pair_radius,
                 second_of_pair_point,
-                minimum_distance(first_of_pair_radius as f64, second_of_pair_radius as f64),
+                calculate_stars_minimum_distance(
+                    first_of_pair_radius as f64,
+                    second_of_pair_radius as f64,
+                ),
                 star_index,
                 system_index,
                 coord,
@@ -515,9 +531,66 @@ fn calculate_roche_limit(
 
 /// Calculates the minimum distance there can be between two stars.
 /// The radius are in solar radii, but the return of the function is in AU.
-fn minimum_distance(radius_first_star: f64, radius_second_star: f64) -> f64 {
+fn calculate_stars_minimum_distance(radius_first_star: f64, radius_second_star: f64) -> f64 {
     ConversionUtils::solar_radii_to_astronomical_units(radius_first_star)
         + ConversionUtils::solar_radii_to_astronomical_units(radius_second_star)
+}
+
+fn calculate_distance_from_system_center(
+    orbital_point_id: u32,
+    all_objects: &mut [OrbitalPoint],
+    calculated_ids: &mut HashSet<u32>,
+) {
+    if !calculated_ids.insert(orbital_point_id) {
+        return;
+    }
+
+    let (orbit_option, mut orbital_point) = {
+        let orbital_point = all_objects
+            .iter_mut()
+            .find(|op| op.id == orbital_point_id)
+            .expect("OrbitalPoint not found");
+
+        (orbital_point.own_orbit.clone(), orbital_point.clone())
+    };
+
+    if let Some(orbit) = orbit_option {
+        calculate_distance_from_system_center(orbit.primary_body_id, all_objects, calculated_ids);
+
+        let primary_orbit_distance = get_primary_orbit_distance(&orbit, all_objects);
+
+        if let Some(own_orbit) = &mut orbital_point.own_orbit {
+            own_orbit.average_distance_from_system_center += primary_orbit_distance;
+        }
+    }
+
+    for orbit in orbital_point.orbits.clone() {
+        calculate_distance_from_system_center(orbit.primary_body_id, all_objects, calculated_ids);
+
+        let primary_orbit_distance = get_primary_orbit_distance(&orbit, all_objects);
+
+        if let Some(orbit) = orbital_point
+            .orbits
+            .iter_mut()
+            .find(|o| o.satellite_ids == orbit.satellite_ids)
+        {
+            orbit.average_distance_from_system_center += primary_orbit_distance;
+        }
+    }
+}
+
+fn get_primary_orbit_distance(orbit: &Orbit, all_objects: &[OrbitalPoint]) -> f64 {
+    let primary_orbit_option = all_objects
+        .iter()
+        .find(|op| op.id == orbit.primary_body_id)
+        .expect("Primary Orbit not found")
+        .own_orbit
+        .as_ref();
+
+    match primary_orbit_option {
+        Some(primary_orbit) => primary_orbit.average_distance_from_system_center,
+        None => 0.0,
+    }
 }
 
 fn generate_star_zones(all_objects: &mut Vec<OrbitalPoint>) {
@@ -550,7 +623,7 @@ fn calculate_star_zones(orbital_point: &mut OrbitalPoint, all_objects: &[Orbital
         }
 
         split_zones(star);
-        sort_zones(star);
+        sort_zones(&mut star.zones);
     }
 }
 
@@ -748,12 +821,92 @@ fn split_zones(star: &mut Star) {
     star.zones = new_zones;
 }
 
-fn sort_zones(star: &mut Star) {
-    star.zones.sort_by(|a, b| {
+fn sort_zones(zones: &mut Vec<StarZone>) {
+    zones.sort_by(|a, b| {
         a.start
             .partial_cmp(&b.start)
-            .expect("A comparison should work between two zones.")
+            .unwrap_or(Ordering::Equal)
+            .then_with(|| a.end.partial_cmp(&b.end).unwrap_or(Ordering::Equal))
     });
+}
+
+fn collect_all_zones(all_objects: &[OrbitalPoint]) -> Vec<StarZone> {
+    let mut all_zones: Vec<StarZone> = Vec::new();
+
+    for o in all_objects {
+        if let AstronomicalObject::Star(ref star) = o.object {
+            for zone in &star.zones {
+                let mut system_zone = zone.clone();
+                if let Some(own_orbit) = &o.own_orbit {
+                    system_zone.start += own_orbit.average_distance_from_system_center;
+                    system_zone.end += own_orbit.average_distance_from_system_center;
+
+                    if own_orbit.average_distance_from_system_center > zone.end {
+                        let mirrored_start =
+                            own_orbit.average_distance_from_system_center - zone.end;
+                        let mirrored_end =
+                            own_orbit.average_distance_from_system_center - zone.start;
+                        let mirrored_zone = StarZone {
+                            start: mirrored_start,
+                            end: mirrored_end,
+                            zone_type: zone.zone_type,
+                        };
+                        all_zones.push(mirrored_zone);
+                    }
+                }
+                all_zones.push(system_zone);
+            }
+        }
+    }
+
+    sort_zones(&mut all_zones);
+    consolidate_zones(&mut all_zones);
+    merge_same_zones(&mut all_zones);
+
+    all_zones
+}
+
+fn consolidate_zones(all_zones: &mut Vec<StarZone>) {
+    let mut i = 0;
+
+    while i < all_zones.len() - 1 {
+        let zone1 = &all_zones[i];
+        let zone2 = &all_zones[i + 1];
+
+        if zone1.end > zone2.start {
+            if zone_priority(&zone1.zone_type) >= zone_priority(&zone2.zone_type) {
+                all_zones[i].end = zone2.end;
+            } else {
+                all_zones[i + 1].start = zone1.start;
+            }
+            all_zones.remove(i);
+        } else {
+            i += 1;
+        }
+    }
+}
+
+fn merge_same_zones(all_zones: &mut Vec<StarZone>) {
+    let mut i = 0;
+    while i < all_zones.len() - 1 {
+        if all_zones[i].zone_type == all_zones[i + 1].zone_type {
+            all_zones[i].end = all_zones[i + 1].end;
+            all_zones.remove(i + 1);
+        } else {
+            i += 1;
+        }
+    }
+}
+
+fn zone_priority(zone: &ZoneType) -> u8 {
+    match zone {
+        ZoneType::ForbiddenZone => 6,
+        ZoneType::Corona => 5,
+        ZoneType::InnerLimit => 4,
+        ZoneType::BioZone => 3,
+        ZoneType::InnerZone => 2,
+        ZoneType::OuterZone => 1,
+    }
 }
 
 fn generate_distance_between_stars(
@@ -905,7 +1058,7 @@ mod tests {
     #[test]
     fn generate_interesting_example_systems() {
         let mut highest_distance = 0.0;
-        for i in 0..10000 {
+        for i in 0..50 {
             let settings = &GenerationSettings {
                 seed: String::from(&i.to_string()),
                 ..Default::default()

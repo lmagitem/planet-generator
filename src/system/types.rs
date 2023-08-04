@@ -10,9 +10,10 @@ pub struct SystemSettings {
 /// The population of stars in this system.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub enum StellarEvolution {
-    PopulationIII,
-    PopulationII,
+    Paleodwarf,
+    Subdwarf,
     #[default]
-    PopulationI,
-    Population0,
+    Dwarf,
+    Superdwarf,
+    Hyperdwarf,
 }
