@@ -12,6 +12,8 @@ pub struct Orbit {
     pub average_distance_from_system_center: f64,
     /// The eccentricity of this orbit.
     pub eccentricity: f32,
+
+    pub inclination: f32,
 }
 
 impl Orbit {

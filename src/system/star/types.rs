@@ -76,6 +76,12 @@ impl StarZone {
     }
 }
 
+impl Display for StarZone {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} from {:.5}AU to {:.5}AU", self.zone_type, self.start, self.end)
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub enum ZoneType {
     /// Everything in this zone lies within the star's corona.
@@ -98,6 +104,50 @@ pub enum ZoneType {
     /// or because it's too far from a star.
     #[default]
     ForbiddenZone,
+}
+
+impl Display for ZoneType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ZoneType::Corona => write!(f, "Star Corona"),
+            ZoneType::InnerLimit => write!(f, "Inner Limit"),
+            ZoneType::InnerZone => write!(f, "Inner Zone"),
+            ZoneType::BioZone => write!(f, "Bio Zone"),
+            ZoneType::OuterZone => write!(f, "Outer Zone"),
+            ZoneType::ForbiddenZone => write!(f, "Forbidden Zone"),
+        }
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
+pub enum StarPeculiarity {
+    /// All planets, stars and other objects around this star are variably aligned to the ecliptic plane.
+    ChaoticOrbits,
+    ExcessiveRadiation,
+    AgeDifference(StarAgeDifference),
+    RotationAnomaly(RotationAnomalySpeed),
+    UnusualMetallicity(StarMetallicityDifference),
+    PowerfulStellarWinds,
+    StrongMagneticField,
+    VariableStar,
+    #[default]
+    NoPeculiarity,
+}
+
+impl Display for StarPeculiarity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StarPeculiarity::ChaoticOrbits => write!(f, "Chaotic Orbits"),
+            StarPeculiarity::ExcessiveRadiation => write!(f, "Excessive Radiation"),
+            StarPeculiarity::AgeDifference(difference) => write!(f, "{} Star", difference),
+            StarPeculiarity::RotationAnomaly(speed) => write!(f, "{} Rotation Speed", speed),
+            StarPeculiarity::UnusualMetallicity(difference) => write!(f, "{} Metallicity", difference),
+            StarPeculiarity::PowerfulStellarWinds => write!(f, "Powerful Stellar Winds"),
+            StarPeculiarity::StrongMagneticField => write!(f, "Strong Magnetic Field"),
+            StarPeculiarity::VariableStar => write!(f, "Variable Star"),
+            StarPeculiarity::NoPeculiarity => write!(f, "No Peculiarity"),
+        }
+    }
 }
 
 #[derive(
@@ -201,6 +251,72 @@ impl Display for StarLuminosityClass {
             StarLuminosityClass::VII => write!(f, "VII"),
             StarLuminosityClass::Y => write!(f, "Y"),
             _ => write!(f, ""),
+        }
+    }
+}
+
+#[derive(
+Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum StarAgeDifference {
+    MuchOlder,
+    #[default]
+    Older,
+    Younger,
+    MuchYounger,
+}
+
+impl Display for StarAgeDifference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StarAgeDifference::MuchOlder => write!(f, "Much Older"),
+            StarAgeDifference::Older => write!(f, "Older"),
+            StarAgeDifference::Younger => write!(f, "Younger"),
+            StarAgeDifference::MuchYounger => write!(f, "Much Younger"),
+        }
+    }
+}
+
+#[derive(
+Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum RotationAnomalySpeed {
+    MuchSlower,
+    #[default]
+    Slower,
+    Faster,
+    MuchFaster,
+}
+
+impl Display for RotationAnomalySpeed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RotationAnomalySpeed::MuchSlower => write!(f, "Much Slower"),
+            RotationAnomalySpeed::Slower => write!(f, "Slower"),
+            RotationAnomalySpeed::Faster => write!(f, "Faster"),
+            RotationAnomalySpeed::MuchFaster => write!(f, "Much Faster"),
+        }
+    }
+}
+
+#[derive(
+Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum StarMetallicityDifference {
+    MuchLower,
+    #[default]
+    Lower,
+    Higher,
+    MuchHigher,
+}
+
+impl Display for StarMetallicityDifference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StarMetallicityDifference::MuchLower => write!(f, "Much Lower"),
+            StarMetallicityDifference::Lower => write!(f, "Lower"),
+            StarMetallicityDifference::Higher => write!(f, "Higher"),
+            StarMetallicityDifference::MuchHigher => write!(f, "Much Higher"),
         }
     }
 }

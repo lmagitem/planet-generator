@@ -17,3 +17,25 @@ pub enum StellarEvolution {
     Superdwarf,
     Hyperdwarf,
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
+pub enum SystemPeculiarity {
+    CarbonRich,
+    Cataclysm(),
+    UnusualDebrisDensity(),
+    Nebulae(),
+    #[default]
+    NoPeculiarity,
+}
+
+impl Display for SystemPeculiarity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SystemPeculiarity::CarbonRich => {}
+            SystemPeculiarity::Cataclysm() => {}
+            SystemPeculiarity::UnusualDebrisDensity() => {}
+            SystemPeculiarity::Nebulae() => {}
+            SystemPeculiarity::NoPeculiarity => {}
+        }
+    }
+}
