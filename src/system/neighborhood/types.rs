@@ -15,7 +15,24 @@ pub enum StellarNeighborhoodAge {
     /// Star formation in old neighborhoods is minimal, and has been so for a long time. The associated number is the actual age of the
     /// neighborhood in millions of years.
     Old(u64),
-    /// Ancient stars were the first generations to be born. No star formation has occured in these neighborhoods since a very long time.
+    /// Ancient stars were the first generations to be born. No star formation has occurred in these neighborhoods since a very long time.
     /// The associated number is the actual age of the neighborhood in millions of years.
     Ancient(u64),
+}
+
+impl Display for StellarNeighborhoodAge {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StellarNeighborhoodAge::Young(difference) => {
+                write!(f, "Young ({} million years)", difference)
+            }
+            StellarNeighborhoodAge::Mature => write!(f, "Mature"),
+            StellarNeighborhoodAge::Old(difference) => {
+                write!(f, "Old ({} million years)", difference)
+            }
+            StellarNeighborhoodAge::Ancient(difference) => {
+                write!(f, "Ancient ({} million years)", difference)
+            }
+        }
+    }
 }

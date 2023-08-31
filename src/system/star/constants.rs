@@ -17,6 +17,7 @@ pub const BLUE_GIANT_POP_SUPERDWARF_MAX_MASS: f32 = 50.0;
 pub const BLUE_GIANT_POP_DWARF_MAX_MASS: f32 = 100.0;
 pub const BLUE_GIANT_POP_SUBDWARF_MAX_MASS: f32 = 200.0;
 pub const BLUE_GIANT_POP_PALEODWARF_MAX_MASS: f32 = 500.0;
+
 /// The following array gives expected temperatures and luminosity (powers of 10) for solar masses at each stage of their lifespan
 /// 1st entry is "birth", 3rd is beginning of subgiant, 5th beginning of giant/supergiant, 7th end of giant/supergiant, and inbetween are mid-points
 pub const STAR_LIFECYCLE_DATASET: [[TemperatureAndLuminosity; 7]; 8] = [
@@ -101,6 +102,7 @@ pub const STAR_LIFECYCLE_DATASET: [[TemperatureAndLuminosity; 7]; 8] = [
         TemperatureAndLuminosity(70000.0, 6.2),
     ],
 ];
+
 /// The following array contains equivalencies between temperatures and spectral types.
 pub const TEMPERATURE_TO_SPECTRAL_TYPE_DATASET: &[(u32, u32); 69] = &[
     (u32::MAX, 0), // WR
@@ -186,8 +188,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.014, // Radius
             9.0,   // Age
             16500, // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::DA,
             StarLuminosityClass::VII,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -201,8 +205,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.0084, // Radius
             0.228,  // Age
             25200,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::DA,
             StarLuminosityClass::VII,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -216,8 +222,10 @@ pub fn get_test_stars() -> Vec<Star> {
             246.0,     // Radius
             0.003,     // Age
             13700,     // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::B(3),
             StarLuminosityClass::Ia,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -231,8 +239,10 @@ pub fn get_test_stars() -> Vec<Star> {
             78.9,     // Radius
             0.008,    // Age
             12100,    // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::F(8),
             StarLuminosityClass::Ia,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -246,8 +256,10 @@ pub fn get_test_stars() -> Vec<Star> {
             13.9,    // Radius
             0.022,   // Age
             22900,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::B(2),
             StarLuminosityClass::II,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -261,8 +273,10 @@ pub fn get_test_stars() -> Vec<Star> {
             71.0,    // Radius
             0.025,   // Age
             7400,    // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::A(9),
             StarLuminosityClass::II,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -276,8 +290,10 @@ pub fn get_test_stars() -> Vec<Star> {
             40.0,  // Radius
             0.095, // Age
             5160,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::G(2),
             StarLuminosityClass::Ib,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -291,8 +307,10 @@ pub fn get_test_stars() -> Vec<Star> {
             26.3,   // Radius
             0.5,    // Age
             6294,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::F(0),
             StarLuminosityClass::II,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -306,8 +324,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.021,     // Radius
             -1.0,      // Age
             240,       // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::Y(4),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -321,8 +341,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.08734,   // Radius
             -1.0,      // Age
             1350,      // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::L(7),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -336,8 +358,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.144,   // Radius
             0.25,    // Age
             2749,    // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::M(6),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -351,8 +375,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.1542,   // Radius
             4.85,     // Age
             2992,     // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::M(5),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -366,8 +392,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.196,  // Radius
             10.0,   // Age
             3134,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::M(4),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -381,8 +409,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.2,      // Radius
             0.9,      // Age
             3248,     // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::M(3),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -396,8 +426,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.31,   // Radius
             5.6,    // Age
             3100,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::M(4),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -411,8 +443,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.392,  // Radius
             7.5,    // Age
             3547,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::M(2),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -426,8 +460,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.474,  // Radius
             4.57,   // Age
             3672,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::M(0),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -441,8 +477,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.629, // Radius
             0.44,  // Age
             4711,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::K(5),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -456,8 +494,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.812, // Radius
             7.0,   // Age
             5072,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::K(0),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -471,8 +511,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.735, // Radius
             0.6,   // Age
             5084,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::K(2),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -486,8 +528,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.8591, // Radius
             5.3,    // Age
             5260,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::K(1),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -501,8 +545,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.86,  // Radius
             2.1,   // Age
             5488,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::G(8),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -516,8 +562,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.123, // Radius
             3.4,   // Age
             6043,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::G(0),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -531,8 +579,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.0,  // Radius
             4.6,  // Age
             5772, // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::G(2),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -546,8 +596,10 @@ pub fn get_test_stars() -> Vec<Star> {
             0.95,  // Radius
             0.3,   // Age
             5708,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::G(5),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -561,8 +613,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.2175, // Radius
             5.3,    // Age
             5790,   // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::G(2),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -576,8 +630,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.48, // Radius
             3.12, // Age
             6213, // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::F(8),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -591,8 +647,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.42, // Radius
             1.6,  // Age
             6399, // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::F(7),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -606,8 +664,10 @@ pub fn get_test_stars() -> Vec<Star> {
             2.048, // Radius
             2.4,   // Age
             6550,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::F(5),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -621,8 +681,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.57, // Radius
             0.1,  // Age
             7760, // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::A(7),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -636,8 +698,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.842, // Radius
             0.44,  // Age
             8590,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::A(3),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -651,8 +715,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.91,  // Radius
             0.228, // Age
             7301,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::A(7),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -666,8 +732,10 @@ pub fn get_test_stars() -> Vec<Star> {
             1.711, // Radius
             0.228, // Age
             9940,  // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::A(0),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -681,8 +749,10 @@ pub fn get_test_stars() -> Vec<Star> {
             2.21,  // Radius
             0.009, // Age
             14768, // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::B(7),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -696,8 +766,10 @@ pub fn get_test_stars() -> Vec<Star> {
             3.25,  // Radius
             0.022, // Age
             17201, // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::B(3),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()
@@ -711,8 +783,10 @@ pub fn get_test_stars() -> Vec<Star> {
             8.27,     // Radius
             0.028,    // Age
             36000,    // Temperature
+            StellarEvolution::Dwarf,
             StarSpectralType::O(9),
             StarLuminosityClass::V,
+            vec![],
             0,
             Some(Orbit {
                 ..Default::default()

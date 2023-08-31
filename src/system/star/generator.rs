@@ -71,8 +71,7 @@ impl Star {
                 let initial_luminosity = calculate_white_dwarf_initial_luminosity(mass);
                 let initial_temperature =
                     calculate_temperature_using_luminosity(initial_luminosity, radius as f64);
-                temperature =
-                    calculate_white_dwarf_temperature(initial_temperature, full_lifespan, age);
+                temperature = calculate_white_dwarf_temperature(initial_temperature, age);
                 luminosity = calculate_luminosity_using_temperature(temperature, radius as f64);
                 spectral_type =
                     generate_white_dwarf_spectral_type(star_index, system_index, coord, galaxy);
@@ -149,8 +148,10 @@ impl Star {
             radius,
             age: age / 1000.0,
             temperature,
+            population,
             spectral_type,
             luminosity_class,
+            special_traits: vec![],
             orbital_point_id: star_index as u32,
             orbit: None,
             zones: vec![],
@@ -221,17 +222,26 @@ fn generate_mass(
             vec![
                 // Brown dwarf
                 CopyableWeightedResult {
-                    result: (BROWN_DWARF_MIN_MASS, RED_DWARF_POP_HYPERDWARF_MIN_MASS - 0.001),
+                    result: (
+                        BROWN_DWARF_MIN_MASS,
+                        RED_DWARF_POP_HYPERDWARF_MIN_MASS - 0.001,
+                    ),
                     weight: 920,
                 },
                 // Red dwarf Pop 0
                 CopyableWeightedResult {
-                    result: (RED_DWARF_POP_HYPERDWARF_MIN_MASS, RED_DWARF_POP_DWARF_MIN_MASS - 0.001),
+                    result: (
+                        RED_DWARF_POP_HYPERDWARF_MIN_MASS,
+                        RED_DWARF_POP_DWARF_MIN_MASS - 0.001,
+                    ),
                     weight: 1078,
                 },
                 // Red dwarf Pop I
                 CopyableWeightedResult {
-                    result: (RED_DWARF_POP_DWARF_MIN_MASS, RED_DWARF_POP_SUBDWARF_MIN_MASS - 0.001),
+                    result: (
+                        RED_DWARF_POP_DWARF_MIN_MASS,
+                        RED_DWARF_POP_SUBDWARF_MIN_MASS - 0.001,
+                    ),
                     weight: 1013,
                 },
                 // Red dwarf Pop II
@@ -245,7 +255,10 @@ fn generate_mass(
                 },
                 // Red dwarf Pop III
                 CopyableWeightedResult {
-                    result: (RED_DWARF_POP_PALEODWARF_MIN_MASS, ORANGE_DWARF_MIN_MASS - 0.001),
+                    result: (
+                        RED_DWARF_POP_PALEODWARF_MIN_MASS,
+                        ORANGE_DWARF_MIN_MASS - 0.001,
+                    ),
                     weight: 896,
                 },
                 // Orange
@@ -279,7 +292,10 @@ fn generate_mass(
                 },
                 // Pop I
                 CopyableWeightedResult {
-                    result: (BLUE_GIANT_POP_HYPERDWARF_MAX_MASS + 0.001, BLUE_GIANT_POP_DWARF_MAX_MASS),
+                    result: (
+                        BLUE_GIANT_POP_HYPERDWARF_MAX_MASS + 0.001,
+                        BLUE_GIANT_POP_DWARF_MAX_MASS,
+                    ),
                     weight: 1,
                 },
                 // Pop II
@@ -341,54 +357,30 @@ fn adjust_mass_to_population(mass: f32, population: StellarEvolution) -> f32 {
 
 fn adjust_lifespan_to_population(lifespan: f32, population: StellarEvolution) -> f32 {
     match population {
-        StellarEvolution::Hyperdwarf => {
-            lifespan * 0.5
-        }
-        StellarEvolution::Superdwarf => {
-            lifespan * 2.0
-        }
-        StellarEvolution::Subdwarf => {
-            lifespan * 0.5
-        }
-        StellarEvolution::Paleodwarf => {
-            lifespan * 0.1
-        }
+        StellarEvolution::Hyperdwarf => lifespan * 0.5,
+        StellarEvolution::Superdwarf => lifespan * 2.0,
+        StellarEvolution::Subdwarf => lifespan * 0.5,
+        StellarEvolution::Paleodwarf => lifespan * 0.1,
         _ => lifespan,
     }
 }
 
 fn adjust_radius_to_population(radius: f32, population: StellarEvolution) -> f32 {
     match population {
-        StellarEvolution::Hyperdwarf => {
-            radius * 1.5
-        }
-        StellarEvolution::Superdwarf => {
-            radius * 1.25
-        }
-        StellarEvolution::Subdwarf => {
-            radius * 0.75
-        }
-        StellarEvolution::Paleodwarf => {
-            radius * 0.5
-        }
+        StellarEvolution::Hyperdwarf => radius * 1.5,
+        StellarEvolution::Superdwarf => radius * 1.25,
+        StellarEvolution::Subdwarf => radius * 0.75,
+        StellarEvolution::Paleodwarf => radius * 0.5,
         _ => radius,
     }
 }
 
 fn adjust_luminosity_to_population(luminosity: f32, population: StellarEvolution) -> f32 {
     match population {
-        StellarEvolution::Hyperdwarf => {
-            luminosity * 0.5
-        }
-        StellarEvolution::Superdwarf => {
-            luminosity * 0.75
-        }
-        StellarEvolution::Subdwarf => {
-            luminosity * 1.25
-        }
-        StellarEvolution::Paleodwarf => {
-            luminosity * 1.5
-        }
+        StellarEvolution::Hyperdwarf => luminosity * 0.5,
+        StellarEvolution::Superdwarf => luminosity * 0.75,
+        StellarEvolution::Subdwarf => luminosity * 1.25,
+        StellarEvolution::Paleodwarf => luminosity * 1.5,
         _ => luminosity,
     }
 }
@@ -727,12 +719,8 @@ fn calculate_remnant_mass(mass: f32, _settings: &GenerationSettings) -> f32 {
     }
 }
 
-fn calculate_white_dwarf_temperature(
-    initial_temperature: f32,
-    full_lifespan: f32,
-    age: f32,
-) -> u32 {
-    (initial_temperature * f32::powf(full_lifespan / age, 1.0 / 3.0)) as u32
+fn calculate_white_dwarf_temperature(initial_temperature: f32, age: f32) -> u32 {
+    (initial_temperature * f32::powf(age / 1000.0, -1.3 / 4.0)) as u32
 }
 
 fn calculate_white_dwarf_initial_luminosity(mass: f32) -> f32 {

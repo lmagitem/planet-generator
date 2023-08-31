@@ -16,16 +16,20 @@ pub struct Star {
     pub age: f32,
     /// In kelvins.
     pub temperature: u32,
+    /// The population this star belongs to.
+    pub population: StellarEvolution,
     /// Spectral type.
     pub spectral_type: StarSpectralType,
     /// Luminosity class.
     pub luminosity_class: StarLuminosityClass,
     /// The id of the orbital point this star inhabits.
     pub orbital_point_id: u32,
-    /// The star's own orbit, around which it revolves.
+    /// The star's own orbit, along which it revolves.
     pub orbit: Option<Orbit>,
     /// The various zones around this star. The zones give various informations about star orbits.
     pub zones: Vec<StarZone>,
+    /// What are the pecularities of this star.
+    pub special_traits: Vec<StarPeculiarity>,
 }
 
 impl Star {
@@ -36,8 +40,10 @@ impl Star {
         radius: f32,
         age: f32,
         temperature: u32,
+        population: StellarEvolution,
         spectral_type: StarSpectralType,
         luminosity_class: StarLuminosityClass,
+        special_traits: Vec<StarPeculiarity>,
         orbital_point_id: u32,
         orbit: Option<Orbit>,
         zones: Vec<StarZone>,
@@ -49,8 +55,10 @@ impl Star {
             radius,
             age,
             temperature,
+            population,
             spectral_type,
             luminosity_class,
+            special_traits,
             orbital_point_id,
             orbit,
             zones,
@@ -79,14 +87,14 @@ impl Star {
 
     /// Returns true if the star is of a higher spectral type than a brown dwarf.
     pub fn is_more_luminous_than_brown_dwarf(&self) -> bool {
-        (discriminant(&self.spectral_type) == discriminant(&StarSpectralType::WR(0))
+        discriminant(&self.spectral_type) == discriminant(&StarSpectralType::WR(0))
             || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::O(0))
             || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::B(0))
             || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::A(0))
             || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::F(0))
             || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::G(0))
             || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::K(0))
-            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::M(0)))
+            || discriminant(&self.spectral_type) == discriminant(&StarSpectralType::M(0))
     }
 
     /// Returns the beggining of the minimum orbital separation between this object and the one it orbits in AU.

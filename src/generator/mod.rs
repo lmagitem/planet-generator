@@ -41,36 +41,3 @@ fn generate_galaxies(
     }
     galaxies
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // #[test]
-    fn system_test() {
-        for i in 0..50 {
-            let settings = &GenerationSettings {
-                seed: String::from(&i.to_string()),
-                universe: UniverseSettings {
-                    use_ours: true,
-                    ..Default::default()
-                },
-                galaxy: GalaxySettings {
-                    use_ours: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            };
-            let universe = Universe::generate(&settings);
-            let neighborhood = GalacticNeighborhood::generate(universe, &settings);
-            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
-            let coord = SpaceCoordinates::new(0, 0, 0);
-            let sub_sector = galaxy
-                .get_division_at_level(coord, 1)
-                .expect("Should have returned a sub-sector.");
-            let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
-            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
-            println!("\n{:#?}", system);
-        }
-    }
-}

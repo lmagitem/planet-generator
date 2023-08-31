@@ -17,3 +17,9 @@ impl StellarNeighborhood {
         Self { age }
     }
 }
+
+impl Display for StellarNeighborhood {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} stellar neighborhood", self.age,)
+    }
+}

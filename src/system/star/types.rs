@@ -78,7 +78,11 @@ impl StarZone {
 
 impl Display for StarZone {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} from {:.5}AU to {:.5}AU", self.zone_type, self.start, self.end)
+        write!(
+            f,
+            "{} from {:.5}AU to {:.5}AU",
+            self.zone_type, self.start, self.end
+        )
     }
 }
 
@@ -121,15 +125,38 @@ impl Display for ZoneType {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub enum StarPeculiarity {
-    /// All planets, stars and other objects around this star are variably aligned to the ecliptic plane.
+    /// All planets, stars and other objects around this star are variably aligned to the ecliptic
+    /// plane.
     ChaoticOrbits,
+    /// The star emits excessive radiations, affecting the habitability and atmospheres of the
+    /// planets orbiting it.
     ExcessiveRadiation,
+    /// The star is of a different age than the other ones in this region.
     AgeDifference(StarAgeDifference),
+    /// The star rotates at an unusual speed, which has an impact on its system and lifespan.
     RotationAnomaly(RotationAnomalySpeed),
+    /// The star has an unusual metallicity (the abundance of elements heavier than hydrogen and
+    /// helium in its composition) for its region.
     UnusualMetallicity(StarMetallicityDifference),
+    /// The star emits very powerful stellar winds which shortens its lifespan. Also has a
+    /// detrimental effect on the atmospheres of planets that haven't strong enough, and on planets
+    /// habitability (as stellar winds cause radiation).
     PowerfulStellarWinds,
+    /// The star has a strong magnetic field, which is often correlated with stronger stellar winds,
+    /// bigger and more frequent solar flares and stellar anomalies. Those points have a detrimental
+    /// effect on habitability and planets atmospheres. The magnetic field might also interact with
+    /// planets magnetic fields and lead to intense aurora and radiation belts.
     StrongMagneticField,
-    VariableStar,
+    /// The star is one whose brightness or magnitude changes over time. The reasons could cause a
+    /// lot of radiations, and depending on the interval, changes in stellar brightness could be
+    /// very bad for its planets' climate and habitability. If the behavior is predictable and
+    /// regular it can make the star a very useful astronomical "beacon" for systems in this
+    /// region of the galaxy.
+    VariableStar(VariableStarInterval),
+    /// The planetary formation around this star wasn't very successful. As a result, the star is
+    /// still orbited by a dust-rich circumstellar disk.
+    CircumstellarDisk,
+    /// The star seems perfectly standard for its size and type.
     #[default]
     NoPeculiarity,
 }
@@ -141,10 +168,15 @@ impl Display for StarPeculiarity {
             StarPeculiarity::ExcessiveRadiation => write!(f, "Excessive Radiation"),
             StarPeculiarity::AgeDifference(difference) => write!(f, "{} Star", difference),
             StarPeculiarity::RotationAnomaly(speed) => write!(f, "{} Rotation Speed", speed),
-            StarPeculiarity::UnusualMetallicity(difference) => write!(f, "{} Metallicity", difference),
+            StarPeculiarity::UnusualMetallicity(difference) => {
+                write!(f, "{} Metallicity", difference)
+            }
             StarPeculiarity::PowerfulStellarWinds => write!(f, "Powerful Stellar Winds"),
             StarPeculiarity::StrongMagneticField => write!(f, "Strong Magnetic Field"),
-            StarPeculiarity::VariableStar => write!(f, "Variable Star"),
+            StarPeculiarity::VariableStar(interval) => {
+                write!(f, "Variable Star ({} Interval)", interval)
+            }
+            StarPeculiarity::CircumstellarDisk => write!(f, "Circumstellar Disk"),
             StarPeculiarity::NoPeculiarity => write!(f, "No Peculiarity"),
         }
     }
@@ -154,28 +186,46 @@ impl Display for StarPeculiarity {
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
 )]
 pub enum StarSpectralType {
+    /// Wolf-Rayet stars, known for strong stellar winds and emission lines.
     WR(u8),
+    /// O-type stars, hot and blue with temperatures over 30,000 K.
     O(u8),
+    /// B-type stars, blue-white and very luminous.
     B(u8),
+    /// A-type stars, white or bluish-white with strong hydrogen lines.
     A(u8),
+    /// F-type stars, yellow-white with moderate temperatures.
     F(u8),
+    /// G-type stars, like our Sun, yellow and well-balanced.
     #[default]
     G(#[default = 2] u8),
+    /// K-type stars, orange to red, cooler than our Sun.
     K(u8),
+    /// M-type stars, red dwarfs, coolest and most common.
     M(u8),
+    /// L-type brown dwarfs, cooler than M dwarfs with metal hydride bands.
     L(u8),
+    /// T-type brown dwarfs, characterized by methane absorption.
     T(u8),
+    /// Y-type brown dwarfs, coolest known objects with temperatures below 500 K.
     Y(u8),
+    /// DA white dwarfs, with hydrogen-rich atmospheres.
     DA,
+    /// DB white dwarfs, with helium-rich atmospheres, no hydrogen lines.
     DB,
+    /// DC white dwarfs, with no strong spectral lines.
     DC,
+    /// DO white dwarfs, with helium-rich atmospheres, showing ionized helium.
     DO,
+    /// DZ white dwarfs, with metal-rich atmospheres.
     DZ,
+    /// DQ white dwarfs, with carbon-rich atmospheres.
     DQ,
+    /// DX white dwarfs, with unidentified spectral lines.
     DX,
-    // Made up category to indicate a neutron star
+    /// Fictional category for neutron stars, ultra-dense remnants of supernovae.
     XNS,
-    // Made up category to indicate a black hole
+    /// Fictional category for black holes, regions of spacetime where gravity pulls so much that nothing can escape.
     XBH,
 }
 
@@ -210,30 +260,30 @@ impl Display for StarSpectralType {
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
 )]
 pub enum StarLuminosityClass {
-    /// Hypergiant
+    /// Hypergiants, extremely luminous and massive stars.
     O,
-    /// Luminous supergiant
+    /// Luminous supergiants, very bright with high luminosity.
     Ia,
-    /// Less luminous supergiant
+    /// Less luminous supergiants, still very bright but with slightly lower luminosity than Ia.
     Ib,
-    /// Bright giants
+    /// Bright giants, stars that have left the main sequence and are brighter than normal giants.
     II,
-    /// Normal giants
+    /// Normal giants, evolved stars that have left the main sequence.
     III,
-    /// Subgiants
+    /// Subgiants, stars transitioning from the main sequence to the giant phase.
     IV,
-    /// Main sequence
+    /// Main sequence stars, like our Sun, that fuse hydrogen in their cores.
     #[default]
     V,
-    /// Subdwarfs
+    /// Subdwarfs, stars with lower luminosity than main sequence stars.
     VI,
-    /// White dwarfs
+    /// White dwarfs, remnants of stars that have exhausted their nuclear fuel.
     VII,
-    /// Brown dwarfs
+    /// Brown dwarfs, objects with insufficient mass to sustain hydrogen fusion.
     Y,
-    /// Made up category to indicate a neutron star
+    /// Fictional category for neutron stars, ultra-dense remnants of supernovae.
     XNS,
-    /// Made up category to indicate a black hole
+    /// Fictional category for black holes, regions of spacetime where gravity pulls so much that nothing can escape.
     XBH,
 }
 
@@ -256,7 +306,7 @@ impl Display for StarLuminosityClass {
 }
 
 #[derive(
-Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
 )]
 pub enum StarAgeDifference {
     MuchOlder,
@@ -278,13 +328,33 @@ impl Display for StarAgeDifference {
 }
 
 #[derive(
-Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
 )]
 pub enum RotationAnomalySpeed {
+    /// If the star has a high mass, it'll have a longer lifespan. It also has a much weaker
+    /// magnetic field because of its abnormal speed, which means less protection for the star's
+    /// planets from cosmic rays and interstellar radiation. It also has reduced stellar winds,
+    /// which might mean more stable and thick planet atmospheres.
     MuchSlower,
+    /// If the star has a high mass, it'll have a longer lifespan. It also has a weaker
+    /// magnetic field because of its abnormal speed, which means less protection for the star's
+    /// planets from cosmic rays and interstellar radiation. It also has reduced stellar winds,
+    /// which might mean more stable and thick planet atmospheres.
     #[default]
     Slower,
+    /// If the star has a high mass, it'll have a shorter lifespan. It also have a stronger magnetic
+    /// field, which protects the star's planets from cosmic rays and interstellar radiations. But
+    /// it also leads to more frequent and intense solar flares and stellar winds. Said stellar
+    /// winds could have a detrimental effect on the atmospheres in the system. Finally, the
+    /// radiation emitted by the star would also be higher, which poses a threat to any potential
+    /// life.
     Faster,
+    /// If the star has a high mass, it'll have a shorter lifespan. It also have a much stronger
+    /// magnetic field, which protects the star's planets from cosmic rays and interstellar
+    /// radiations. But it also leads to more frequent and intense solar flares and stellar winds.
+    /// Said stellar winds could have a detrimental effect on the atmospheres in the system.
+    /// Finally, the radiation emitted by the star would also be higher, which poses a threat to any
+    /// potential life.
     MuchFaster,
 }
 
@@ -300,13 +370,24 @@ impl Display for RotationAnomalySpeed {
 }
 
 #[derive(
-Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
 )]
 pub enum StarMetallicityDifference {
+    /// The star is probably made almost entirely of hydrogen and helium. It is from a Population
+    /// two levels lower than its neighbors.
     MuchLower,
+    /// The star has a higher hydrogen and helium composition than expected. It is from a Population
+    /// one level lower than its neighbors.
     #[default]
     Lower,
+    /// The star has a lower hydrogen and helium composition than expected. It is from a Population
+    /// one level higher than its neighbors and probably comes from an interstellar gas enriched by
+    /// many previous generations of stars. It will be more likely to have planets.
     Higher,
+    /// The star is exceptionally metal-rich for its neighborhood. It is from a Population two
+    /// levels higher than its neighbors and probably formed in a place with a history of intense
+    /// star formation and supernova activity. It will be far more likely to have planets, with a
+    /// diverse and rich composition.
     MuchHigher,
 }
 
@@ -317,6 +398,34 @@ impl Display for StarMetallicityDifference {
             StarMetallicityDifference::Lower => write!(f, "Lower"),
             StarMetallicityDifference::Higher => write!(f, "Higher"),
             StarMetallicityDifference::MuchHigher => write!(f, "Much Higher"),
+        }
+    }
+}
+
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum VariableStarInterval {
+    Minutes,
+    Hours,
+    #[default]
+    Days,
+    Months,
+    Years,
+    Decades,
+    Centuries,
+}
+
+impl Display for VariableStarInterval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VariableStarInterval::Minutes => write!(f, "Minutes"),
+            VariableStarInterval::Hours => write!(f, "Hours"),
+            VariableStarInterval::Days => write!(f, "Days"),
+            VariableStarInterval::Months => write!(f, "Months"),
+            VariableStarInterval::Years => write!(f, "Years"),
+            VariableStarInterval::Decades => write!(f, "Decades"),
+            VariableStarInterval::Centuries => write!(f, "Centuries"),
         }
     }
 }

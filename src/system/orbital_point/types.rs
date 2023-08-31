@@ -10,9 +10,12 @@ pub struct Orbit {
     pub average_distance: f64,
     /// The average distance from the barycentre of the solar system to the objects in this orbit.
     pub average_distance_from_system_center: f64,
-    /// The eccentricity of this orbit.
+    /// A measure of the orbit's deviation from a perfect circle, ranging from 0 (circular) to
+    /// values close to 1 (highly elongated).
     pub eccentricity: f32,
-
+    /// The tilt angle (in degrees) between the orbital plane and a reference plane. A value of 0°
+    /// indicates an orbit in the reference plane, while 90° is perpendicular. Values over 90°
+    /// suggest a retrograde orbit.
     pub inclination: f32,
 }
 
@@ -24,6 +27,7 @@ impl Orbit {
         average_distance: f64,
         average_distance_from_system_center: f64,
         eccentricity: f32,
+        inclination: f32,
     ) -> Self {
         Self {
             primary_body_id,
@@ -31,6 +35,7 @@ impl Orbit {
             average_distance,
             average_distance_from_system_center,
             eccentricity,
+            inclination,
         }
     }
 }

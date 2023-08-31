@@ -40,10 +40,12 @@ This is the current roadmap of the library:
     - [x] Star differences according to population
     - [x] Name generation
     - [ ] Configurable stars
-    - [ ] Multiple star system orbit eccentricity
+    - [ ] Peculiarities
+    - [ ] Multiple star system orbit eccentricity and inclination
+  - [ ] Peculiarities
   - [x] Orbital zones
   - [ ] Filling orbits
-  - [ ] Orbit eccentricity
+  - [ ] Orbit eccentricity and inclination
 - [ ] Planet generation
   - [ ] Resources
     - [ ] Accessibility

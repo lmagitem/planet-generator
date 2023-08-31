@@ -27,3 +27,15 @@ impl GalacticHex {
         }
     }
 }
+
+impl Display for GalacticHex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "Hex {} in {} containing {} star systems",
+            self.index,
+            self.neighborhood,
+            self.contents.len(),
+        )
+    }
+}

@@ -11,6 +11,11 @@ impl Galaxy {
         settings: &GenerationSettings,
     ) -> Self {
         let seed = &settings.seed.clone();
+        trace!(
+            "generating new galaxy (seed: {}, settings: {})",
+            seed,
+            settings.galaxy
+        );
         let name;
         let is_dominant;
         let is_major;
@@ -69,7 +74,7 @@ impl Galaxy {
         }
         let division_levels = GalacticMapDivisionLevel::generate_division_levels(settings);
 
-        Self {
+        let galaxy = Self {
             settings: settings.clone(),
             neighborhood,
             index,
@@ -83,7 +88,9 @@ impl Galaxy {
             division_levels,
             divisions: vec![],
             hexes: vec![],
-        }
+        };
+        trace!("generated: {}", galaxy);
+        galaxy
     }
 }
 

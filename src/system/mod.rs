@@ -1,4 +1,5 @@
 use crate::prelude::*;
+pub mod contents;
 pub mod generator;
 pub mod neighborhood;
 pub mod orbital_point;
@@ -16,6 +17,8 @@ pub struct StarSystem {
     pub main_star_id: u32,
     /// The list of [OrbitalPoint]s that can be found in the system.
     pub all_objects: Vec<OrbitalPoint>,
+    /// What are the pecularities of this system.
+    pub special_traits: Vec<SystemPeculiarity>,
 }
 
 impl StarSystem {
@@ -25,12 +28,14 @@ impl StarSystem {
         center_id: u32,
         main_star_id: u32,
         all_objects: Vec<OrbitalPoint>,
+        special_traits: Vec<SystemPeculiarity>,
     ) -> Self {
         Self {
             name,
             center_id,
             main_star_id,
             all_objects,
+            special_traits,
         }
     }
 
