@@ -66,6 +66,7 @@ impl StarSystem {
             coord,
             galaxy,
         );
+        update_existing_orbits(&mut all_objects);
 
         Self::new(name, center_id, main_star_id, all_objects, special_traits)
     }

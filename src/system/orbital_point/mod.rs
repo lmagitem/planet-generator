@@ -10,7 +10,7 @@ pub struct OrbitalPoint {
     pub own_orbit: Option<Orbit>,
     /// The object placed at this point.
     pub object: AstronomicalObject,
-    /// The orbits of this point.
+    /// The orbits that revolve around this point.
     pub orbits: Vec<Orbit>,
 }
 
@@ -42,11 +42,11 @@ impl OrbitalPoint {
         match &mut self.object {
             AstronomicalObject::Void => {}
             AstronomicalObject::Star(ref mut star) => star.orbit = Some(orbit),
-            AstronomicalObject::TelluricPlanet => {}
-            AstronomicalObject::GasGiant => {}
+            AstronomicalObject::TelluricBody(ref mut body) => body.orbit = Some(orbit),
+            AstronomicalObject::GaseousBody(ref mut body) => body.orbit = Some(orbit),
+            AstronomicalObject::IcyBody(ref mut body) => body.orbit = Some(orbit),
             AstronomicalObject::Ring => {}
-            AstronomicalObject::Station => {}
-            AstronomicalObject::Ship => {}
+            AstronomicalObject::Spacecraft => {}
         }
     }
 
@@ -55,12 +55,24 @@ impl OrbitalPoint {
         let orbit = self.get_own_orbit();
         match &mut self.object {
             AstronomicalObject::Void => {}
-            AstronomicalObject::Star(star) => star.orbit = orbit,
-            AstronomicalObject::TelluricPlanet => {}
-            AstronomicalObject::GasGiant => {}
+            AstronomicalObject::Star(star) => {
+                star.orbit = orbit;
+                star.orbital_point_id = self.id;
+            }
+            AstronomicalObject::TelluricBody(body) => {
+                body.orbit = orbit;
+                body.orbital_point_id = self.id;
+            }
+            AstronomicalObject::GaseousBody(body) => {
+                body.orbit = orbit;
+                body.orbital_point_id = self.id;
+            }
+            AstronomicalObject::IcyBody(body) => {
+                body.orbit = orbit;
+                body.orbital_point_id = self.id;
+            }
             AstronomicalObject::Ring => {}
-            AstronomicalObject::Station => {}
-            AstronomicalObject::Ship => {}
+            AstronomicalObject::Spacecraft => {}
         }
     }
 }

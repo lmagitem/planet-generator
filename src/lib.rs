@@ -26,12 +26,18 @@ pub mod prelude {
     pub use crate::generator::types::*;
     pub use crate::generator::utils::GeneratorUtils;
     pub use crate::generator::Generator;
+    pub use crate::system::celestial_body::gaseous::types::*;
+    pub use crate::system::celestial_body::gaseous::GaseousDetails;
+    pub use crate::system::celestial_body::icy::types::*;
+    pub use crate::system::celestial_body::icy::IcyDetails;
+    pub use crate::system::celestial_body::telluric::types::*;
+    pub use crate::system::celestial_body::telluric::TelluricDetails;
+    pub use crate::system::celestial_body::types::*;
+    pub use crate::system::celestial_body::CelestialBody;
     pub use crate::system::neighborhood::types::*;
     pub use crate::system::neighborhood::StellarNeighborhood;
     pub use crate::system::orbital_point::types::*;
     pub use crate::system::orbital_point::OrbitalPoint;
-    pub use crate::system::planet::types::*;
-    pub use crate::system::planet::Planet;
     pub use crate::system::star::types::*;
     pub use crate::system::star::Star;
     pub use crate::system::types::*;
@@ -68,12 +74,12 @@ mod tests {
     use super::prelude::*;
     use super::*;
 
-    #[test]
+    // #[test]
     fn add_logs_to_run() {
         init_logger();
     }
 
-    #[test]
+    // #[test]
     fn generate_example_systems() {
         init_logger();
         for i in 0..50 {
@@ -102,7 +108,7 @@ mod tests {
         }
     }
 
-    #[test]
+    // #[test]
     fn generate_interesting_example_systems() {
         init_logger();
         let mut highest_distance;

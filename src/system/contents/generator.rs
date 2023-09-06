@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::system::contents::get_next_id;
 use crate::system::contents::types::GasGiantArrangement;
 use crate::system::contents::zones::collect_all_zones;
 
@@ -9,9 +10,8 @@ pub fn generate_stars_systems(
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
 ) {
+    let seed = galaxy.settings.seed.clone();
     let all_zones = collect_all_zones(all_objects);
-    // TODO: Probable bug here: if a forbidden zone has been detected around a star and is near a companion star and affects the companions' zones,
-    //       said zones should be edited to take the other ones into account.
 
     let mut number_of_bodies_per_star = vec![];
     for (index, o) in all_objects.iter_mut().enumerate() {
@@ -21,48 +21,52 @@ pub fn generate_stars_systems(
         }
     }
 
-    number_of_bodies_per_star.iter_mut().for_each(|pair| {
-        let mut major_bodies_left = pair.0;
-        let star_index = pair.1;
-        let star_orbital_point = &mut all_objects[star_index];
-        if let AstronomicalObject::Star(star) = &star_orbital_point.object {
-            let gas_giant_arrangement = generate_gas_giant_arrangement(
-                major_bodies_left,
-                star.orbital_point_id,
-                &star.special_traits,
-                &star.spectral_type,
-                &star.population,
-                system_traits,
-                &system_index,
-                &coord,
-                galaxy,
-            );
-            trace!(
-                "{} bodies for star, Gas Giant Arrangement is {}",
-                major_bodies_left,
-                gas_giant_arrangement
-            );
+    number_of_bodies_per_star
+        .iter_mut()
+        .for_each(|(major_bodies_left, star_index)| {
+            let mut next_id = get_next_id(&all_objects);
+            let star_orbital_point = &mut all_objects[*star_index];
+            if let AstronomicalObject::Star(star) = &star_orbital_point.object {
+                let gas_giant_arrangement = generate_gas_giant_arrangement(
+                    *major_bodies_left,
+                    star.orbital_point_id,
+                    &star.special_traits,
+                    &star.spectral_type,
+                    &star.population,
+                    system_traits,
+                    &system_index,
+                    &coord,
+                    galaxy,
+                );
 
-            if major_bodies_left > 0 {
-                // Place first gas giant
-                if gas_giant_arrangement == GasGiantArrangement::ConventionalGasGiant {
-                    let possible_outer_zone = star
-                        .zones
-                        .iter()
-                        .find(|z| z.zone_type == ZoneType::OuterZone);
-                    if let Some(outer_zone) = possible_outer_zone {
-                        let snow_line = outer_zone.start;
-                        let mut rng = SeededDiceRoller::new(
-                            &galaxy.settings.seed,
-                            &format!(
-                                "sys_{}_{}_str_{}_bdy{}_loc",
-                                coord, system_index, star.orbital_point_id, major_bodies_left
-                            ),
-                        );
-                        let orbit_radius = rng.roll(2, 6, -2) as f64 * 0.05 + 1.0 * snow_line;
-                        let orbit = Orbit::new(
-                            star.orbital_point_id,
-                            vec![],
+                trace!(
+                    "Major bodies left: {}, star index: {}, star id: {:#?}",
+                    major_bodies_left,
+                    star_index,
+                    star_orbital_point.id
+                );
+
+                let mut rng = SeededDiceRoller::new(
+                    &galaxy.settings.seed,
+                    &format!(
+                        "sys_{}_{}_str_{}_bdy{}_loc",
+                        coord, system_index, star.orbital_point_id, major_bodies_left
+                    ),
+                );
+
+                if let Some(orbit_radius) =
+                    generate_proto_gas_giant_position(&gas_giant_arrangement, star, &mut rng)
+                {
+                    // If zone isn't forbidden
+                    if star.zones.iter().all(|zone| {
+                        orbit_radius < zone.start
+                            || orbit_radius > zone.end
+                            || zone.zone_type != ZoneType::ForbiddenZone
+                    }) {
+                        // Create an Orbit
+                        let mut orbit = Orbit::new(
+                            star_orbital_point.id,
+                            vec![next_id],
                             orbit_radius,
                             star.orbit
                                 .clone()
@@ -74,16 +78,57 @@ pub fn generate_stars_systems(
                             0.0,
                             0.0,
                         );
+
+                        // Generate Gas Giant Settings
+                        let celestial_body_settings = &galaxy.settings.celestial_body;
+                        let gaseous_body_settings_clone =
+                            celestial_body_settings.gaseous_body_settings.clone();
+                        let mut fixed_special_traits = gaseous_body_settings_clone
+                            .fixed_special_traits
+                            .unwrap_or_else(Vec::new);
+                        if !fixed_special_traits.contains(&GasGiantSpecialTrait::ProtoGiant) {
+                            fixed_special_traits.push(GasGiantSpecialTrait::ProtoGiant);
+                        }
+                        let gaseous_settings = GaseousBodySettings {
+                            fixed_special_traits: Some(fixed_special_traits),
+                            ..gaseous_body_settings_clone
+                        };
+                        let settings = CelestialBodySettings {
+                            gaseous_body_settings: gaseous_settings,
+                            ..celestial_body_settings.clone()
+                        };
+
+                        // Generate the Gas Giant
+                        let gas_giant = GaseousDetails::generate_gas_giant(
+                            next_id,
+                            None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
+                            next_id,
+                            system_traits,
+                            system_index,
+                            coord,
+                            seed.clone(),
+                            settings,
+                        );
+
+                        // Create an Orbital Point for the Gas Giant
+                        let mut object_orbital_point = OrbitalPoint::new(
+                            next_id,
+                            Some(orbit.clone()),
+                            AstronomicalObject::GaseousBody(gas_giant),
+                            vec![],
+                        );
+
+                        // Update the Star's Orbits
                         star_orbital_point.orbits.push(orbit);
-                        // TODO: Make gas giant here, add its id into the newly created orbit
+
+                        // Add the New Orbital Point to All Objects
+                        all_objects.push(object_orbital_point);
                     }
-                    // If no outer zone, the snow line is probably in forbidden territory, we must
                 }
 
-                major_bodies_left += -1;
+                *major_bodies_left -= 1;
             }
-        }
-    })
+        });
 }
 
 fn generate_number_of_bodies(
@@ -519,4 +564,38 @@ fn apply_gas_giant_arrangement_modifiers(
         eccentric_chances,
         epistellar_chances,
     )
+}
+
+fn generate_proto_gas_giant_position(
+    arrangement: &GasGiantArrangement,
+    star: &Star,
+    rng: &mut SeededDiceRoller,
+) -> Option<f64> {
+    match arrangement {
+        GasGiantArrangement::ConventionalGasGiant => {
+            let snow_line = star
+                .zones
+                .iter()
+                .find(|z| z.zone_type == ZoneType::OuterZone)?
+                .start;
+            Some(rng.roll(2, 6, -2) as f64 * 0.05 + 1.0 * snow_line)
+        }
+        GasGiantArrangement::EccentricGasGiant => {
+            let snow_line = star
+                .zones
+                .iter()
+                .find(|z| z.zone_type == ZoneType::OuterZone)?
+                .start;
+            Some(rng.roll(2, 6, 0) as f64 * 0.125 * snow_line)
+        }
+        GasGiantArrangement::EpistellarGasGiant => {
+            let outside_of_star = star
+                .zones
+                .iter()
+                .find(|z| z.zone_type == ZoneType::Corona)?
+                .end;
+            Some(rng.roll(3, 6, 0) as f64 * 0.1 + outside_of_star)
+        }
+        _ => None,
+    }
 }

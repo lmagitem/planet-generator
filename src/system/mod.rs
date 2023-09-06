@@ -1,9 +1,9 @@
 use crate::prelude::*;
+pub mod celestial_body;
 pub mod contents;
 pub mod generator;
 pub mod neighborhood;
 pub mod orbital_point;
-pub mod planet;
 pub mod star;
 pub mod types;
 

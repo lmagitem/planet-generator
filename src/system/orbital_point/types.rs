@@ -42,12 +42,19 @@ impl Orbit {
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub enum AstronomicalObject {
+    /// Represents the absence of any significant object at a particular orbital point.
     #[default]
     Void,
+    /// A celestial body emitting light and heat from nuclear reactions, like our Sun.
     Star(Star),
-    TelluricPlanet,
-    GasGiant,
+    /// A celestial body primarily composed of rock or metal, such as Mercury or Earth.
+    TelluricBody(CelestialBody),
+    /// A celestial body with a significant atmosphere, but lacking a solid surface, similar in composition to Jupiter or Saturn.
+    GaseousBody(CelestialBody),
+    /// A celestial body composed mainly of volatile ices (like water, methane, and ammonia) and rock, similar to Uranus or Neptune.
+    IcyBody(CelestialBody),
+    /// Thin disks of small particles that orbit around planets, stars, or other celestial bodies.
     Ring,
-    Station,
-    Ship,
+    /// A man-made vehicle or habitat designed for operation in outer space.
+    Spacecraft,
 }
