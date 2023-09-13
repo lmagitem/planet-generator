@@ -9,7 +9,7 @@ impl GalacticMapDivision {
         galaxy: &Galaxy,
     ) -> Self {
         let mut division = Self {
-            name: String::from("GalaxyDivision"),
+            name: "GalaxyDivision".into(),
             region: GalacticRegion::Multiple,
             level,
             x: (index.x % parent_division_level.x_subdivisions as i64) as u8,

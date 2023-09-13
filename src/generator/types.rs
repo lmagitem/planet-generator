@@ -4,8 +4,8 @@ use crate::prelude::*;
 #[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
 pub struct GenerationSettings {
     /// The seed to use to generate everything.
-    #[default(String::from("default"))]
-    pub seed: String,
+    #[default("default")]
+    pub seed: Rc<str>,
     /// A list of settings used to configure the [Universe] generation.
     pub universe: UniverseSettings,
     /// A list of settings used to configure the [Galaxy] generation.

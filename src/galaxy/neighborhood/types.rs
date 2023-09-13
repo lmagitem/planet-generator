@@ -29,17 +29,13 @@ impl Display for GalacticNeighborhoodDensity {
                 if g > &0 {
                     format!("{} major", g)
                 } else {
-                    String::from("")
+                    "".to_string()
                 },
-                if g > &0 && m > &0 {
-                    String::from(" and ")
-                } else {
-                    String::from("")
-                },
+                if g > &0 && m > &0 { " and " } else { "" },
                 if m > &0 {
                     format!("{} minor", m)
                 } else {
-                    String::from("")
+                    "".to_string()
                 },
                 if *m == 1 { "y" } else { "ies" }
             ),
@@ -49,17 +45,13 @@ impl Display for GalacticNeighborhoodDensity {
                 if g > &0 {
                     format!("{} major", g)
                 } else {
-                    String::from("")
+                    "".to_string()
                 },
-                if g > &0 && m > &0 {
-                    String::from(" and ")
-                } else {
-                    String::from("")
-                },
+                if g > &0 && m > &0 { " and " } else { "" },
                 if m > &0 {
                     format!("{} minor", m)
                 } else {
-                    String::from("")
+                    "".to_string()
                 },
                 if *m == 1 { "y" } else { "ies" }
             ),
@@ -69,29 +61,29 @@ impl Display for GalacticNeighborhoodDensity {
                 if d > &0 {
                     format!("{} dominant", d)
                 } else {
-                    String::from("")
+                    "".to_string()
                 },
                 if d > &0 && g > &0 && m > &0 {
-                    String::from(", ")
+                    ", "
                 } else if (d > &0 && m > &0) || (d > &0 && g > &0) {
-                    String::from(" and ")
+                    " and "
                 } else {
-                    String::from("")
+                    ""
                 },
                 if g > &0 {
                     format!("{} major", m)
                 } else {
-                    String::from("")
+                    "".to_string()
                 },
                 if (m > &0 && d > &0) || (m > &0 && g > &0) {
-                    String::from(" and ")
+                    " and "
                 } else {
-                    String::from("")
+                    ""
                 },
                 if m > &0 {
                     format!("{} minor", m)
                 } else {
-                    String::from("")
+                    "".to_string()
                 },
                 if *m == 1 { "y" } else { "ies" }
             ),

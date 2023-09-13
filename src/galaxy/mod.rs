@@ -17,7 +17,7 @@ pub struct Galaxy {
     /// The numeric identifier of this galaxy in its neighborhood.
     pub index: u16,
     /// The name of this galaxy.
-    pub name: String,
+    pub name: Rc<str>,
     /// The age of this galaxy in billions of years.
     pub age: f32,
     /// Is this galaxy a dominant one in its cluster?
@@ -48,7 +48,7 @@ impl Default for Galaxy {
                 ..Default::default()
             },
             index: 0,
-            name: String::from(OUR_GALAXYS_NAME),
+            name: OUR_GALAXYS_NAME.into(),
             age: OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
@@ -88,7 +88,7 @@ impl Galaxy {
         settings: GenerationSettings,
         neighborhood: GalacticNeighborhood,
         index: u16,
-        name: String,
+        name: Rc<str>,
         age: f32,
         is_dominant: bool,
         is_major: bool,

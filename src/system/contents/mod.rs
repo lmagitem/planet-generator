@@ -1,6 +1,6 @@
 use crate::prelude::*;
 pub mod generator;
-mod types;
+pub mod types;
 pub mod zones;
 
 /// Returns the next unused identifier that can be assigned to an [OrbitalPoint].

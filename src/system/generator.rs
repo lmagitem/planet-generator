@@ -1,6 +1,7 @@
 use super::StarSystem;
 use crate::prelude::*;
 use std::collections::HashSet;
+
 #[path = "./constants.rs"]
 mod constants;
 use crate::system::contents::generator::generate_stars_systems;
@@ -73,17 +74,17 @@ impl StarSystem {
 }
 
 /// Temporary name generation
-fn get_system_name(system_index: u16, coord: SpaceCoordinates, galaxy: &Galaxy) -> String {
+fn get_system_name(system_index: u16, coord: SpaceCoordinates, galaxy: &Galaxy) -> Rc<str> {
     let settings = &galaxy.settings;
     if settings.star.use_ours {
-        "Sol".to_string()
+        "Sol".into()
     } else {
         let mut rng = SeededDiceRoller::new(
             &galaxy.settings.seed,
             &format!("sys_{}_{}_ste_evo", coord, system_index),
         );
         let random_names = get_random_names();
-        String::from(random_names[rng.gen_usize() % random_names.len()])
+        (random_names[rng.gen_usize() % random_names.len()]).into()
     }
 }
 
@@ -116,7 +117,7 @@ fn generate_number_of_stars_in_system(
 fn generate_stars(
     number_of_stars: u16,
     system_index: u16,
-    system_name: String,
+    system_name: Rc<str>,
     coord: SpaceCoordinates,
     hex: &GalacticHex,
     sub_sector: &GalacticMapDivision,
@@ -483,6 +484,7 @@ fn find_center_of_binary_pair(
     let most_massive_orbit = Orbit::new(
         next_id,
         vec![most_massive_point.id],
+        ZoneType::ForbiddenZone,
         barycentre_distance_from_most_massive,
         barycentre_distance_from_most_massive,
         0.0,
@@ -491,6 +493,7 @@ fn find_center_of_binary_pair(
     let less_massive_orbit = Orbit::new(
         next_id,
         vec![less_massive_point.id],
+        ZoneType::ForbiddenZone,
         actual_distance - barycentre_distance_from_most_massive,
         actual_distance - barycentre_distance_from_most_massive,
         0.0,

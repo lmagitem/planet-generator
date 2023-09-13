@@ -9,9 +9,9 @@ pub mod types;
 impl Galaxy {
     /// Returns the [GalacticHex] whose coordinates have been given in parameters.
     /// TODO: Add a boolean "populate" parameter that generates life in the hex if needed.
-    pub fn get_hex(&mut self, coord: SpaceCoordinates) -> Result<GalacticHex, String> {
+    pub fn get_hex(&mut self, coord: SpaceCoordinates) -> Result<GalacticHex, Rc<str>> {
         if !self.are_coord_valid(coord) {
-            return Err(String::from("Invalid coordinates."));
+            return Err("Invalid coordinates.".into());
         }
 
         let starting_point = self.get_galactic_start();
@@ -40,14 +40,12 @@ impl Galaxy {
         &mut self,
         coord: SpaceCoordinates,
         level: u8,
-    ) -> Result<GalacticMapDivision, String> {
+    ) -> Result<GalacticMapDivision, Rc<str>> {
         if !self.are_coord_valid(coord) {
-            return Err(String::from("Invalid coordinates."));
+            return Err("Invalid coordinates.".into());
         }
         if level <= 0 || level >= 10 {
-            return Err(String::from(
-                "Level must be higher than 0 and less than 10.",
-            ));
+            return Err("Level must be higher than 0 and less than 10.".into());
         }
 
         let divisions = self
@@ -64,9 +62,9 @@ impl Galaxy {
     pub fn get_divisions_for_coord(
         &mut self,
         coord: SpaceCoordinates,
-    ) -> Result<Vec<GalacticMapDivision>, String> {
+    ) -> Result<Vec<GalacticMapDivision>, Rc<str>> {
         if !self.are_coord_valid(coord) {
-            return Err(String::from("Invalid coordinates."));
+            return Err("Invalid coordinates.".into());
         }
 
         let mut result = Vec::new();
@@ -217,14 +215,14 @@ mod tests {
     fn returns_proper_start_center_and_end_points() {
         let galaxy = Galaxy {
             settings: GenerationSettings {
-                seed: String::from("default"),
+                seed: "default".into(),
                 ..Default::default()
             },
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
             index: 0,
-            name: String::from(constants::OUR_GALAXYS_NAME),
+            name: constants::OUR_GALAXYS_NAME.into(),
             age: constants::OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
@@ -247,14 +245,14 @@ mod tests {
     fn checks_coordinates_validity_properly() {
         let galaxy = Galaxy {
             settings: GenerationSettings {
-                seed: String::from("default"),
+                seed: "default".into(),
                 ..Default::default()
             },
             neighborhood: GalacticNeighborhood {
                 ..Default::default()
             },
             index: 0,
-            name: String::from(constants::OUR_GALAXYS_NAME),
+            name: constants::OUR_GALAXYS_NAME.into(),
             age: constants::OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,
@@ -295,7 +293,7 @@ mod tests {
     #[test]
     fn hexes_and_divs_are_at_expected_coordinates() {
         let settings = GenerationSettings {
-            seed: String::from("default"),
+            seed: "default".into(),
             universe: UniverseSettings {
                 ..Default::default()
             },
@@ -318,7 +316,7 @@ mod tests {
                 ..Default::default()
             },
             index: 0,
-            name: String::from(constants::OUR_GALAXYS_NAME),
+            name: constants::OUR_GALAXYS_NAME.into(),
             age: constants::OUR_GALAXYS_AGE,
             is_dominant: false,
             is_major: true,

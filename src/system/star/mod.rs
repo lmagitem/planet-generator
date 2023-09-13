@@ -2,10 +2,11 @@ use crate::prelude::*;
 pub mod generator;
 pub mod types;
 
-#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
 pub struct Star {
-    // That star's name.
-    pub name: String,
+    /// That star's name.
+    #[default("default")]
+    pub name: Rc<str>,
     /// In solar masses.
     pub mass: f32,
     /// In solar luminosities.
@@ -34,7 +35,7 @@ pub struct Star {
 
 impl Star {
     pub fn new(
-        name: String,
+        name: Rc<str>,
         mass: f32,
         luminosity: f32,
         radius: f32,

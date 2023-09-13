@@ -22,20 +22,22 @@ pub struct GalaxySettings {
 impl Display for GalaxySettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{ fixed_era: {}, era_before: {}, era_after: {}, fixed_age: {}, age_before: {}, age_after: {}, use_ours: {} }}",
-        if self.fixed_neighborhood.is_some() { format!("{}", self.fixed_neighborhood.unwrap()) } else { String::from("None") },
-        if self.fixed_category.is_some() { format!("{}", self.fixed_category.unwrap()) } else { String::from("None") },
-        if self.fixed_sub_category.is_some() { format!("{}", self.fixed_sub_category.unwrap()) } else { String::from("None") },
+        if self.fixed_neighborhood.is_some() { format!("{}", self.fixed_neighborhood.unwrap()) } else {
+            "None".to_string()
+        },
+        if self.fixed_category.is_some() { format!("{}", self.fixed_category.unwrap()) } else { "None".to_string()},
+        if self.fixed_sub_category.is_some() { format!("{}", self.fixed_sub_category.unwrap()) } else { "None".to_string() },
         if self.fixed_special_traits.is_some() { format!("{}", self.fixed_special_traits.as_ref().unwrap()
         .iter()
         .map(|t| format!("{}", t))
         .collect::<Vec<String>>()
-        .join(", ")) } else { String::from("None") },
+        .join(", ")) } else { "None".to_string() },
         if self.forbidden_special_traits.is_some() { format!("{}", self.forbidden_special_traits.as_ref().unwrap()
         .iter()
         .map(|t| format!("{}", t))
         .collect::<Vec<String>>()
-        .join(", ")) } else { String::from("None") },
-        if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { String::from("None") },
+        .join(", ")) } else { "None".to_string() },
+        if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { "None".to_string() },
         self.use_ours)
     }
 }

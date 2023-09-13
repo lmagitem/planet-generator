@@ -6,6 +6,8 @@ pub struct Orbit {
     pub primary_body_id: u32,
     /// The ids of the objects in this orbit.
     pub satellite_ids: Vec<u32>,
+    /// The zone type this orbit is in. Forbidden means planets cannot form there naturally.
+    pub zone: ZoneType,
     /// The average distance from the primary body to the objects in this orbit.
     pub average_distance: f64,
     /// The average distance from the barycentre of the solar system to the objects in this orbit.
@@ -24,6 +26,7 @@ impl Orbit {
     pub fn new(
         primary_body_id: u32,
         satellite_ids: Vec<u32>,
+        zone: ZoneType,
         average_distance: f64,
         average_distance_from_system_center: f64,
         eccentricity: f32,
@@ -32,6 +35,7 @@ impl Orbit {
         Self {
             primary_body_id,
             satellite_ids,
+            zone,
             average_distance,
             average_distance_from_system_center,
             eccentricity,

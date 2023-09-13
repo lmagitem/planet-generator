@@ -34,6 +34,7 @@ pub mod prelude {
     pub use crate::system::celestial_body::telluric::TelluricDetails;
     pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::CelestialBody;
+    pub use crate::system::contents::types::*;
     pub use crate::system::neighborhood::types::*;
     pub use crate::system::neighborhood::StellarNeighborhood;
     pub use crate::system::orbital_point::types::*;
@@ -82,9 +83,9 @@ mod tests {
     // #[test]
     fn generate_example_systems() {
         init_logger();
-        for i in 0..50 {
+        for i in 0..5 {
             let settings = &GenerationSettings {
-                seed: String::from(&i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     use_ours: true,
                     ..Default::default()
@@ -114,7 +115,7 @@ mod tests {
         let mut highest_distance;
         for i in 0..50 {
             let settings = &GenerationSettings {
-                seed: String::from(&i.to_string()),
+                seed: Rc::from(i.to_string()),
                 ..Default::default()
             };
             let universe = Universe::generate(&settings);

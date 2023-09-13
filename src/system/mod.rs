@@ -7,10 +7,11 @@ pub mod orbital_point;
 pub mod star;
 pub mod types;
 
-#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
 pub struct StarSystem {
     /// That star's name.
-    pub name: String,
+    #[default("default")]
+    pub name: Rc<str>,
     /// The id of the [OrbitalPoint] at the center of the system.
     pub center_id: u32,
     /// The id of the [OrbitalPoint] containing the main star of the system.
@@ -24,7 +25,7 @@ pub struct StarSystem {
 impl StarSystem {
     /// Creates a new star system with the given array of [OrbitalPoint], and the id of the system's main star.
     pub fn new(
-        name: String,
+        name: Rc<str>,
         center_id: u32,
         main_star_id: u32,
         all_objects: Vec<OrbitalPoint>,

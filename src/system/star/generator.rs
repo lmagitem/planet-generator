@@ -8,7 +8,7 @@ impl Star {
     pub fn generate(
         star_index: u16,
         system_index: u16,
-        system_name: String,
+        system_name: Rc<str>,
         coord: SpaceCoordinates,
         population: StellarEvolution,
         hex: &GalacticHex,
@@ -160,11 +160,11 @@ impl Star {
 }
 
 /// Returns the name of the star by combining its index and the system name.
-fn get_star_name(star_index: u16, name: String, settings: &GenerationSettings) -> String {
+fn get_star_name(star_index: u16, name: Rc<str>, settings: &GenerationSettings) -> Rc<str> {
     if settings.star.use_ours {
-        "Sun".to_string()
+        "Sun".into()
     } else {
-        format!("{} {}", name, star_index + 1)
+        format!("{} {}", name, star_index + 1).into()
     }
 }
 
@@ -1109,7 +1109,7 @@ mod tests {
                 let mut generated_star = Star::generate(
                     0,
                     0,
-                    String::from("Test"),
+                    "Test".into(),
                     coord,
                     StellarEvolution::Dwarf,
                     hex,
@@ -1196,7 +1196,7 @@ mod tests {
         let mut generated = vec![];
         for expected in expected_values.iter() {
             let settings = GenerationSettings {
-                seed: String::from(&expected.0.to_string()),
+                seed: Rc::from(expected.0.to_string()),
                 universe: UniverseSettings {
                     use_ours: true,
                     ..Default::default()
@@ -1223,7 +1223,7 @@ mod tests {
             let generated_star = Star::generate(
                 0,
                 0,
-                String::from("Test"),
+                "Test".into(),
                 coord,
                 StellarEvolution::Dwarf,
                 &hex,
@@ -1247,7 +1247,7 @@ mod tests {
         for i in 0..1000 {
             let mut rng = SeededDiceRoller::new(&format!("{}", i), &"test_age");
             let settings = &GenerationSettings {
-                seed: String::from(&i.to_string()),
+                seed: Rc::from(i.to_string()),
                 galaxy: GalaxySettings {
                     ..Default::default()
                 },

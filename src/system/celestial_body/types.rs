@@ -17,3 +17,11 @@ pub enum CelestialBodyDetails {
     Gaseous(GaseousDetails),
     Icy(IcyDetails),
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+pub enum CelestialBodySubtype {
+    Metallic,
+    Rocky,
+    Gaseous,
+    Icy,
+}

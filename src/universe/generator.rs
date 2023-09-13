@@ -26,7 +26,7 @@ impl Universe {
 }
 
 /// Generates an age to use in a [Universe] while following the given [GenerationSettings].
-fn generate_age(settings: &GenerationSettings, seed: &String) -> f32 {
+fn generate_age(settings: &GenerationSettings, seed: &Rc<str>) -> f32 {
     let age;
     if settings.universe.use_ours {
         age = OUR_UNIVERSES_AGE;
@@ -42,9 +42,9 @@ fn generate_age(settings: &GenerationSettings, seed: &String) -> f32 {
 }
 
 /// Generates the age of a [Universe] using the given [GenerationSettings] and **seed**.
-fn calculate_age(settings: &GenerationSettings, seed: &String) -> f32 {
+fn calculate_age(settings: &GenerationSettings, seed: &Rc<str>) -> f32 {
     let age: f32;
-    let mut rng = SeededDiceRoller::new(seed.as_str(), "uni_age");
+    let mut rng = SeededDiceRoller::new(seed.as_ref(), "uni_age");
     let (mut min, mut max) = get_min_and_max_age(settings);
     let possible_eras = filter_unwanted_eras(min, max);
 
@@ -226,7 +226,7 @@ mod tests {
     fn generate_a_universe() {
         for i in 0..10000 {
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 ..Default::default()
             });
             let era = universe.era;
@@ -239,7 +239,7 @@ mod tests {
     fn generate_our_universe() {
         for i in 0..100 {
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     use_ours: true,
                     ..Default::default()
@@ -264,7 +264,7 @@ mod tests {
                 _ => StelliferousEra::EndStelliferous,
             };
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     fixed_era: Some(era),
                     ..Default::default()
@@ -282,7 +282,7 @@ mod tests {
             let age = SeededDiceRoller::new(&i.to_string(), "t").gen_f32() % 99999.6
                 + MIN_ANCIENT_STELLIFEROUS;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     fixed_age: Some(age),
                     ..Default::default()
@@ -301,7 +301,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_after: Some(era),
                     ..Default::default()
@@ -316,7 +316,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_before: Some(era),
                     ..Default::default()
@@ -335,7 +335,7 @@ mod tests {
                 .round()
                 / 100.0;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     age_after: Some(age),
                     ..Default::default()
@@ -352,7 +352,7 @@ mod tests {
                 .round()
                 / 100.0;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     age_before: Some(age),
                     ..Default::default()
@@ -378,7 +378,7 @@ mod tests {
                 .round()
                 / 100.0;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     age_before: Some(age_before),
                     age_after: Some(age_after),
@@ -401,7 +401,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_after: Some(era_after),
                     era_before: Some(era_before),
@@ -430,7 +430,7 @@ mod tests {
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
             let universe = Universe::generate(&GenerationSettings {
-                seed: String::from(i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_after: Some(era_after),
                     era_before: Some(era_before),

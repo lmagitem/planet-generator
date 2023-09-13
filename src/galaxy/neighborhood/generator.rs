@@ -108,7 +108,7 @@ mod tests {
     fn generate_a_galactic_neighborhood() {
         for i in 0..10000 {
             let settings = GenerationSettings {
-                seed: String::from(&i.to_string()),
+                seed: Rc::from(i.to_string()),
                 ..Default::default()
             };
             let neighborhood =
@@ -129,7 +129,7 @@ mod tests {
     fn generate_our_galactic_neighborhood() {
         for i in 0..100 {
             let settings = GenerationSettings {
-                seed: String::from(&i.to_string()),
+                seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     use_ours: true,
                     ..Default::default()
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn generate_a_galactic_neighborhood_with_specific_density() {
         for i in 0..1000 {
-            let mut rng = SeededDiceRoller::new(&String::from(i.to_string()), "t");
+            let mut rng = SeededDiceRoller::new(&i.to_string(), "t");
             let fixed_neighborhood = rng
                 .get_result(&CopyableRollToProcess {
                     possible_results: SeededDiceRoller::to_copyable_possible_results(vec![

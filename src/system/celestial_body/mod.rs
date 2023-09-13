@@ -14,7 +14,7 @@ pub struct CelestialBody {
 
     // General Properties
     // pub id: u32,
-    // pub name: String,
+    // pub name: Rc<str>,
     // pub distance_from_orbited: f64,
     // pub exploitable_resources: Vec<ExploitableResource>,
     // pub diameter: f64,

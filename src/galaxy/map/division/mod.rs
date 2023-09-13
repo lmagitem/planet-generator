@@ -2,10 +2,13 @@ use crate::prelude::*;
 pub mod generator;
 
 /// Represents a specific part of the [Galaxy].
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Default, Serialize, Deserialize)]
+#[derive(
+    Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, SmartDefault, Serialize, Deserialize,
+)]
 pub struct GalacticMapDivision {
     /// The denomination by which this particular partition of space is known.
-    pub name: String,
+    #[default("default")]
+    pub name: Rc<str>,
     /// Which region of space makes the most of the division.
     pub region: GalacticRegion,
     /// The level of division this partition belongs to. See [SpaceDivisionLevel].
@@ -25,7 +28,7 @@ pub struct GalacticMapDivision {
 impl GalacticMapDivision {
     /// Creates a new [GalacticMapDivision].
     pub fn new(
-        name: String,
+        name: Rc<str>,
         region: GalacticRegion,
         level: u8,
         x: u8,

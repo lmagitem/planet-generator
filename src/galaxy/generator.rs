@@ -27,7 +27,7 @@ impl Galaxy {
         if settings.galaxy.use_ours && (index as usize) < LOCAL_GROUP_GALAXIES.len() {
             // Our universe and galaxy
             let model = LOCAL_GROUP_GALAXIES[index as usize].clone();
-            name = String::from(model.name);
+            name = model.name.into();
             is_dominant = model.is_dominant;
             is_major = model.is_major;
             age = if model.age > 0.0 {
@@ -46,7 +46,7 @@ impl Galaxy {
             };
         } else {
             // Generated galaxy
-            name = String::from("Galaxy");
+            name = "Galaxy".into();
             is_dominant = is_galaxy_dominant(neighborhood, index);
             is_major = is_galaxy_major(neighborhood, index);
             age = generate_age(neighborhood, index, seed, settings);
@@ -98,10 +98,10 @@ impl Galaxy {
 fn generate_age(
     neighborhood: GalacticNeighborhood,
     index: u16,
-    seed: &String,
+    seed: &Rc<str>,
     settings: &GenerationSettings,
 ) -> f32 {
-    let mut age_rng = SeededDiceRoller::new(seed.as_str(), &format!("gal_{}_age", index));
+    let mut age_rng = SeededDiceRoller::new(seed.as_ref(), &format!("gal_{}_age", index));
     let age;
     let fixed_age = get_fixed_age(settings);
 
@@ -125,7 +125,7 @@ fn generate_category(
     age: f32,
     is_dominant: bool,
     is_major: bool,
-    seed: &String,
+    seed: &Rc<str>,
     settings: &GenerationSettings,
 ) -> GalaxyCategory {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_cat", index));
@@ -328,7 +328,7 @@ fn get_category_with_size(
     category: GalaxyCategory,
     sub_category: GalaxySubCategory,
     index: u16,
-    seed: &String,
+    seed: &Rc<str>,
 ) -> GalaxyCategory {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_cws", index));
     let category_with_size;
@@ -500,7 +500,7 @@ fn generate_sub_category(
     index: u16,
     age: f32,
     is_major: bool,
-    seed: &String,
+    seed: &Rc<str>,
     settings: &GenerationSettings,
 ) -> GalaxySubCategory {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_sbc", index));
@@ -661,7 +661,7 @@ fn generate_special_traits(
     category: GalaxyCategory,
     sub_category: GalaxySubCategory,
     index: u16,
-    seed: &String,
+    seed: &Rc<str>,
     settings: &GenerationSettings,
 ) -> Vec<GalaxySpecialTrait> {
     let mut special_traits = vec![];
@@ -695,7 +695,7 @@ fn get_full_list_of_traits(
     category: GalaxyCategory,
     sub_category: GalaxySubCategory,
     index: u16,
-    seed: &String,
+    seed: &Rc<str>,
 ) -> Vec<CopyableWeightedResult<GalaxySpecialTrait>> {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_gsp", index));
     let all_special_traits: Vec<CopyableWeightedResult<GalaxySpecialTrait>> = vec![
@@ -1152,7 +1152,7 @@ fn add_age_related_traits(
     neighborhood: GalacticNeighborhood,
     list_to_fill: &mut Vec<GalaxySpecialTrait>,
     index: u16,
-    seed: &String,
+    seed: &Rc<str>,
 ) -> Vec<GalaxySpecialTrait> {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_spa", index));
     match neighborhood.universe.era {
@@ -1180,7 +1180,7 @@ fn add_random_traits(
     mut possible_traits: Vec<CopyableWeightedResult<GalaxySpecialTrait>>,
     list_to_fill: &mut Vec<GalaxySpecialTrait>,
     index: u16,
-    seed: &String,
+    seed: &Rc<str>,
 ) -> Vec<GalaxySpecialTrait> {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_art", index));
     let opposite_traits = get_opposite_traits();
@@ -1288,7 +1288,7 @@ fn remove_specific_trait(traits: &mut Vec<GalaxySpecialTrait>, possible_trait: G
 }
 
 /// Calculates the number of random traits this galaxy will have.
-fn get_number_of_random_traits(index: u16, seed: &String) -> i32 {
+fn get_number_of_random_traits(index: u16, seed: &Rc<str>) -> i32 {
     let mut rng = SeededDiceRoller::new(seed, &format!("gal_{}_srt", index));
     let mut number_of_random_traits = 0;
     let mut roll = 0;
@@ -1348,9 +1348,9 @@ mod tests {
     #[test]
     fn generate_a_galaxy_with_sensible_age() {
         for i in 0..10000 {
-            let seed = String::from(&i.to_string());
+            let seed: Rc<str> = Rc::from(i.to_string());
             let settings = &GenerationSettings {
-                seed: seed.clone(),
+                seed,
                 galaxy: GalaxySettings {
                     ..Default::default()
                 },

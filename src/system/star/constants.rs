@@ -182,7 +182,7 @@ pub struct TemperatureAndLuminosity(pub f32, pub f32);
 pub fn get_test_stars() -> Vec<Star> {
     vec![
         Star::new(
-            "40 Eridani B".to_string(),
+            "40 Eridani B".into(),
             0.573, // Mass
             0.013, // Luminosity
             0.014, // Radius
@@ -199,7 +199,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Sirius B".to_string(),
+            "Sirius B".into(),
             1.018,  // Mass
             0.056,  // Luminosity
             0.0084, // Radius
@@ -216,7 +216,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Cygnus OB2-12".to_string(),
+            "Cygnus OB2-12".into(),
             110.0,     // Mass
             1660000.0, // Luminosity
             246.0,     // Radius
@@ -233,7 +233,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Rigel A".to_string(),
+            "Rigel A".into(),
             21.0,     // Mass
             120000.0, // Luminosity
             78.9,     // Radius
@@ -250,7 +250,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Epsilon Canis Majoris".to_string(),
+            "Epsilon Canis Majoris".into(),
             12.6,    // Mass
             38700.0, // Luminosity
             13.9,    // Radius
@@ -267,7 +267,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Canopus".to_string(),
+            "Canopus".into(),
             8.0,     // Mass
             10700.0, // Luminosity
             71.0,    // Radius
@@ -284,7 +284,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Beta Draconis".to_string(),
+            "Beta Draconis".into(),
             6.0,   // Mass
             996.0, // Luminosity
             40.0,  // Radius
@@ -301,7 +301,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Theta Scorpii".to_string(),
+            "Theta Scorpii".into(),
             3.1,    // Mass
             1400.0, // Luminosity
             26.3,   // Radius
@@ -318,7 +318,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "WISE 0855-0714".to_string(),
+            "WISE 0855-0714".into(),
             0.004772,  // Mass
             0.0000011, // Luminosity
             0.021,     // Radius
@@ -335,7 +335,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Luhman 16".to_string(),
+            "Luhman 16".into(),
             0.03197,   // Mass
             0.0000219, // Luminosity
             0.08734,   // Radius
@@ -352,7 +352,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Wolf 359".to_string(),
+            "Wolf 359".into(),
             0.11,    // Mass
             0.00106, // Luminosity
             0.144,   // Radius
@@ -369,7 +369,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Proxima Centauri".to_string(),
+            "Proxima Centauri".into(),
             0.1221,   // Mass
             0.001567, // Luminosity
             0.1542,   // Radius
@@ -386,7 +386,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Barnard's Star".to_string(),
+            "Barnard's Star".into(),
             0.144,  // Mass
             0.0035, // Luminosity
             0.196,  // Radius
@@ -403,7 +403,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Ross 154".to_string(),
+            "Ross 154".into(),
             0.177,    // Mass
             0.004015, // Luminosity
             0.2,      // Radius
@@ -420,7 +420,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "40 Eridani C".to_string(),
+            "40 Eridani C".into(),
             0.2036, // Mass
             0.008,  // Luminosity
             0.31,   // Radius
@@ -437,7 +437,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Lalande 21185".to_string(),
+            "Lalande 21185".into(),
             0.389,  // Mass
             0.0195, // Luminosity
             0.392,  // Radius
@@ -454,7 +454,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Lacaille 9352".to_string(),
+            "Lacaille 9352".into(),
             0.479,  // Mass
             0.0368, // Luminosity
             0.474,  // Radius
@@ -471,7 +471,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "TW Piscis Austrini".to_string(),
+            "TW Piscis Austrini".into(),
             0.725, // Mass
             0.19,  // Luminosity
             0.629, // Radius
@@ -488,7 +488,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "40 Eridani A".to_string(),
+            "40 Eridani A".into(),
             0.78,  // Mass
             0.457, // Luminosity
             0.812, // Radius
@@ -505,7 +505,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Ran".to_string(),
+            "Ran".into(),
             0.82,  // Mass
             0.34,  // Luminosity
             0.735, // Radius
@@ -522,7 +522,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Alpha Centauri B".to_string(),
+            "Alpha Centauri B".into(),
             0.9092, // Mass
             0.4981, // Luminosity
             0.8591, // Radius
@@ -539,7 +539,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "61 Ursae Majoris".to_string(),
+            "61 Ursae Majoris".into(),
             0.93,  // Mass
             0.609, // Luminosity
             0.86,  // Radius
@@ -556,7 +556,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Beta Canum Venaticorum".to_string(),
+            "Beta Canum Venaticorum".into(),
             0.97,  // Mass
             1.151, // Luminosity
             1.123, // Radius
@@ -573,7 +573,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Sun".to_string(),
+            "Sun".into(),
             1.0,  // Mass
             1.0,  // Luminosity
             1.0,  // Radius
@@ -590,7 +590,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Kappa Ceti".to_string(),
+            "Kappa Ceti".into(),
             1.037, // Mass
             0.85,  // Luminosity
             0.95,  // Radius
@@ -607,7 +607,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Alpha Centauri A".to_string(),
+            "Alpha Centauri A".into(),
             1.0788, // Mass
             1.5059, // Luminosity
             1.2175, // Radius
@@ -624,7 +624,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Upsilon Andromedae".to_string(),
+            "Upsilon Andromedae".into(),
             1.27, // Mass
             3.57, // Luminosity
             1.48, // Radius
@@ -641,7 +641,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Tau Boötis".to_string(),
+            "Tau Boötis".into(),
             1.39, // Mass
             3.06, // Luminosity
             1.42, // Radius
@@ -658,7 +658,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Procyon A".to_string(),
+            "Procyon A".into(),
             1.42,  // Mass
             7.73,  // Luminosity
             2.048, // Radius
@@ -675,7 +675,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Altair".to_string(),
+            "Altair".into(),
             1.86, // Mass
             10.6, // Luminosity
             1.57, // Radius
@@ -692,7 +692,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Fomalhaut".to_string(),
+            "Fomalhaut".into(),
             1.92,  // Mass
             16.63, // Luminosity
             1.842, // Radius
@@ -709,7 +709,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Delta Capricorni".to_string(),
+            "Delta Capricorni".into(),
             2.0,   // Mass
             8.5,   // Luminosity
             1.91,  // Radius
@@ -726,7 +726,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Sirius A".to_string(),
+            "Sirius A".into(),
             2.063, // Mass
             25.4,  // Luminosity
             1.711, // Radius
@@ -743,7 +743,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "HD 21071".to_string(),
+            "HD 21071".into(),
             3.69,  // Mass
             278.0, // Luminosity
             2.21,  // Radius
@@ -760,7 +760,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "Eta Aurigae".to_string(),
+            "Eta Aurigae".into(),
             5.4,   // Mass
             955.0, // Luminosity
             3.25,  // Radius
@@ -777,7 +777,7 @@ pub fn get_test_stars() -> Vec<Star> {
             vec![],
         ),
         Star::new(
-            "10 Lacertae".to_string(),
+            "10 Lacertae".into(),
             26.9,     // Mass
             102000.0, // Luminosity
             8.27,     // Radius

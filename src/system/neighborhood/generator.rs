@@ -122,7 +122,7 @@ mod tests {
         let mut rng = SeededDiceRoller::new("seed", "step");
         for i in 0..10000 {
             let settings = &GenerationSettings {
-                seed: String::from(&i.to_string()),
+                seed: Rc::from(i.to_string()),
                 galaxy: GalaxySettings {
                     ..Default::default()
                 },

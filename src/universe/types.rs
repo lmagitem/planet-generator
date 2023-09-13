@@ -27,12 +27,12 @@ pub struct UniverseSettings {
 impl Display for UniverseSettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{ fixed_era: {}, era_before: {}, era_after: {}, fixed_age: {}, age_before: {}, age_after: {}, use_ours: {} }}",
-        if self.fixed_era.is_some() { format!("{}", self.fixed_era.unwrap()) } else { String::from("None") },
-        if self.era_before.is_some() { format!("{}", self.era_before.unwrap()) } else { String::from("None") },
-        if self.era_after.is_some() { format!("{}", self.era_after.unwrap()) } else { String::from("None") },
-        if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { String::from("None") },
-        if self.age_before.is_some() { format!("{}", self.age_before.unwrap()) } else { String::from("None") },
-        if self.age_after.is_some() { format!("{}", self.age_after.unwrap()) } else { String::from("None") },
+        if self.fixed_era.is_some() { format!("{}", self.fixed_era.unwrap()) } else { "None".to_string() },
+        if self.era_before.is_some() { format!("{}", self.era_before.unwrap()) } else { "None".to_string() },
+        if self.era_after.is_some() { format!("{}", self.era_after.unwrap()) } else { "None".to_string() },
+        if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { "None".to_string() },
+        if self.age_before.is_some() { format!("{}", self.age_before.unwrap()) } else { "None".to_string() },
+        if self.age_after.is_some() { format!("{}", self.age_after.unwrap()) } else { "None".to_string() },
         self.use_ours)
     }
 }
