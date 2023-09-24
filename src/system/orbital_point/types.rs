@@ -53,12 +53,16 @@ pub enum AstronomicalObject {
     Star(Star),
     /// A celestial body primarily composed of rock or metal, such as Mercury or Earth.
     TelluricBody(CelestialBody),
-    /// A celestial body with a significant atmosphere, but lacking a solid surface, similar in composition to Jupiter or Saturn.
-    GaseousBody(CelestialBody),
     /// A celestial body composed mainly of volatile ices (like water, methane, and ammonia) and rock, similar to Uranus or Neptune.
     IcyBody(CelestialBody),
-    /// Thin disks of small particles that orbit around planets, stars, or other celestial bodies.
-    Ring,
+    /// A celestial body with a significant atmosphere, but lacking a solid surface, similar in composition to Jupiter or Saturn.
+    GaseousBody(CelestialBody),
+    /// Disk mostly made of rock, metals or dust that orbit around planets, stars, or other celestial bodies.
+    TelluricRing(CelestialRing),
+    /// Disk mostly made of ices that orbit around planets, stars, or other celestial bodies.
+    IcyRing(CelestialRing),
+    /// Disk mostly made of gas that orbit around planets, stars, or other celestial bodies.
+    GaseousRing(CelestialRing),
     /// A man-made vehicle or habitat designed for operation in outer space.
     Spacecraft,
 }

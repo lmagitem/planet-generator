@@ -45,7 +45,9 @@ impl OrbitalPoint {
             AstronomicalObject::TelluricBody(ref mut body) => body.orbit = Some(orbit),
             AstronomicalObject::GaseousBody(ref mut body) => body.orbit = Some(orbit),
             AstronomicalObject::IcyBody(ref mut body) => body.orbit = Some(orbit),
-            AstronomicalObject::Ring => {}
+            AstronomicalObject::TelluricRing(ref mut ring) => {}
+            AstronomicalObject::GaseousRing(ref mut ring) => {}
+            AstronomicalObject::IcyRing(ref mut ring) => {}
             AstronomicalObject::Spacecraft => {}
         }
     }
@@ -71,7 +73,9 @@ impl OrbitalPoint {
                 body.orbit = orbit;
                 body.orbital_point_id = self.id;
             }
-            AstronomicalObject::Ring => {}
+            AstronomicalObject::TelluricRing(ring) => {}
+            AstronomicalObject::GaseousRing(ring) => {}
+            AstronomicalObject::IcyRing(ring) => {}
             AstronomicalObject::Spacecraft => {}
         }
     }

@@ -3,12 +3,10 @@ pub mod generator;
 pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
-pub struct IcyBodyDetails {
-    // pub special_features: Vec<Information>,
-}
+pub struct IcyRingDetails {}
 
-impl IcyBodyDetails {
-    /// Creates a new [IcyBodyDetails].
+impl IcyRingDetails {
+    /// Creates a new [IcyRingDetails].
     pub fn new() -> Self {
         Self {}
     }

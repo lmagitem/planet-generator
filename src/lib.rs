@@ -1,4 +1,5 @@
 #![warn(clippy::all, clippy::pedantic)]
+#![allow(dead_code, unused_imports, unused)]
 mod galaxy;
 mod generator;
 mod system;
@@ -27,13 +28,21 @@ pub mod prelude {
     pub use crate::generator::utils::GeneratorUtils;
     pub use crate::generator::Generator;
     pub use crate::system::celestial_body::gaseous::types::*;
-    pub use crate::system::celestial_body::gaseous::GaseousDetails;
+    pub use crate::system::celestial_body::gaseous::GaseousBodyDetails;
     pub use crate::system::celestial_body::icy::types::*;
-    pub use crate::system::celestial_body::icy::IcyDetails;
+    pub use crate::system::celestial_body::icy::IcyBodyDetails;
     pub use crate::system::celestial_body::telluric::types::*;
-    pub use crate::system::celestial_body::telluric::TelluricDetails;
+    pub use crate::system::celestial_body::telluric::TelluricBodyDetails;
     pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::CelestialBody;
+    pub use crate::system::celestial_ring::gaseous::types::*;
+    pub use crate::system::celestial_ring::gaseous::GaseousRingDetails;
+    pub use crate::system::celestial_ring::icy::types::*;
+    pub use crate::system::celestial_ring::icy::IcyRingDetails;
+    pub use crate::system::celestial_ring::telluric::types::*;
+    pub use crate::system::celestial_ring::telluric::TelluricRingDetails;
+    pub use crate::system::celestial_ring::types::*;
+    pub use crate::system::celestial_ring::CelestialRing;
     pub use crate::system::contents::types::*;
     pub use crate::system::neighborhood::types::*;
     pub use crate::system::neighborhood::StellarNeighborhood;
@@ -61,10 +70,10 @@ lazy_static! {
 }
 
 #[cfg(test)]
-fn init_logger() {
+fn init_logger(level: LevelFilter) {
     LOGGER_INITIALIZED.call_once(|| {
         simple_logger::SimpleLogger::new()
-            .with_level(LevelFilter::Trace)
+            .with_level(level)
             .init()
             .unwrap();
     });
@@ -77,12 +86,12 @@ mod tests {
 
     // #[test]
     fn add_logs_to_run() {
-        init_logger();
+        init_logger(LevelFilter::Debug);
     }
 
-    // #[test]
+    #[test]
     fn generate_example_systems() {
-        init_logger();
+        init_logger(LevelFilter::Debug);
         for i in 0..5 {
             let settings = &GenerationSettings {
                 seed: Rc::from(i.to_string()),
@@ -111,7 +120,7 @@ mod tests {
 
     // #[test]
     fn generate_interesting_example_systems() {
-        init_logger();
+        init_logger(LevelFilter::Debug);
         let mut highest_distance;
         for i in 0..50 {
             let settings = &GenerationSettings {

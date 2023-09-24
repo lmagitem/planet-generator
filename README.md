@@ -44,7 +44,7 @@ This is the current roadmap of the library:
     - [ ] Multiple star system orbit eccentricity and inclination
   - [ ] Peculiarities
   - [x] Orbital zones
-  - [ ] Filling orbits
+  - [x] Filling orbits
   - [ ] Orbit eccentricity and inclination
 - [ ] Planet generation
   - [ ] Resources

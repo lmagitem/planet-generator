@@ -11,10 +11,9 @@ impl Galaxy {
         settings: &GenerationSettings,
     ) -> Self {
         let seed = &settings.seed.clone();
-        trace!(
+        debug!(
             "generating new galaxy (seed: {}, settings: {})",
-            seed,
-            settings.galaxy
+            seed, settings.galaxy
         );
         let name;
         let is_dominant;
@@ -89,7 +88,7 @@ impl Galaxy {
             divisions: vec![],
             hexes: vec![],
         };
-        trace!("generated: {}", galaxy);
+        debug!("generated: {}", galaxy);
         galaxy
     }
 }

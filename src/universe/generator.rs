@@ -8,10 +8,9 @@ impl Universe {
     /// the given settings, our own universe's age and/or era will be used.
     pub fn generate(settings: &GenerationSettings) -> Self {
         let seed = &settings.seed.clone();
-        trace!(
+        debug!(
             "generating new universe (seed: {}, settings: {})",
-            seed,
-            settings.universe
+            seed, settings.universe
         );
         let mut age = generate_age(settings, seed);
         let mut era = get_era_from_age(age);
@@ -20,7 +19,7 @@ impl Universe {
             era = OUR_UNIVERSES_ERA;
         }
         let universe = Universe { era, age };
-        trace!("generated: {}", universe);
+        debug!("generated: {}", universe);
         universe
     }
 }

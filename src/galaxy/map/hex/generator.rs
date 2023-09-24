@@ -3,10 +3,9 @@ use crate::prelude::*;
 impl GalacticHex {
     /// Generates the [GalacticHex] at the given coordinates.
     pub fn generate(coord: SpaceCoordinates, index: SpaceCoordinates, galaxy: &mut Galaxy) -> Self {
-        trace!(
+        debug!(
             "generating new hex (seed: {}, coord: {})",
-            galaxy.settings.seed,
-            coord
+            galaxy.settings.seed, coord
         );
         let contents = Vec::new();
         let neighborhood = StellarNeighborhood::generate(coord, galaxy);
@@ -29,7 +28,7 @@ impl GalacticHex {
             ));
         }
 
-        trace!("generated: {}", generated);
+        debug!("generated: {}", generated);
         generated
     }
 }

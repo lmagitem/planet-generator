@@ -7,6 +7,8 @@ pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct CelestialBody {
+    /// Is this body a simple stub to be redesigned later?
+    stub: bool,
     /// The body's own orbit, along which it revolves.
     pub orbit: Option<Orbit>,
     /// The id of the orbital point this body inhabits.
@@ -22,8 +24,7 @@ pub struct CelestialBody {
     // pub axial_tilt: f32,
     // pub hours_in_a_day: f32,
     // pub terran_years_in_a_year: f32,
-
-    // Specific body details
+    /// Specific body details
     pub details: CelestialBodyDetails,
 }
 
@@ -31,9 +32,15 @@ impl CelestialBody {
     /// Creates a new [CelestialBody].
     pub fn new(orbit: Option<Orbit>, orbital_point_id: u32, details: CelestialBodyDetails) -> Self {
         Self {
+            stub: false,
             orbit,
             orbital_point_id,
             details,
         }
+    }
+
+    /// Indicates whether this body is a stub (a temporary body placed here before proper generation).
+    pub fn is_stub(self) -> bool {
+        self.stub
     }
 }

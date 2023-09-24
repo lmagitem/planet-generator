@@ -3,8 +3,8 @@ pub mod generator;
 pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
-pub struct TelluricDetails {
-    pub body_type: CelestialBodySubtype,
+pub struct TelluricBodyDetails {
+    pub body_type: CelestialBodySubType,
     // pub atmospheric_density: AtmosphericDensityType,
     // pub hydrosphere: f32,
     // pub cryosphere: f32,
@@ -20,9 +20,9 @@ pub struct TelluricDetails {
     // pub special_features: Vec<Information>,
 }
 
-impl TelluricDetails {
-    /// Creates a new [TelluricDetails].
-    pub fn new(body_type: CelestialBodySubtype) -> Self {
+impl TelluricBodyDetails {
+    /// Creates a new [TelluricBodyDetails].
+    pub fn new(body_type: CelestialBodySubType) -> Self {
         Self { body_type }
     }
 }
