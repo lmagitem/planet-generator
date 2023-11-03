@@ -1,6 +1,6 @@
+use crate::internal::*;
 use crate::prelude::*;
 pub mod types;
-pub mod utils;
 
 /// The generator itself, depending on the given settings, can generate a full blown universe with multiple galaxies, sectors, systems,
 /// planets and the species living in those.

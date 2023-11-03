@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 
 /// Defines the density of a galactic neighborhood. The first associated number indicates how many major galaxies we find in that

@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 #[path = "./constants.rs"]
 mod constants;
@@ -876,10 +877,9 @@ mod tests {
                 let spectral_type = calculate_spectral_type(ms_temperature);
 
                 n += 1;
-                rad_ms_sum += GeneratorUtils::get_difference_percentage(ms_radius, star.radius);
-                lum_ms_sum +=
-                    GeneratorUtils::get_difference_percentage(ms_luminosity, star.luminosity);
-                temp_ms_sum += GeneratorUtils::get_difference_percentage(
+                rad_ms_sum += MathUtils::get_difference_percentage(ms_radius, star.radius);
+                lum_ms_sum += MathUtils::get_difference_percentage(ms_luminosity, star.luminosity);
+                temp_ms_sum += MathUtils::get_difference_percentage(
                     ms_temperature as f32,
                     star.temperature as f32,
                 );
@@ -976,12 +976,12 @@ mod tests {
 
                     n += 1;
                     rad_sum +=
-                        GeneratorUtils::get_difference_percentage(interpolated_radius, star.radius);
-                    lum_sum += GeneratorUtils::get_difference_percentage(
+                        MathUtils::get_difference_percentage(interpolated_radius, star.radius);
+                    lum_sum += MathUtils::get_difference_percentage(
                         interpolated_luminosity,
                         star.luminosity,
                     );
-                    temp_sum += GeneratorUtils::get_difference_percentage(
+                    temp_sum += MathUtils::get_difference_percentage(
                         interpolated_temperature as f32,
                         star.temperature as f32,
                     );
@@ -1040,13 +1040,11 @@ mod tests {
                 let spectral_type = calculate_spectral_type(calc_temperature as u32);
 
                 n += 1;
-                rad_calc_sum += GeneratorUtils::get_difference_percentage(calc_radius, star.radius);
+                rad_calc_sum += MathUtils::get_difference_percentage(calc_radius, star.radius);
                 lum_calc_sum +=
-                    GeneratorUtils::get_difference_percentage(calc_luminosity, star.luminosity);
-                temp_calc_sum += GeneratorUtils::get_difference_percentage(
-                    calc_temperature,
-                    star.temperature as f32,
-                );
+                    MathUtils::get_difference_percentage(calc_luminosity, star.luminosity);
+                temp_calc_sum +=
+                    MathUtils::get_difference_percentage(calc_temperature, star.temperature as f32);
 
                 print_real_to_generated_star_comparison(
                     star,
@@ -1130,13 +1128,12 @@ mod tests {
                 );
 
                 n += 1;
-                rad_sum +=
-                    GeneratorUtils::get_difference_percentage(generated_star.radius, star.radius);
-                lum_sum += GeneratorUtils::get_difference_percentage(
+                rad_sum += MathUtils::get_difference_percentage(generated_star.radius, star.radius);
+                lum_sum += MathUtils::get_difference_percentage(
                     generated_star.luminosity,
                     star.luminosity,
                 );
-                temp_sum += GeneratorUtils::get_difference_percentage(
+                temp_sum += MathUtils::get_difference_percentage(
                     generated_star.temperature as f32,
                     star.temperature as f32,
                 );
@@ -1422,11 +1419,11 @@ mod tests {
             star.name,
             mass,
             radius,
-            GeneratorUtils::get_difference_percentage_str(radius, star.radius),
+            StringUtils::get_difference_percentage_str(radius, star.radius),
             luminosity,
-            GeneratorUtils::get_difference_percentage_str(luminosity, star.luminosity),
+            StringUtils::get_difference_percentage_str(luminosity, star.luminosity),
             temperature,
-            GeneratorUtils::get_difference_percentage_str(temperature as f32, star.temperature as f32),
+            StringUtils::get_difference_percentage_str(temperature as f32, star.temperature as f32),
             spectral_type,
             luminosity_class,
             age

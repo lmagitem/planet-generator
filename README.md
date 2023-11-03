@@ -47,6 +47,7 @@ This is the current roadmap of the library:
   - [x] Filling orbits
   - [ ] Orbit eccentricity and inclination
 - [ ] Planet generation
+  - [ ] Exotic planets
   - [ ] Resources
     - [ ] Accessibility
     - [ ] Rarity

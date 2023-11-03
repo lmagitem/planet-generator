@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
@@ -58,11 +59,11 @@ pub enum AstronomicalObject {
     /// A celestial body with a significant atmosphere, but lacking a solid surface, similar in composition to Jupiter or Saturn.
     GaseousBody(CelestialBody),
     /// Disk mostly made of rock, metals or dust that orbit around planets, stars, or other celestial bodies.
-    TelluricRing(CelestialRing),
+    TelluricDisk(CelestialDisk),
     /// Disk mostly made of ices that orbit around planets, stars, or other celestial bodies.
-    IcyRing(CelestialRing),
+    IcyDisk(CelestialDisk),
     /// Disk mostly made of gas that orbit around planets, stars, or other celestial bodies.
-    GaseousRing(CelestialRing),
+    GaseousDisk(CelestialDisk),
     /// A man-made vehicle or habitat designed for operation in outer space.
     Spacecraft,
 }

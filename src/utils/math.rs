@@ -1,15 +1,25 @@
-use crate::prelude::*;
+pub struct MathUtils {}
+impl MathUtils {
+    /// Rounds a `f32` number to a specified number of decimal places.
+    ///
+    /// # Arguments
+    ///
+    /// * `num` - The `f32` number to round.
+    /// * `zeroes` - The number of decimal places to round to.
+    pub fn round_f32_to_precision(num: f32, zeroes: u32) -> f32 {
+        let scale = 10f32.powi(zeroes as i32);
+        (num * scale).round() / scale
+    }
 
-pub struct GeneratorUtils {}
-impl GeneratorUtils {
-    pub fn get_difference_percentage_str(number: f32, compare_to: f32) -> Rc<str> {
-        let result = GeneratorUtils::get_difference_percentage(number, compare_to);
-        format!(
-            "{}{}%",
-            if result >= 0.0 { "+" } else { "" },
-            (result * 100.0 * 100.0).round() / 100.0
-        )
-        .into()
+    /// Rounds a `f64` number to a specified number of decimal places.
+    ///
+    /// # Arguments
+    ///
+    /// * `num` - The `f64` number to round.
+    /// * `zeroes` - The number of decimal places to round to.
+    pub fn round_f64_to_precision(num: f64, zeroes: u32) -> f64 {
+        let scale = 10f64.powi(zeroes as i32);
+        (num * scale).round() / scale
     }
 
     pub fn get_difference_percentage(number: f32, compare_to: f32) -> f32 {

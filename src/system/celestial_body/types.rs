@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 
 /// A list of settings used to configure the [CelestialBody] generation.
@@ -25,6 +26,7 @@ pub struct CelestialBodySettings {
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub enum CelestialBodyDetails {
+    // Exotic(ExoticBodyDetails),
     Telluric(TelluricBodyDetails),
     Gaseous(GaseousBodyDetails),
     Icy(IcyBodyDetails),
@@ -32,8 +34,29 @@ pub enum CelestialBodyDetails {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub enum CelestialBodySubType {
+    // Exotic,
     Metallic,
     Rocky,
     Gaseous,
     Icy,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+pub enum CelestialBodySize {
+    /// Bodies at least halfway through being massive enough to sustain deuterium fusion in their core.
+    Hypergiant,
+    /// A world whose size is akin Jupiter's size.
+    Supergiant,
+    /// A world large enough to retain hydrogen.
+    Giant,
+    /// A world large enough to retain helium gas.
+    Large,
+    /// A world large enough to retain water vapor in its atmosphere.
+    Standard,
+    /// A world large enough to retain molecular nitrogen. Titan and Mars lie within this category.
+    Small,
+    /// A world too small to retain significant atmosphere, think of bodies like Mercury, the Moon, Callisto, Europa, Io...
+    Tiny,
+    /// A body that isn't big enough for its self-gravity to overcome rigid body forces and assume an ellipsoidal shape in equilibrium.
+    Moonlet,
 }

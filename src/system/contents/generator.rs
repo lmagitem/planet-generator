@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 use crate::system::contents::get_next_id;
 use crate::system::contents::zones::collect_all_zones;
@@ -74,7 +75,9 @@ fn generate_orbits_and_bodies(
     let initial_number_of_bodies = major_bodies_left.clone();
     let star_orbital_point = &mut all_objects[*star_index];
     if let AstronomicalObject::Star(star) = &star_orbital_point.object {
+        let star_id = star_orbital_point.id;
         let star_mass = star.mass;
+        let star_luminosity = star.luminosity;
         let star_type = star.spectral_type.clone();
         let star_traits = star.special_traits.clone();
         let gas_giant_arrangement = generate_gas_giant_arrangement(
@@ -104,23 +107,26 @@ fn generate_orbits_and_bodies(
             coord,
             galaxy,
         ) {
-            let (new_next_id, orbit_radius, orbit, point) = handle_proto_gas_giant_placement(
+            let (orbit_radius, orbit, point) = handle_proto_gas_giant_placement(
                 &all_zones,
                 system_traits,
                 system_index,
+                star_orbital_point.id,
+                star_mass,
+                star_luminosity,
+                &star.spectral_type,
                 &star.special_traits,
+                orbit_radius,
                 coord,
                 &galaxy,
                 seed.clone(),
                 major_bodies_left,
                 next_id,
-                star_orbital_point.id,
                 star.orbit.clone(),
                 gas_giant_arrangement,
                 reference_orbit_radius,
                 orbit_radius,
             );
-            next_id = new_next_id;
             reference_orbit_radius = orbit_radius;
 
             if let Some(o) = orbit {
@@ -162,6 +168,10 @@ fn generate_orbits_and_bodies(
             let mut orbit_contents = place_body_stubs(
                 system_traits,
                 system_index,
+                star_id,
+                star_mass,
+                star_luminosity,
+                &star_type,
                 &star_traits,
                 coord,
                 galaxy,
@@ -407,6 +417,10 @@ fn place_orbit_if_possible(
 fn place_body_stubs(
     system_traits: &Vec<SystemPeculiarity>,
     system_index: u16,
+    star_id: u32,
+    star_mass: f32,
+    star_luminosity: f32,
+    star_type: &StarSpectralType,
     star_traits: &Vec<StarPeculiarity>,
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
@@ -476,7 +490,12 @@ fn place_body_stubs(
                                     let body_orbital_point = generate_new_body(
                                         system_traits,
                                         system_index,
+                                        star_id,
+                                        star_mass,
+                                        star_luminosity,
+                                        star_type,
                                         star_traits,
+                                        orbit.average_distance,
                                         coord,
                                         galaxy,
                                         seed.clone(),
@@ -515,7 +534,12 @@ fn place_body_stubs(
                                     let body_orbital_point = generate_new_body(
                                         system_traits,
                                         system_index,
+                                        star_id,
+                                        star_mass,
+                                        star_luminosity,
+                                        star_type,
                                         star_traits,
+                                        orbit.average_distance,
                                         coord,
                                         galaxy,
                                         seed.clone(),
@@ -555,7 +579,12 @@ fn place_body_stubs(
                                     let body_orbital_point = generate_new_body(
                                         system_traits,
                                         system_index,
+                                        star_id,
+                                        star_mass,
+                                        star_luminosity,
+                                        star_type,
                                         star_traits,
+                                        orbit.average_distance,
                                         coord,
                                         galaxy,
                                         seed.clone(),
@@ -598,7 +627,12 @@ fn place_body_stubs(
                                     let body_orbital_point = generate_new_body(
                                         system_traits,
                                         system_index,
+                                        star_id,
+                                        star_mass,
+                                        star_luminosity,
+                                        star_type,
                                         star_traits,
+                                        orbit.average_distance,
                                         coord,
                                         galaxy,
                                         seed.clone(),
@@ -644,7 +678,12 @@ fn place_body_stubs(
                                     let body_orbital_point = generate_new_body(
                                         system_traits,
                                         system_index,
+                                        star_id,
+                                        star_mass,
+                                        star_luminosity,
+                                        star_type,
                                         star_traits,
+                                        orbit.average_distance,
                                         coord,
                                         galaxy,
                                         seed.clone(),
@@ -687,7 +726,12 @@ fn place_body_stubs(
                                     let body_orbital_point = generate_new_body(
                                         system_traits,
                                         system_index,
+                                        star_id,
+                                        star_mass,
+                                        star_luminosity,
+                                        star_type,
                                         star_traits,
+                                        orbit.average_distance,
                                         coord,
                                         galaxy,
                                         seed.clone(),
@@ -809,114 +853,206 @@ fn replace_stubs(
                 );
                 if let Some(id) = object_id {
                     let index_to_replace = new_objects.iter().position(|o| o.id == *id);
-                    let possible_point = new_objects.iter().find(|o| o.id == *id);
-                    if let Some(index) = index_to_replace {
-                        let old_point =
-                            possible_point.expect("An OrbitalPoint should have been found here.");
-                        let mut size_modifier = 0;
-                        size_modifier += if nearest_forbidden_distance < 0.5 {
-                            -120
-                        } else {
-                            0
-                        };
-                        size_modifier += match gas_giant_orbits_outwards_proximity {
-                            Some(orbit_proximity) if orbit_proximity < 2 => -120,
-                            _ => 0,
-                        };
-                        size_modifier += match gas_giant_orbits_inwards_proximity {
-                            Some(orbit_proximity) if orbit_proximity < 2 => -60,
-                            _ => 0,
-                        };
-                        size_modifier += if zone_change_orbits_proximity < 2 {
-                            -60
-                        } else {
-                            0
-                        };
-                        size_modifier += match star_type {
-                            StarSpectralType::WR(_)
-                            | StarSpectralType::O(_)
-                            | StarSpectralType::B(_)
-                            | StarSpectralType::A(_) => {
-                                if rng.roll(1, 50, 0) == 1 {
-                                    0
-                                } else {
-                                    -(star_mass * 10.0) as i32
-                                }
-                            }
-                            StarSpectralType::F(_) => 20,
-                            StarSpectralType::K(_) => -20,
-                            StarSpectralType::M(_) => -40,
-                            StarSpectralType::L(_)
-                            | StarSpectralType::T(_)
-                            | StarSpectralType::Y(_) => -100,
-                            _ => 0,
-                        };
+                    if let Some(new_object_index) = index_to_replace {
+                        let mut current_point = &mut new_objects[new_object_index];
+                        let size_modifier = get_body_size_modifier(
+                            star_mass,
+                            star_type,
+                            &mut rng,
+                            gas_giant_orbits_inwards_proximity,
+                            gas_giant_orbits_outwards_proximity,
+                            nearest_forbidden_distance,
+                            zone_change_orbits_proximity,
+                        );
                         let roll_result = rng.roll(1, 400, size_modifier);
-                        let possibly_generated = match old_point.object.clone() {
+                        let mut rng = SeededDiceRoller::new(
+                            &galaxy.settings.seed,
+                            &format!(
+                                "sys_{}_{}_str_{}_orbit{}_bdy{}",
+                                coord, system_index, star_orbital_point.id, index, current_point.id
+                            ),
+                        );
+                        let mut density = 0.0;
+                        let mut size = CelestialBodySize::Moonlet;
+                        let possibly_generated = match current_point.object.clone() {
                             AstronomicalObject::TelluricBody(body) => {
+                                let mut to_return = None;
                                 match body.details {
                                     CelestialBodyDetails::Telluric(details) => {
+                                        let mut min_density = 0.0;
+                                        let mut max_density = 5.0;
                                         if details.body_type == CelestialBodySubType::Metallic {
                                             if roll_result <= 121 {
-                                                // Dust belt
+                                                // TODO: Dust belt
+                                                to_return = Some((
+                                                    AstronomicalObject::TelluricDisk(
+                                                        CelestialDisk::new(
+                                                            current_point.own_orbit.clone(),
+                                                            current_point.id,
+                                                            CelestialDiskType::Belt,
+                                                        ),
+                                                    ),
+                                                    current_point.orbits.clone(),
+                                                ));
                                             } else if roll_result <= 171 {
-                                                // Meteoroid belt
+                                                // TODO: Meteoroid belt
+                                                to_return = Some((
+                                                    AstronomicalObject::TelluricDisk(
+                                                        CelestialDisk::new(
+                                                            current_point.own_orbit.clone(),
+                                                            current_point.id,
+                                                            CelestialDiskType::Belt,
+                                                        ),
+                                                    ),
+                                                    current_point.orbits.clone(),
+                                                ));
                                             } else if roll_result <= 181 {
-                                                // Ore belt
+                                                // TODO: Ore belt
+                                                to_return = Some((
+                                                    AstronomicalObject::TelluricDisk(
+                                                        CelestialDisk::new(
+                                                            current_point.own_orbit.clone(),
+                                                            current_point.id,
+                                                            CelestialDiskType::Belt,
+                                                        ),
+                                                    ),
+                                                    current_point.orbits.clone(),
+                                                ));
+                                            } else if roll_result <= 251 {
+                                                // Metal tiny
+                                                min_density = 5.0;
+                                                max_density = 7.0;
+                                                size = CelestialBodySize::Tiny;
                                             } else if roll_result <= 321 {
-                                                // Metal dwarf
-                                            } else if roll_result <= 371 {
-                                                // Metal planet
-                                            } else if roll_result <= 378 {
-                                                // Metal giant
-                                            } else if roll_result <= 398 {
+                                                // Metal small
+                                                min_density = 6.0;
+                                                max_density = 8.0;
+                                                size = CelestialBodySize::Small;
+                                            } else if roll_result <= 331 {
                                                 // Solid metal dwarf
+                                                min_density = 7.0;
+                                                max_density = 15.0;
+                                                size = CelestialBodySize::Tiny;
+                                            } else if roll_result <= 341 {
+                                                // Solid metal dwarf
+                                                min_density = 7.0;
+                                                max_density = 15.0;
+                                                size = CelestialBodySize::Small;
+                                            } else if roll_result <= 391 {
+                                                // Metal planet
+                                                min_density = 6.0;
+                                                max_density = 8.0;
+                                                size = CelestialBodySize::Standard;
+                                            } else if roll_result <= 398 {
+                                                // Metal giant
+                                                min_density = 6.0;
+                                                max_density = 9.0;
+                                                size = CelestialBodySize::Giant;
                                             } else {
                                                 // Solid metal planet
+                                                min_density = 7.0;
+                                                max_density = 15.0;
+                                                size = CelestialBodySize::Standard;
                                             }
                                         } else {
                                             if roll_result <= 41 {
-                                                // Debris disk
+                                                // TODO: Debris disk
+                                                to_return = Some((
+                                                    AstronomicalObject::TelluricDisk(
+                                                        CelestialDisk::new(
+                                                            current_point.own_orbit.clone(),
+                                                            current_point.id,
+                                                            CelestialDiskType::Belt,
+                                                        ),
+                                                    ),
+                                                    current_point.orbits.clone(),
+                                                ));
                                             } else if roll_result <= 111 {
-                                                // Asteroid belt
+                                                // TODO: Asteroid belt
+                                                to_return = Some((
+                                                    AstronomicalObject::TelluricDisk(
+                                                        CelestialDisk::new(
+                                                            current_point.own_orbit.clone(),
+                                                            current_point.id,
+                                                            CelestialDiskType::Belt,
+                                                        ),
+                                                    ),
+                                                    current_point.orbits.clone(),
+                                                ));
                                             } else if roll_result <= 121 {
-                                                // Ash belt
-                                            } else if roll_result <= 206 {
+                                                // TODO: Ash belt
+                                                to_return = Some((
+                                                    AstronomicalObject::TelluricDisk(
+                                                        CelestialDisk::new(
+                                                            current_point.own_orbit.clone(),
+                                                            current_point.id,
+                                                            CelestialDiskType::Belt,
+                                                        ),
+                                                    ),
+                                                    current_point.orbits.clone(),
+                                                ));
+                                            } else if roll_result <= 271 {
                                                 // Rock dwarf
-                                            } else if roll_result <= 213 {
+                                                min_density = 3.3;
+                                                max_density = 5.5;
+                                                size = CelestialBodySize::Tiny;
+                                            } else if roll_result <= 233 {
                                                 // Coreless rock planet
+                                                min_density = 3.0;
+                                                max_density = 4.5;
+                                                size = CelestialBodySize::Tiny;
+                                            } else if roll_result <= 235 {
+                                                // Rock dwarf
+                                                min_density = 3.3;
+                                                max_density = 5.5;
+                                                size = CelestialBodySize::Small;
+                                            } else if roll_result <= 237 {
+                                                // Coreless rock planet
+                                                min_density = 3.0;
+                                                max_density = 4.5;
+                                                size = CelestialBodySize::Small;
+                                            } else if roll_result <= 240 {
+                                                // Coreless rock planet
+                                                min_density = 3.0;
+                                                max_density = 4.5;
+                                                size = CelestialBodySize::Standard;
                                             } else if roll_result <= 318 {
                                                 // Rock planet
-                                            } else if roll_result <= 398 {
-                                                // Rock giant
+                                                min_density = 4.4;
+                                                max_density = 6.2;
+                                                size = CelestialBodySize::Standard;
                                             } else {
-                                                // Rock supergiant
+                                                // Rock gi0ant
+                                                min_density = 4.9;
+                                                max_density = 7.0;
+                                                size = CelestialBodySize::Large;
                                             }
                                         }
+                                        density = rng.roll(
+                                            1,
+                                            ((max_density * 1000.0) as u32
+                                                - (min_density * 1000.0) as u32)
+                                                + 1,
+                                            (min_density * 1000.0) as i32 - 1,
+                                        ) as f32
+                                            / 1000.0;
                                     }
                                     _ => {}
                                 }
 
-                                // TelluricBodyDetails::generate_rocky_body(
-                                //     body.orbital_point_id,
-                                //     system_traits,
-                                //     system_index,
-                                //     star_traits,
-                                //     coord,
-                                //     seed.clone(),
-                                //     galaxy.settings.clone(),
-                                // );
-
-                                // Some((AstronomicalObject::Void, old_point.orbits.clone()))
-                                None
+                                to_return
                             }
                             AstronomicalObject::IcyBody(body) => {
                                 if roll_result <= 21 {
                                     // Frost belt
+                                    let belt = CelestialDisk::new(None, 0, CelestialDiskType::Belt);
                                 } else if roll_result <= 61 {
                                     // Comet belt
+                                    let belt = CelestialDisk::new(None, 0, CelestialDiskType::Belt);
                                 } else if roll_result <= 65 {
                                     // Comet cloud
+                                    let belt =
+                                        CelestialDisk::new(None, 0, CelestialDiskType::Shell);
                                 } else if roll_result <= 105 {
                                     // Coreless ice dwarf
                                 } else if roll_result <= 165 {
@@ -938,18 +1074,65 @@ fn replace_stubs(
                         if let Some(generated) = possibly_generated {
                             let (new_object, new_orbits) = generated;
                             let new_point = OrbitalPoint::new(
-                                old_point.id,
-                                old_point.own_orbit.clone(),
+                                current_point.id,
+                                current_point.own_orbit.clone(),
                                 new_object,
                                 new_orbits,
                             );
-                            // replace the old object with the new one
-                            new_objects[index] = new_point;
+                            new_objects[new_object_index] = new_point;
                         }
                     }
                 }
             }
         });
+}
+
+fn get_body_size_modifier(
+    star_mass: f32,
+    star_type: &StarSpectralType,
+    mut rng: &mut SeededDiceRoller,
+    gas_giant_orbits_inwards_proximity: Option<usize>,
+    gas_giant_orbits_outwards_proximity: Option<usize>,
+    nearest_forbidden_distance: f64,
+    zone_change_orbits_proximity: usize,
+) -> i32 {
+    let mut size_modifier = 0;
+    size_modifier += if nearest_forbidden_distance < 0.5 {
+        -120
+    } else {
+        0
+    };
+    size_modifier += match gas_giant_orbits_outwards_proximity {
+        Some(orbit_proximity) if orbit_proximity < 2 => -120,
+        _ => 0,
+    };
+    size_modifier += match gas_giant_orbits_inwards_proximity {
+        Some(orbit_proximity) if orbit_proximity < 2 => -60,
+        _ => 0,
+    };
+    size_modifier += if zone_change_orbits_proximity < 2 {
+        -60
+    } else {
+        0
+    };
+    size_modifier += match star_type {
+        StarSpectralType::WR(_)
+        | StarSpectralType::O(_)
+        | StarSpectralType::B(_)
+        | StarSpectralType::A(_) => {
+            if rng.roll(1, 50, 0) == 1 {
+                0
+            } else {
+                -(star_mass * 5.0) as i32
+            }
+        }
+        StarSpectralType::F(_) => 10,
+        StarSpectralType::K(_) => -10,
+        StarSpectralType::M(_) => -20,
+        StarSpectralType::L(_) | StarSpectralType::T(_) | StarSpectralType::Y(_) => -50,
+        _ => 0,
+    };
+    size_modifier
 }
 
 fn should_skip_gaseous_body_gen(
@@ -968,7 +1151,12 @@ fn should_skip_gaseous_body_gen(
 fn generate_new_body(
     system_traits: &Vec<SystemPeculiarity>,
     system_index: u16,
+    star_id: u32,
+    star_mass: f32,
+    star_luminosity: f32,
+    star_type: &StarSpectralType,
     star_traits: &Vec<StarPeculiarity>,
+    orbit_distance: f64,
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
     seed: Rc<str>,
@@ -1000,18 +1188,26 @@ fn generate_new_body(
             );
         }
         CelestialBodySubType::Gaseous => {
-            body = GaseousBodyDetails::generate_gas_giant(
-                next_id,
+            let giant_id = next_id;
+            let giant_and_moons = GaseousBodyDetails::generate_gas_giant(
+                giant_id,
                 system_traits,
                 system_index,
+                star_id,
+                star_mass,
+                star_luminosity,
+                star_type,
                 star_traits,
+                orbit_distance,
+                next_id,
                 coord,
                 seed.clone(),
                 galaxy.settings.clone(),
             );
+            body = giant_and_moons.0;
 
             orbital_point = OrbitalPoint::new(
-                next_id,
+                giant_id,
                 Some(orbit.clone()),
                 AstronomicalObject::GaseousBody(body),
                 vec![],
@@ -1035,18 +1231,22 @@ fn handle_proto_gas_giant_placement(
     all_zones: &Vec<StarZone>,
     system_traits: &Vec<SystemPeculiarity>,
     system_index: u16,
+    star_id: u32,
+    star_mass: f32,
+    star_luminosity: f32,
+    star_type: &StarSpectralType,
     star_traits: &Vec<StarPeculiarity>,
+    orbit_distance: f64,
     coord: SpaceCoordinates,
     galaxy: &&mut Galaxy,
     seed: Rc<str>,
     major_bodies_left: &mut i32,
     mut next_id: u32,
-    star_id: u32,
     star_orbit: Option<Orbit>,
     gas_giant_arrangement: GasGiantArrangement,
     mut reference_orbit_radius: f64,
     orbit_radius: f64,
-) -> (u32, f64, Option<Orbit>, Option<OrbitalPoint>) {
+) -> (f64, Option<Orbit>, Option<OrbitalPoint>) {
     let orbit_from_center = orbit_radius
         + star_orbit
             .unwrap_or_default()
@@ -1092,19 +1292,27 @@ fn handle_proto_gas_giant_placement(
             };
 
             // Generate the Gas Giant
-            let gas_giant = GaseousBodyDetails::generate_gas_giant(
-                next_id,
+            let giant_id = next_id;
+            let giant_and_moons = GaseousBodyDetails::generate_gas_giant(
+                giant_id,
                 system_traits,
                 system_index,
+                star_id,
+                star_mass,
+                star_luminosity,
+                star_type,
                 star_traits,
+                orbit_distance,
+                next_id,
                 coord,
                 seed.clone(),
                 settings,
             );
+            let gas_giant = giant_and_moons.0;
 
             // Create an Orbital Point for the Gas Giant
             let object_orbital_point = OrbitalPoint::new(
-                next_id,
+                giant_id,
                 Some(orbit.clone()),
                 AstronomicalObject::GaseousBody(gas_giant),
                 vec![],
@@ -1117,14 +1325,13 @@ fn handle_proto_gas_giant_placement(
             }
 
             return (
-                next_id,
                 reference_orbit_radius,
                 Some(orbit),
                 Some(object_orbital_point),
             );
         }
     }
-    (next_id, reference_orbit_radius, None, None)
+    (reference_orbit_radius, None, None)
 }
 
 fn generate_number_of_bodies(
@@ -1158,7 +1365,9 @@ fn generate_number_of_bodies(
     } else {
         0.0
     }) as i32;
-    modifier += (if star.mass > 4.0 {
+    modifier += (if star.mass < 0.08 {
+        -5.0
+    } else if star.mass > 4.0 {
         -star.mass * 0.2
     } else {
         0.0
@@ -1628,14 +1837,23 @@ fn generate_inner_body_type(
     mut rng: &mut SeededDiceRoller,
     settings: GenerationSettings,
 ) -> CelestialBodySubType {
+    // TODO: Add modifier according to star population and metallicity
     rng.get_result(&CopyableRollToProcess::new(
         vec![
+            // CopyableWeightedResult::new(
+            //     CelestialBodySubType::Exotic,
+            //     if settings.celestial_body.do_not_generate_exotic {
+            //         0
+            //     } else {
+            //         1
+            //     },
+            // ),
             CopyableWeightedResult::new(
                 CelestialBodySubType::Metallic,
                 if settings.celestial_body.do_not_generate_metallic {
                     0
                 } else {
-                    3
+                    2
                 },
             ),
             CopyableWeightedResult::new(
@@ -1643,7 +1861,7 @@ fn generate_inner_body_type(
                 if settings.celestial_body.do_not_generate_rocky {
                     0
                 } else {
-                    5
+                    6
                 },
             ),
             CopyableWeightedResult::new(
@@ -1672,8 +1890,17 @@ fn generate_outer_body_type(
     mut rng: &mut SeededDiceRoller,
     settings: GenerationSettings,
 ) -> CelestialBodySubType {
+    // TODO: Add modifier according to star population and metallicity
     rng.get_result(&CopyableRollToProcess::new(
         vec![
+            // CopyableWeightedResult::new(
+            //     CelestialBodySubType::Exotic,
+            //     if settings.celestial_body.do_not_generate_exotic {
+            //         0
+            //     } else {
+            //         1
+            //     },
+            // ),
             CopyableWeightedResult::new(
                 CelestialBodySubType::Metallic,
                 if settings.celestial_body.do_not_generate_metallic {

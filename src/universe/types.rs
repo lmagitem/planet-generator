@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 
 /// A list of settings used to configure the [Universe] generation.

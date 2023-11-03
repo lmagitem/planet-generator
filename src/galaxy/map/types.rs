@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 
 /// A list of settings used to configure the [GalacticMapDivisionLevel], [GalacticMapDivision]s and [GalacticHex]es generation.

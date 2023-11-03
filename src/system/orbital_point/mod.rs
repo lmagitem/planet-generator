@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 pub mod generator;
 pub mod types;
@@ -45,9 +46,9 @@ impl OrbitalPoint {
             AstronomicalObject::TelluricBody(ref mut body) => body.orbit = Some(orbit),
             AstronomicalObject::GaseousBody(ref mut body) => body.orbit = Some(orbit),
             AstronomicalObject::IcyBody(ref mut body) => body.orbit = Some(orbit),
-            AstronomicalObject::TelluricRing(ref mut ring) => {}
-            AstronomicalObject::GaseousRing(ref mut ring) => {}
-            AstronomicalObject::IcyRing(ref mut ring) => {}
+            AstronomicalObject::TelluricDisk(ref mut ring) => {}
+            AstronomicalObject::GaseousDisk(ref mut ring) => {}
+            AstronomicalObject::IcyDisk(ref mut ring) => {}
             AstronomicalObject::Spacecraft => {}
         }
     }
@@ -73,9 +74,9 @@ impl OrbitalPoint {
                 body.orbit = orbit;
                 body.orbital_point_id = self.id;
             }
-            AstronomicalObject::TelluricRing(ring) => {}
-            AstronomicalObject::GaseousRing(ring) => {}
-            AstronomicalObject::IcyRing(ring) => {}
+            AstronomicalObject::TelluricDisk(ring) => {}
+            AstronomicalObject::GaseousDisk(ring) => {}
+            AstronomicalObject::IcyDisk(ring) => {}
             AstronomicalObject::Spacecraft => {}
         }
     }

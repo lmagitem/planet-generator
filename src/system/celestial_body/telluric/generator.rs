@@ -1,3 +1,4 @@
+use crate::internal::*;
 use crate::prelude::*;
 
 impl TelluricBodyDetails {
@@ -7,6 +8,10 @@ impl TelluricBodyDetails {
             stub: true,
             orbit: None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
             orbital_point_id,
+            mass: 0.0,
+            radii: 0.0,
+            density: 0.0,
+            size: CelestialBodySize::Moonlet,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                 CelestialBodySubType::Rocky,
             )),
@@ -27,6 +32,10 @@ impl TelluricBodyDetails {
             stub: false,
             orbit: None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
             orbital_point_id,
+            mass: 0.0,
+            radii: 0.0,
+            density: 0.0,
+            size: CelestialBodySize::Moonlet,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                 CelestialBodySubType::Rocky,
             )),
@@ -39,6 +48,10 @@ impl TelluricBodyDetails {
             stub: true,
             orbit: None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
             orbital_point_id,
+            mass: 0.0,
+            radii: 0.0,
+            density: 0.0,
+            size: CelestialBodySize::Moonlet,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                 CelestialBodySubType::Metallic,
             )),
@@ -59,6 +72,10 @@ impl TelluricBodyDetails {
             stub: false,
             orbit: None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
             orbital_point_id,
+            mass: 0.0,
+            radii: 0.0,
+            density: 0.0,
+            size: CelestialBodySize::Moonlet,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                 CelestialBodySubType::Metallic,
             )),

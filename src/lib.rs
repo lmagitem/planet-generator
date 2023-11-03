@@ -25,7 +25,6 @@ pub mod prelude {
     pub use crate::galaxy::types::*;
     pub use crate::galaxy::Galaxy;
     pub use crate::generator::types::*;
-    pub use crate::generator::utils::GeneratorUtils;
     pub use crate::generator::Generator;
     pub use crate::system::celestial_body::gaseous::types::*;
     pub use crate::system::celestial_body::gaseous::GaseousBodyDetails;
@@ -35,14 +34,10 @@ pub mod prelude {
     pub use crate::system::celestial_body::telluric::TelluricBodyDetails;
     pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::CelestialBody;
-    pub use crate::system::celestial_ring::gaseous::types::*;
-    pub use crate::system::celestial_ring::gaseous::GaseousRingDetails;
-    pub use crate::system::celestial_ring::icy::types::*;
-    pub use crate::system::celestial_ring::icy::IcyRingDetails;
-    pub use crate::system::celestial_ring::telluric::types::*;
-    pub use crate::system::celestial_ring::telluric::TelluricRingDetails;
-    pub use crate::system::celestial_ring::types::*;
-    pub use crate::system::celestial_ring::CelestialRing;
+    pub use crate::system::celestial_disk::ring::types::*;
+    pub use crate::system::celestial_disk::ring::CelestialRingDetails;
+    pub use crate::system::celestial_disk::types::*;
+    pub use crate::system::celestial_disk::CelestialDisk;
     pub use crate::system::contents::types::*;
     pub use crate::system::neighborhood::types::*;
     pub use crate::system::neighborhood::StellarNeighborhood;
@@ -54,7 +49,12 @@ pub mod prelude {
     pub use crate::system::StarSystem;
     pub use crate::universe::types::*;
     pub use crate::universe::Universe;
-    pub use crate::utils::ConversionUtils;
+}
+
+mod internal {
+    pub use crate::utils::conversion::ConversionUtils;
+    pub use crate::utils::math::MathUtils;
+    pub use crate::utils::string::StringUtils;
     pub use log::*;
     pub use ordered_float::OrderedFloat;
     pub use seeded_dice_roller::*;
@@ -81,6 +81,7 @@ fn init_logger(level: LevelFilter) {
 
 #[cfg(test)]
 mod tests {
+    use super::internal::*;
     use super::prelude::*;
     use super::*;
 

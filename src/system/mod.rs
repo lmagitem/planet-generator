@@ -1,6 +1,7 @@
+use crate::internal::*;
 use crate::prelude::*;
 pub mod celestial_body;
-pub mod celestial_ring;
+pub mod celestial_disk;
 pub mod contents;
 pub mod generator;
 pub mod neighborhood;

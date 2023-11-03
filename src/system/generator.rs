@@ -1,4 +1,5 @@
 use super::StarSystem;
+use crate::internal::*;
 use crate::prelude::*;
 use std::collections::HashSet;
 
