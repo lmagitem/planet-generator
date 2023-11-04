@@ -21,7 +21,12 @@ pub struct CelestialDisk {
 
 impl CelestialDisk {
     /// Creates a new [CelestialDisk].
-    pub fn new(orbit: Option<Orbit>, orbital_point_id: u32, name: Rc<str>, details: CelestialDiskType) -> Self {
+    pub fn new(
+        orbit: Option<Orbit>,
+        orbital_point_id: u32,
+        name: Rc<str>,
+        details: CelestialDiskType,
+    ) -> Self {
         Self {
             stub: false,
             orbit,

@@ -1,4 +1,4 @@
-use crate::prelude::CelestialBodySize;
+use crate::prelude::{CelestialBodySize, CelestialBodyWorldType};
 use seeded_dice_roller::SeededDiceRoller;
 
 pub(crate) fn get_size_constraint(size: CelestialBodySize, rng: &mut SeededDiceRoller) -> f32 {
@@ -11,6 +11,67 @@ pub(crate) fn get_size_constraint(size: CelestialBodySize, rng: &mut SeededDiceR
         _ => panic!("No giant or bigger planet should determine its size using this method"),
     };
     rng.gen_range(min..max)
+}
+
+pub(crate) fn get_world_type(
+    size: CelestialBodySize,
+    blackbody_temperature: u32,
+    primary_star_mass: f32,
+    rng: &mut SeededDiceRoller,
+) -> CelestialBodyWorldType {
+    match size {
+        CelestialBodySize::Moonlet | CelestialBodySize::Tiny => {
+            if blackbody_temperature <= 140 {
+                CelestialBodyWorldType::Ice
+            } else {
+                CelestialBodyWorldType::Rock
+            }
+        }
+        CelestialBodySize::Small => {
+            if blackbody_temperature <= 80 {
+                CelestialBodyWorldType::Hadean
+            } else if blackbody_temperature <= 140 {
+                CelestialBodyWorldType::Ice
+            } else {
+                CelestialBodyWorldType::Rock
+            }
+        }
+        CelestialBodySize::Standard => {
+            if blackbody_temperature <= 80 {
+                CelestialBodyWorldType::Hadean
+            } else if blackbody_temperature > 151
+                && blackbody_temperature <= 230
+                && primary_star_mass < 0.65
+            {
+                CelestialBodyWorldType::Ammonia
+            } else if blackbody_temperature <= 240 {
+                CelestialBodyWorldType::Ice
+            } else if blackbody_temperature <= 320 {
+                CelestialBodyWorldType::Terrestrial
+            } else if blackbody_temperature <= 500 {
+                CelestialBodyWorldType::Greenhouse
+            } else {
+                CelestialBodyWorldType::Chthonian
+            }
+        }
+        CelestialBodySize::Large => {
+            if blackbody_temperature > 151
+                && blackbody_temperature <= 230
+                && primary_star_mass < 0.65
+            {
+                CelestialBodyWorldType::Ammonia
+            } else if blackbody_temperature <= 240 {
+                CelestialBodyWorldType::Ice
+            } else if blackbody_temperature <= 320 {
+                CelestialBodyWorldType::Terrestrial
+            } else if blackbody_temperature <= 500 {
+                CelestialBodyWorldType::Greenhouse
+            } else {
+                CelestialBodyWorldType::Chthonian
+            }
+        }
+        _ => CelestialBodyWorldType::VolatilesGiant,
+    }
 }
 
 #[cfg(test)]

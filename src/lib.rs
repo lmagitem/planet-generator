@@ -298,13 +298,14 @@ mod tests {
 
         sorted_objects.iter().for_each(|(o, depth)| {
             println!(
-                "{}{} ({} AU) - {}",
+                "{}{} ({} AU):\n{}{}",
                 " ".repeat(*depth * 2),
                 format!("{:03}", o.id),
                 format!(
                     "{:08.4}",
                     o.own_orbit.clone().unwrap_or_default().average_distance
                 ),
+                " ".repeat(*depth * 2 + 4),
                 o.object
             );
         });

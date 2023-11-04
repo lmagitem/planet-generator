@@ -1,6 +1,6 @@
 use crate::internal::*;
 use crate::prelude::*;
-use crate::system::celestial_body::generator::get_size_constraint;
+use crate::system::celestial_body::generator::{get_size_constraint, get_world_type};
 use crate::system::contents::utils::calculate_blackbody_temperature;
 
 impl IcyBodyDetails {
@@ -13,8 +13,11 @@ impl IcyBodyDetails {
             mass: 0.0,
             radius: 0.0,
             density: 0.0,
+            blackbody_temperature: 0,
             size: CelestialBodySize::Moonlet,
-            details: CelestialBodyDetails::Icy(IcyBodyDetails {}),
+            details: CelestialBodyDetails::Icy(IcyBodyDetails {
+                world_type: CelestialBodyWorldType::Ice,
+            }),
         }
     }
 
@@ -27,6 +30,7 @@ impl IcyBodyDetails {
         star_name: Rc<str>,
         star_luminosity: f32,
         star_traits: &Vec<StarPeculiarity>,
+        primary_star_mass: f32,
         orbit_index: u32,
         populated_orbit_index: u32,
         orbital_point_id: u32,
@@ -60,7 +64,8 @@ impl IcyBodyDetails {
                     "{}{}",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Belt(CelestialBeltDetails::new(CelestialBeltType::Frost)),
             ));
         } else if rolled_size <= 61 {
@@ -72,7 +77,8 @@ impl IcyBodyDetails {
                     "{}{}",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Belt(CelestialBeltDetails::new(CelestialBeltType::Comet)),
             ));
         } else if rolled_size <= 65 {
@@ -84,7 +90,8 @@ impl IcyBodyDetails {
                     "{}{}",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Shell,
             ));
         } else if rolled_size <= 105 {
@@ -154,8 +161,9 @@ impl IcyBodyDetails {
             let radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
             let surface_gravity = density * radius;
             let mass = density * radius.powf(3.0);
+            let world_type = get_world_type(size, blackbody_temp, primary_star_mass, &mut rng);
 
-            moons = TelluricBodyDetails::generate_moons_for_telluric_body();
+            moons = TelluricBodyDetails::generate_moons_for_telluric_body(orbit_distance, size, &mut rng);
 
             if discriminant(&to_return) == discriminant(&AstronomicalObject::Void) {
                 to_return = AstronomicalObject::IcyBody(CelestialBody::new(
@@ -170,11 +178,13 @@ impl IcyBodyDetails {
                     mass,
                     radius,
                     density,
+                    blackbody_temp,
                     size,
-                    CelestialBodyDetails::Icy(IcyBodyDetails::new()),
+                    CelestialBodyDetails::Icy(IcyBodyDetails::new(world_type)),
                 ));
             }
         } else {
+            // TODO: Ice giants
             moons = Vec::new();
         }
 

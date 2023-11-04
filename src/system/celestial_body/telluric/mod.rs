@@ -5,7 +5,10 @@ pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct TelluricBodyDetails {
-    pub body_type: CelestialBodySubType,
+    /// The main composition of this world.
+    pub body_type: TelluricBodyComposition,
+    /// The type of this world.
+    pub world_type: CelestialBodyWorldType,
     // pub atmospheric_density: AtmosphericDensityType,
     // pub hydrosphere: f32,
     // pub cryosphere: f32,
@@ -23,7 +26,10 @@ pub struct TelluricBodyDetails {
 
 impl TelluricBodyDetails {
     /// Creates a new [TelluricBodyDetails].
-    pub fn new(body_type: CelestialBodySubType) -> Self {
-        Self { body_type }
+    pub fn new(body_type: TelluricBodyComposition, world_type: CelestialBodyWorldType) -> Self {
+        Self {
+            body_type,
+            world_type,
+        }
     }
 }

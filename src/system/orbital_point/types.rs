@@ -77,7 +77,7 @@ impl Display for AstronomicalObject {
             match self {
                 AstronomicalObject::Void => "Empty space".to_string(),
                 AstronomicalObject::Star(star) => format!(
-                    "{}, a {} {}{} star of age: {} BY, mass: {} M☉, radius: {} R☉, temperature: {} K",
+                    "[{}], a {} {}{} Star of age: {} BY, mass: {} M☉, radius: {} R☉, temperature: {} K",
                     star.name,
                     star.population,
                     star.spectral_type,
@@ -90,49 +90,57 @@ impl Display for AstronomicalObject {
                     star.temperature,
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "{}, a {} {} body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³",
+                    "[{}], a {} {} body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³, temperature: {} K",
                     body.name,
                     body.size,
                     match &body.details {
                         CelestialBodyDetails::Telluric(details) =>
-                          format!("{}", details.body_type),
+                          format!("{} ({})", details.body_type, details.world_type),
                         _ => "WRONG-TYPE".to_string(),
                     },
                     MathUtils::round_f32_to_precision(body.mass,4),
                     MathUtils::round_f32_to_precision(body.radius,4),
                     MathUtils::round_f32_to_precision(body.radius * 12742.0,4),
                     MathUtils::round_f32_to_precision( body.density,4),
+                    body.blackbody_temperature
                 ),
                 AstronomicalObject::IcyBody(body) => format!(
-                    "{}, a {} Icy body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³",
+                    "[{}], a {} Icy {} body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³, temperature: {} K",
                     body.name,
                     body.size,
+                    match &body.details {
+                        CelestialBodyDetails::Icy(details) =>
+                            format!("({})", details.world_type),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
                     MathUtils::round_f32_to_precision( body.mass,4),
                     MathUtils::round_f32_to_precision(body.radius,4),
                     MathUtils::round_f32_to_precision(body.radius * 12742.0,4),
                     MathUtils::round_f32_to_precision( body.density,4),
+                    body.blackbody_temperature
                 ),
                 AstronomicalObject::GaseousBody(body) => format!(
-                    "{}, a {} Gaseous body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³",
+                    "[{}], a {} Gaseous body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³, temperature: {} K",
                     body.name,
                     body.size,
                     MathUtils::round_f32_to_precision( body.mass,4),
                     MathUtils::round_f32_to_precision( body.radius,4),
                     MathUtils::round_f32_to_precision( body.radius * 12742.0,4),
                     MathUtils::round_f32_to_precision(body.density,4),
+                    body.blackbody_temperature
                 ),
                 AstronomicalObject::TelluricDisk(disk) => format!(
-                    "{}, a {}",
+                    "[{}], a {}",
                     disk.name,
                     disk.details,
                 ),
                 AstronomicalObject::IcyDisk(disk) => format!(
-                    "{}, a {}",
+                    "[{}], a {}",
                     disk.name,
                     disk.details,
                 ),
                 AstronomicalObject::GaseousDisk(disk) => format!(
-                    "{}, a {}",
+                    "[{}], a {}",
                     disk.name,
                     disk.details,
                 ),

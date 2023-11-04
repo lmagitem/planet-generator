@@ -31,11 +31,11 @@ pub enum CelestialBodyDetails {
     Telluric(TelluricBodyDetails),
     Gaseous(GaseousBodyDetails),
     Icy(IcyBodyDetails),
-    Cloud(CelestialBodySubType),
+    Cloud(CelestialBodyComposition),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
-pub enum CelestialBodySubType {
+pub enum CelestialBodyComposition {
     // Exotic,
     Metallic,
     Rocky,
@@ -43,16 +43,16 @@ pub enum CelestialBodySubType {
     Icy,
 }
 
-impl Display for CelestialBodySubType {
+impl Display for CelestialBodyComposition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                CelestialBodySubType::Metallic => "Metallic",
-                CelestialBodySubType::Rocky => "Rocky",
-                CelestialBodySubType::Gaseous => "Gaseous",
-                CelestialBodySubType::Icy => "Icy",
+                CelestialBodyComposition::Metallic => "Metallic",
+                CelestialBodyComposition::Rocky => "Rocky",
+                CelestialBodyComposition::Gaseous => "Gaseous",
+                CelestialBodyComposition::Icy => "Icy",
             }
         )
     }
@@ -92,6 +92,55 @@ impl Display for CelestialBodySize {
                 CelestialBodySize::Small => "Small",
                 CelestialBodySize::Tiny => "Tiny",
                 CelestialBodySize::Moonlet => "Asteroid-sized",
+            }
+        )
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+pub enum CelestialBodyWorldType {
+    /// Worlds cold enough to have water ice and similar frozen volatiles on its surface. May have liquid oceans under the surface if conditions are ok.
+    Ice,
+    /// Worlds orbiting gas giants that experience tremendous amount of volcanic activity because of their proximity to the giant and other moons.
+    Sulfur,
+    /// Worlds not large enough to retain water vapor, and too hot to have much ice without atmosphere.
+    Rock,
+    /// Worlds large enough to retain gaseous nitrogen but so cold that their nitrogen atmosphere is frozen on the surface.
+    Hadean,
+    /// Worlds large enough to retain a thick atmosphere, but so cold that water is always frozen. Instead, the atmosphere is mainly composed of
+    /// ammonia and methane, and oceans are made of liquid ammonia with substantial amounts of water. Very unlikely around stars brighter than red dwarfs,
+    /// for ammonia breaks down quickly when exposed to ultraviolet light.
+    Ammonia,
+    /// Worlds large enough to retain a thick atmosphere and are almost or entirely covered by oceans.
+    Ocean,
+    /// Worlds large enough to retain a thick atmosphere and plenty of water.
+    Terrestrial,
+    /// Worlds large enough to retain a thick atmosphere and plenty of water, but which became too hot and experienced a greenhouse effect. Some still have
+    /// oceans of surface water. The air is unbreathable and furnace-hot and the planet is extremely hostile.
+    Greenhouse,
+    /// Worlds that would be large enough to retain a thick atmosphere, but that are so close to their star that almost all their volatiles have been stripped
+    /// away. There may still be a tenuous atmosphere left, but likely composed of vaporized metals.
+    Chthonian,
+    /// Worlds that are mostly made of an endless atmosphere of volatiles, like ice and gas giants.
+    VolatilesGiant,
+}
+
+impl Display for CelestialBodyWorldType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CelestialBodyWorldType::Ice => "Ice",
+                CelestialBodyWorldType::Sulfur => "Sulfur",
+                CelestialBodyWorldType::Rock => "Rock",
+                CelestialBodyWorldType::Hadean => "Hadean",
+                CelestialBodyWorldType::Ammonia => "Ammonia",
+                CelestialBodyWorldType::Ocean => "Ocean",
+                CelestialBodyWorldType::Terrestrial => "Terrestrial",
+                CelestialBodyWorldType::Greenhouse => "Greenhouse",
+                CelestialBodyWorldType::Chthonian => "Chthonian",
+                CelestialBodyWorldType::VolatilesGiant => "Volatiles Giant",
             }
         )
     }

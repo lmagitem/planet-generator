@@ -22,6 +22,8 @@ pub struct CelestialBody {
     pub radius: f32,
     /// This body's density, in g/cm³.
     pub density: f32,
+    /// This body's blackbody temperature, in Kelvins.
+    pub blackbody_temperature: u32,
 
     // General Properties
     // pub id: u32,
@@ -47,6 +49,7 @@ impl CelestialBody {
         mass: f32,
         radius: f32,
         density: f32,
+        blackbody_temperature: u32,
         size: CelestialBodySize,
         details: CelestialBodyDetails,
     ) -> Self {
@@ -58,6 +61,7 @@ impl CelestialBody {
             mass,
             radius,
             density,
+            blackbody_temperature,
             size,
             details,
         }

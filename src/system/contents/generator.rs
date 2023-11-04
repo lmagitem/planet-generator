@@ -15,6 +15,17 @@ pub fn generate_stars_systems(
 
     let mut number_of_bodies_per_star =
         collect_number_of_bodies_per_star(all_objects, &system_index, &coord, galaxy);
+    let primary_star_mass = all_objects
+        .iter()
+        .filter_map(|o| {
+            if let AstronomicalObject::Star(star) = &o.object {
+                Some(star.mass)
+            } else {
+                None
+            }
+        })
+        .max_by(|a, b| a.partial_cmp(b).expect("Should be able to compare masses."))
+        .expect("Should have found at least one star.");
 
     let mut new_objects = Vec::new();
     number_of_bodies_per_star
@@ -31,6 +42,7 @@ pub fn generate_stars_systems(
                 &mut new_objects,
                 major_bodies_left,
                 star_index,
+                primary_star_mass,
             );
         });
 
@@ -70,6 +82,7 @@ fn generate_orbits_and_bodies(
     mut new_objects: &mut Vec<OrbitalPoint>,
     major_bodies_left: &mut i32,
     star_index: &mut usize,
+    primary_star_mass: f32,
 ) {
     let mut next_id = get_next_id(&all_objects);
     let initial_number_of_bodies = major_bodies_left.clone();
@@ -199,6 +212,7 @@ fn generate_orbits_and_bodies(
                 star_luminosity,
                 &star_type,
                 &star_traits,
+                primary_star_mass,
                 coord,
                 galaxy,
                 seed.clone(),
@@ -531,7 +545,7 @@ fn place_body_stubs(
 
                                     // Book-keeping
                                     *major_bodies_left -= 1;
-                                    if body_type == CelestialBodySubType::Gaseous {
+                                    if body_type == CelestialBodyComposition::Gaseous {
                                         *major_bodies_left -= 1;
                                     }
                                 }
@@ -626,7 +640,7 @@ fn place_body_stubs(
 
                                     // Book-keeping
                                     *major_bodies_left -= 1;
-                                    if body_type == CelestialBodySubType::Gaseous {
+                                    if body_type == CelestialBodyComposition::Gaseous {
                                         *major_bodies_left -= 1;
                                     }
                                 }
@@ -731,7 +745,7 @@ fn place_body_stubs(
 
                                     // Book-keeping
                                     *major_bodies_left -= 1;
-                                    if body_type == CelestialBodySubType::Gaseous {
+                                    if body_type == CelestialBodyComposition::Gaseous {
                                         *major_bodies_left -= 1;
                                     }
                                 }
@@ -818,6 +832,7 @@ fn replace_stubs(
     star_luminosity: f32,
     star_type: &StarSpectralType,
     star_traits: &Vec<StarPeculiarity>,
+    primary_star_mass: f32,
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
     seed: Rc<str>,
@@ -910,7 +925,7 @@ fn replace_stubs(
                                 let mut to_return = None;
                                 match body.details {
                                     CelestialBodyDetails::Telluric(details) => {
-                                        if details.body_type == CelestialBodySubType::Metallic {
+                                        if details.body_type == TelluricBodyComposition::Metallic {
                                             let body_and_moons =
                                                 TelluricBodyDetails::generate_metallic_body(
                                                     coord,
@@ -920,6 +935,7 @@ fn replace_stubs(
                                                     star_name.clone(),
                                                     star_luminosity,
                                                     star_traits,
+                                                    primary_star_mass,
                                                     orbit_index as u32,
                                                     populated_orbit_index,
                                                     current_point.id,
@@ -945,6 +961,7 @@ fn replace_stubs(
                                                     star_name.clone(),
                                                     star_luminosity,
                                                     star_traits,
+                                                    primary_star_mass,
                                                     orbit_index as u32,
                                                     populated_orbit_index,
                                                     current_point.id,
@@ -976,6 +993,7 @@ fn replace_stubs(
                                     star_name.clone(),
                                     star_luminosity,
                                     star_traits,
+                                    primary_star_mass,
                                     orbit_index as u32,
                                     populated_orbit_index,
                                     current_point.id,
@@ -994,12 +1012,18 @@ fn replace_stubs(
                                 Some(body_and_moons.0)
                             }
                             AstronomicalObject::GaseousBody(ref mut body) => {
-                                body.name =
-                                    format!("{}{}", star_name, StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)).into();
+                                body.name = format!(
+                                    "{}{}",
+                                    star_name,
+                                    StringUtils::number_to_lowercase_letter(
+                                        populated_orbit_index as u8
+                                    )
+                                )
+                                .into();
 
                                 Some(AstronomicalObject::GaseousBody(body.clone()))
                             }
-                            _ => None
+                            _ => None,
                         };
                         if let Some(generated) = possibly_generated {
                             let new_point = OrbitalPoint::new(
@@ -1094,12 +1118,12 @@ fn generate_new_body(
     seed: Rc<str>,
     next_id: u32,
     orbit: &mut Orbit,
-    body_type: CelestialBodySubType,
+    body_type: CelestialBodyComposition,
 ) -> OrbitalPoint {
     let orbital_point;
     let body;
     match body_type {
-        CelestialBodySubType::Metallic => {
+        CelestialBodyComposition::Metallic => {
             body = TelluricBodyDetails::generate_metallic_body_stub(next_id);
 
             orbital_point = OrbitalPoint::new(
@@ -1109,7 +1133,7 @@ fn generate_new_body(
                 vec![],
             );
         }
-        CelestialBodySubType::Rocky => {
+        CelestialBodyComposition::Rocky => {
             body = TelluricBodyDetails::generate_rocky_body_stub(next_id);
 
             orbital_point = OrbitalPoint::new(
@@ -1119,7 +1143,7 @@ fn generate_new_body(
                 vec![],
             );
         }
-        CelestialBodySubType::Gaseous => {
+        CelestialBodyComposition::Gaseous => {
             let giant_id = next_id;
             let giant_and_moons = GaseousBodyDetails::generate_gas_giant(
                 giant_id,
@@ -1143,7 +1167,7 @@ fn generate_new_body(
 
             orbital_point = OrbitalPoint::new(giant_id, Some(orbit.clone()), body, vec![]);
         }
-        CelestialBodySubType::Icy => {
+        CelestialBodyComposition::Icy => {
             body = IcyBodyDetails::generate_icy_body_stub(next_id);
 
             orbital_point = OrbitalPoint::new(
@@ -1765,7 +1789,7 @@ fn should_spawn(mut rng: &mut SeededDiceRoller, spawn_chances: i32) -> bool {
 fn generate_inner_body_type(
     mut rng: &mut SeededDiceRoller,
     settings: GenerationSettings,
-) -> CelestialBodySubType {
+) -> CelestialBodyComposition {
     // TODO: Add modifier according to star population and metallicity
     rng.get_result(&CopyableRollToProcess::new(
         vec![
@@ -1778,7 +1802,7 @@ fn generate_inner_body_type(
             //     },
             // ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Metallic,
+                CelestialBodyComposition::Metallic,
                 if settings.celestial_body.do_not_generate_metallic {
                     0
                 } else {
@@ -1786,7 +1810,7 @@ fn generate_inner_body_type(
                 },
             ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Rocky,
+                CelestialBodyComposition::Rocky,
                 if settings.celestial_body.do_not_generate_rocky {
                     0
                 } else {
@@ -1794,7 +1818,7 @@ fn generate_inner_body_type(
                 },
             ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Icy,
+                CelestialBodyComposition::Icy,
                 if settings.celestial_body.do_not_generate_icy {
                     0
                 } else {
@@ -1802,7 +1826,7 @@ fn generate_inner_body_type(
                 },
             ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Gaseous,
+                CelestialBodyComposition::Gaseous,
                 if settings.celestial_body.do_not_generate_gaseous {
                     0
                 } else {
@@ -1818,7 +1842,7 @@ fn generate_inner_body_type(
 fn generate_outer_body_type(
     mut rng: &mut SeededDiceRoller,
     settings: GenerationSettings,
-) -> CelestialBodySubType {
+) -> CelestialBodyComposition {
     // TODO: Add modifier according to star population and metallicity
     rng.get_result(&CopyableRollToProcess::new(
         vec![
@@ -1831,7 +1855,7 @@ fn generate_outer_body_type(
             //     },
             // ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Metallic,
+                CelestialBodyComposition::Metallic,
                 if settings.celestial_body.do_not_generate_metallic {
                     0
                 } else {
@@ -1839,7 +1863,7 @@ fn generate_outer_body_type(
                 },
             ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Rocky,
+                CelestialBodyComposition::Rocky,
                 if settings.celestial_body.do_not_generate_rocky {
                     0
                 } else {
@@ -1847,7 +1871,7 @@ fn generate_outer_body_type(
                 },
             ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Icy,
+                CelestialBodyComposition::Icy,
                 if settings.celestial_body.do_not_generate_icy {
                     0
                 } else {
@@ -1855,7 +1879,7 @@ fn generate_outer_body_type(
                 },
             ),
             CopyableWeightedResult::new(
-                CelestialBodySubType::Gaseous,
+                CelestialBodyComposition::Gaseous,
                 if settings.celestial_body.do_not_generate_gaseous {
                     0
                 } else {

@@ -49,6 +49,7 @@ impl GaseousBodyDetails {
 
         let mut mass: f32 = 0.0;
         let mut size = CelestialBodySize::Moonlet;
+        let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
         if !is_proto_giant && roll_result <= 2 {
             // TODO: Gas cloud
             to_return = AstronomicalObject::GaseousBody(CelestialBody::new(
@@ -63,8 +64,9 @@ impl GaseousBodyDetails {
                 0.0,
                 0.0,
                 0.0,
+                blackbody_temp,
                 CelestialBodySize::Large,
-                CelestialBodyDetails::Cloud(CelestialBodySubType::Gaseous),
+                CelestialBodyDetails::Cloud(CelestialBodyComposition::Gaseous),
             ));
         } else if !is_proto_giant && roll_result <= 6 {
             // TODO: Gas belt
@@ -75,7 +77,8 @@ impl GaseousBodyDetails {
                     "{}{}",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Belt(CelestialBeltDetails::new(CelestialBeltType::GasBelt)),
             ));
         } else if roll_result <= 106 {
@@ -104,7 +107,6 @@ impl GaseousBodyDetails {
             interpolate_density(mass) + (rng.roll(1, 61, -31) as f32 / 100.0),
             4,
         );
-        let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
         let radius = (mass / density).cbrt();
         // TODO: Atmospheric composition
 
@@ -162,7 +164,8 @@ impl GaseousBodyDetails {
                     "{}{} A Ring",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Unnoticeable,
                     CelestialRingComposition::Dust,
@@ -176,7 +179,8 @@ impl GaseousBodyDetails {
                     "{}{} A Ring",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Noticeable,
                     composition,
@@ -190,7 +194,8 @@ impl GaseousBodyDetails {
                     "{}{} A Ring",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Visible,
                     composition,
@@ -204,7 +209,8 @@ impl GaseousBodyDetails {
                     "{}{} A Ring",
                     star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                ).into(),
+                )
+                .into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Spectacular,
                     composition,
@@ -255,6 +261,7 @@ impl GaseousBodyDetails {
                 mass,
                 radius,
                 density,
+                blackbody_temp,
                 size,
                 CelestialBodyDetails::Gaseous(GaseousBodyDetails::new()),
             ));
