@@ -10,16 +10,19 @@ impl GaseousBodyDetails {
         system_traits: &Vec<SystemPeculiarity>,
         system_index: u16,
         star_id: u32,
+        star_name: Rc<str>,
         star_mass: f32,
         star_luminosity: f32,
         star_type: &StarSpectralType,
         star_traits: &Vec<StarPeculiarity>,
         orbit_distance: f64,
+        orbit_index: u32,
+        populated_orbit_index: u32,
         mut next_id: u32,
         coord: SpaceCoordinates,
         seed: Rc<str>,
         settings: GenerationSettings,
-    ) -> (CelestialBody, Vec<AstronomicalObject>) {
+    ) -> (AstronomicalObject, Vec<AstronomicalObject>) {
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
             &format!(
@@ -27,6 +30,7 @@ impl GaseousBodyDetails {
                 coord, system_index, star_id, orbital_point_id
             ),
         );
+        let mut to_return = AstronomicalObject::Void;
         let is_proto_giant = if let Some(traits) = settings
             .celestial_body
             .gaseous_body_settings
@@ -39,33 +43,41 @@ impl GaseousBodyDetails {
         } else {
             false
         };
-        let mut size_modifier = 0;
-        size_modifier += match star_type {
-            StarSpectralType::WR(_)
-            | StarSpectralType::O(_)
-            | StarSpectralType::B(_)
-            | StarSpectralType::A(_) => {
-                if rng.roll(1, 50, 0) == 1 {
-                    0
-                } else {
-                    -(star_mass * 10.0) as i32
-                }
-            }
-            StarSpectralType::F(_) => 20,
-            StarSpectralType::K(_) => -20,
-            StarSpectralType::M(_) => -40,
-            StarSpectralType::L(_) | StarSpectralType::T(_) | StarSpectralType::Y(_) => -100,
-            _ => 0,
-        };
-        size_modifier += if is_proto_giant { 100 } else { 0 };
+        let size_modifier =
+            Self::get_gas_body_size_modifier(star_mass, star_type, &mut rng, is_proto_giant);
         let roll_result = rng.roll(1, 400, size_modifier);
 
         let mut mass: f32 = 0.0;
-        let mut size = CelestialBodySize::Giant;
+        let mut size = CelestialBodySize::Moonlet;
         if !is_proto_giant && roll_result <= 2 {
-            // Gas cloud
+            // TODO: Gas cloud
+            to_return = AstronomicalObject::GaseousBody(CelestialBody::new(
+                None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
+                orbital_point_id,
+                format!(
+                    "{}{}",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                )
+                .into(),
+                0.0,
+                0.0,
+                0.0,
+                CelestialBodySize::Large,
+                CelestialBodyDetails::Cloud(CelestialBodySubType::Gaseous),
+            ));
         } else if !is_proto_giant && roll_result <= 6 {
-            // Gas belt
+            // TODO: Gas belt
+            to_return = AstronomicalObject::GaseousDisk(CelestialDisk::new(
+                None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
+                orbital_point_id,
+                format!(
+                    "{}{}",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                ).into(),
+                CelestialDiskType::Belt(CelestialBeltDetails::new(CelestialBeltType::GasBelt)),
+            ));
         } else if roll_result <= 106 {
             // Gas planet (2 to 16 masses)
             mass = rng.roll(1, 1600 - (200 - 1), 200 - 1) as f32 / 100.0;
@@ -73,6 +85,7 @@ impl GaseousBodyDetails {
         } else if roll_result <= 326 {
             // Gas giant (16.001 to 162)
             mass = rng.roll(1, 16200 - (1600 - 1), 1600 - 1) as f32 / 100.0;
+            size = CelestialBodySize::Giant;
         } else if roll_result <= 386 {
             // Gas supergiant (162.001 to 2000)
             mass = rng.roll(1, 200000 - (16200 - 1), 16200 - 1) as f32 / 100.0;
@@ -92,7 +105,7 @@ impl GaseousBodyDetails {
             4,
         );
         let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
-        let radii = (mass / density).cbrt();
+        let radius = (mass / density).cbrt();
         // TODO: Atmospheric composition
 
         let mut rng = SeededDiceRoller::new(
@@ -145,6 +158,11 @@ impl GaseousBodyDetails {
             CelestialDisk::new(
                 None, // TODO
                 next_id,
+                format!(
+                    "{}{} A Ring",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                ).into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Unnoticeable,
                     CelestialRingComposition::Dust,
@@ -154,6 +172,11 @@ impl GaseousBodyDetails {
             CelestialDisk::new(
                 None,
                 next_id,
+                format!(
+                    "{}{} A Ring",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                ).into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Noticeable,
                     composition,
@@ -163,6 +186,11 @@ impl GaseousBodyDetails {
             CelestialDisk::new(
                 None,
                 next_id,
+                format!(
+                    "{}{} A Ring",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                ).into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Visible,
                     composition,
@@ -172,6 +200,11 @@ impl GaseousBodyDetails {
             CelestialDisk::new(
                 None,
                 next_id,
+                format!(
+                    "{}{} A Ring",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                ).into(),
                 CelestialDiskType::Ring(CelestialRingDetails::new(
                     CelestialRingLevel::Spectacular,
                     composition,
@@ -209,18 +242,53 @@ impl GaseousBodyDetails {
             },
         ) as i8;
 
-        (
-            CelestialBody::new(
+        if discriminant(&to_return) == discriminant(&AstronomicalObject::Void) {
+            to_return = AstronomicalObject::GaseousBody(CelestialBody::new(
                 None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
                 orbital_point_id,
+                format!(
+                    "{}{}",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                )
+                .into(),
                 mass,
-                radii,
+                radius,
                 density,
                 size,
                 CelestialBodyDetails::Gaseous(GaseousBodyDetails::new()),
-            ),
-            moons,
-        )
+            ));
+        }
+
+        (to_return, moons)
+    }
+
+    fn get_gas_body_size_modifier(
+        star_mass: f32,
+        star_type: &StarSpectralType,
+        rng: &mut SeededDiceRoller,
+        is_proto_giant: bool,
+    ) -> i32 {
+        let mut size_modifier = 0;
+        size_modifier += match star_type {
+            StarSpectralType::WR(_)
+            | StarSpectralType::O(_)
+            | StarSpectralType::B(_)
+            | StarSpectralType::A(_) => {
+                if rng.roll(1, 50, 0) == 1 {
+                    0
+                } else {
+                    -(star_mass * 10.0) as i32
+                }
+            }
+            StarSpectralType::F(_) => 20,
+            StarSpectralType::K(_) => -20,
+            StarSpectralType::M(_) => -40,
+            StarSpectralType::L(_) | StarSpectralType::T(_) | StarSpectralType::Y(_) => -100,
+            _ => 0,
+        };
+        size_modifier += if is_proto_giant { 100 } else { 0 };
+        size_modifier
     }
 }
 

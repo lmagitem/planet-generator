@@ -38,6 +38,22 @@ pub enum StellarEvolution {
     Hyperdwarf,
 }
 
+impl Display for StellarEvolution {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                StellarEvolution::Paleodwarf => "Population III",
+                StellarEvolution::Subdwarf => "Population II",
+                StellarEvolution::Dwarf => "Early Population I",
+                StellarEvolution::Superdwarf => "Late Population I",
+                StellarEvolution::Hyperdwarf => "Population 0",
+            }
+        )
+    }
+}
+
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub enum SystemPeculiarity {
     /// Carbon-rich systems are ones where the protoplanetary disk was made with a higher

@@ -1,5 +1,6 @@
 use crate::internal::*;
 use crate::prelude::*;
+pub mod belt;
 pub mod generator;
 pub mod ring;
 pub mod types;
@@ -8,6 +9,8 @@ pub mod types;
 pub struct CelestialDisk {
     /// Is this disk a simple stub to be redesigned later?
     stub: bool,
+    /// This disk's name.
+    pub name: Rc<str>,
     /// The disk's own orbit, along which it revolves.
     pub orbit: Option<Orbit>,
     /// The id of the orbital point this disk inhabits.
@@ -18,11 +21,12 @@ pub struct CelestialDisk {
 
 impl CelestialDisk {
     /// Creates a new [CelestialDisk].
-    pub fn new(orbit: Option<Orbit>, orbital_point_id: u32, details: CelestialDiskType) -> Self {
+    pub fn new(orbit: Option<Orbit>, orbital_point_id: u32, name: Rc<str>, details: CelestialDiskType) -> Self {
         Self {
             stub: false,
             orbit,
             orbital_point_id,
+            name,
             details,
         }
     }

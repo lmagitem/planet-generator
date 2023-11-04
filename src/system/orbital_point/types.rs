@@ -1,5 +1,6 @@
 use crate::internal::*;
 use crate::prelude::*;
+use std::fmt;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Orbit {
@@ -66,4 +67,77 @@ pub enum AstronomicalObject {
     GaseousDisk(CelestialDisk),
     /// A man-made vehicle or habitat designed for operation in outer space.
     Spacecraft,
+}
+
+impl Display for AstronomicalObject {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                AstronomicalObject::Void => "Empty space".to_string(),
+                AstronomicalObject::Star(star) => format!(
+                    "{}, a {} {}{} star of age: {} BY, mass: {} M☉, radius: {} R☉, temperature: {} K",
+                    star.name,
+                    star.population,
+                    star.spectral_type,
+                    if discriminant(&star.spectral_type) != discriminant(&StarSpectralType::XNS) &&
+                        discriminant(&star.spectral_type) != discriminant(&StarSpectralType::XBH)   {
+                       format!("{}", star.luminosity_class)
+                    } else { "".to_string() }, star.age,
+                    MathUtils::round_f32_to_precision(star.mass, 4),
+                    MathUtils::round_f32_to_precision(star.radius, 4),
+                    star.temperature,
+                ),
+                AstronomicalObject::TelluricBody(body) => format!(
+                    "{}, a {} {} body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³",
+                    body.name,
+                    body.size,
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                          format!("{}", details.body_type),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    MathUtils::round_f32_to_precision(body.mass,4),
+                    MathUtils::round_f32_to_precision(body.radius,4),
+                    MathUtils::round_f32_to_precision(body.radius * 12742.0,4),
+                    MathUtils::round_f32_to_precision( body.density,4),
+                ),
+                AstronomicalObject::IcyBody(body) => format!(
+                    "{}, a {} Icy body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³",
+                    body.name,
+                    body.size,
+                    MathUtils::round_f32_to_precision( body.mass,4),
+                    MathUtils::round_f32_to_precision(body.radius,4),
+                    MathUtils::round_f32_to_precision(body.radius * 12742.0,4),
+                    MathUtils::round_f32_to_precision( body.density,4),
+                ),
+                AstronomicalObject::GaseousBody(body) => format!(
+                    "{}, a {} Gaseous body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³",
+                    body.name,
+                    body.size,
+                    MathUtils::round_f32_to_precision( body.mass,4),
+                    MathUtils::round_f32_to_precision( body.radius,4),
+                    MathUtils::round_f32_to_precision( body.radius * 12742.0,4),
+                    MathUtils::round_f32_to_precision(body.density,4),
+                ),
+                AstronomicalObject::TelluricDisk(disk) => format!(
+                    "{}, a {}",
+                    disk.name,
+                    disk.details,
+                ),
+                AstronomicalObject::IcyDisk(disk) => format!(
+                    "{}, a {}",
+                    disk.name,
+                    disk.details,
+                ),
+                AstronomicalObject::GaseousDisk(disk) => format!(
+                    "{}, a {}",
+                    disk.name,
+                    disk.details,
+                ),
+                AstronomicalObject::Spacecraft => "Spacecraft".to_string(),
+            }
+        )
+    }
 }

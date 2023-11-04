@@ -10,6 +10,8 @@ pub mod types;
 pub struct CelestialBody {
     /// Is this body a simple stub to be redesigned later?
     stub: bool,
+    /// This body's name.
+    pub name: Rc<str>,
     /// The body's own orbit, along which it revolves.
     pub orbit: Option<Orbit>,
     /// The id of the orbital point this body inhabits.
@@ -17,13 +19,12 @@ pub struct CelestialBody {
     /// This body's mass, in Earth's masses.
     pub mass: f32,
     /// This body's radius, in Earth's radii.
-    pub radii: f32,
+    pub radius: f32,
     /// This body's density, in g/cm³.
     pub density: f32,
 
     // General Properties
     // pub id: u32,
-    // pub name: Rc<str>,
     // pub distance_from_orbited: f64,
     // pub exploitable_resources: Vec<ExploitableResource>,
     // pub diameter: f64,
@@ -42,8 +43,9 @@ impl CelestialBody {
     pub fn new(
         orbit: Option<Orbit>,
         orbital_point_id: u32,
+        name: Rc<str>,
         mass: f32,
-        radii: f32,
+        radius: f32,
         density: f32,
         size: CelestialBodySize,
         details: CelestialBodyDetails,
@@ -52,8 +54,9 @@ impl CelestialBody {
             stub: false,
             orbit,
             orbital_point_id,
+            name,
             mass,
-            radii,
+            radius,
             density,
             size,
             details,

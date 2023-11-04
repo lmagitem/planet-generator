@@ -1,5 +1,5 @@
-use crate::prelude::*;
 use crate::internal::*;
+use crate::prelude::*;
 pub mod generator;
 pub mod types;
 
@@ -11,7 +11,7 @@ pub struct CelestialBeltDetails {
 
 impl CelestialBeltDetails {
     /// Creates a new [CelestialBeltDetails].
-    pub fn new(composition: CelestialBeltComposition) -> Self {
+    pub fn new(composition: CelestialBeltType) -> Self {
         Self { composition }
     }
 }

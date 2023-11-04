@@ -34,6 +34,8 @@ pub mod prelude {
     pub use crate::system::celestial_body::telluric::TelluricBodyDetails;
     pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::CelestialBody;
+    pub use crate::system::celestial_disk::belt::types::*;
+    pub use crate::system::celestial_disk::belt::CelestialBeltDetails;
     pub use crate::system::celestial_disk::ring::types::*;
     pub use crate::system::celestial_disk::ring::CelestialRingDetails;
     pub use crate::system::celestial_disk::types::*;
@@ -84,6 +86,7 @@ mod tests {
     use super::internal::*;
     use super::prelude::*;
     use super::*;
+    use std::collections::HashSet;
 
     // #[test]
     fn add_logs_to_run() {
@@ -92,8 +95,8 @@ mod tests {
 
     #[test]
     fn generate_example_systems() {
-        init_logger(LevelFilter::Debug);
-        for i in 0..5 {
+        // init_logger(LevelFilter::Debug);
+        for i in 0..50 {
             let settings = &GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
@@ -115,15 +118,15 @@ mod tests {
                 .expect("Should have returned a sub-sector.");
             let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
             let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
-            println!("\n{:#?}", system);
+            print_system_bodies(system);
         }
     }
 
     // #[test]
     fn generate_interesting_example_systems() {
-        init_logger(LevelFilter::Debug);
+        // init_logger(LevelFilter::Debug);
         let mut highest_distance;
-        for i in 0..50 {
+        for i in 0..5000 {
             let settings = &GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 ..Default::default()
@@ -271,8 +274,72 @@ mod tests {
             {
                 highest_distance = higher_distance;
                 println!("\nseed: {}, distance: {}", settings.seed, highest_distance);
-                println!("\n{:#?}", system);
+                print_system_bodies(system);
             };
+        }
+    }
+
+    fn print_system_bodies(system: StarSystem) {
+        println!("\n>>>>> {}", system.name);
+
+        let mut sorted_objects = Vec::new();
+        let mut visited = HashSet::new();
+
+        // Start the sort with the object that orbits nothing (i.e., the central object)
+        if let Some(central_object) = system.all_objects.iter().find(|o| o.own_orbit.is_none()) {
+            orbits_depth_first_sort(
+                central_object.id,
+                &system.all_objects,
+                &mut sorted_objects,
+                &mut visited,
+                0,
+            );
+        }
+
+        sorted_objects.iter().for_each(|(o, depth)| {
+            println!(
+                "{}{} ({} AU) - {}",
+                " ".repeat(*depth * 2),
+                format!("{:03}", o.id),
+                format!(
+                    "{:08.4}",
+                    o.own_orbit.clone().unwrap_or_default().average_distance
+                ),
+                o.object
+            );
+        });
+    }
+
+    fn orbits_depth_first_sort(
+        point_id: u32,
+        points: &Vec<OrbitalPoint>,
+        sorted_points: &mut Vec<(OrbitalPoint, usize)>,
+        visited: &mut HashSet<u32>,
+        current_depth: usize, // Add the current depth as a parameter
+    ) {
+        // If we've already visited this point, skip it
+        if visited.contains(&point_id) {
+            return;
+        }
+
+        // Mark this point as visited
+        visited.insert(point_id);
+
+        // Find the orbital point with the given id
+        if let Some(point) = points.iter().find(|p| p.id == point_id) {
+            // Add it to the sorted list along with its depth
+            sorted_points.push((point.clone(), current_depth));
+
+            // Recursively visit each satellite in its orbit
+            for &satellite_id in point.orbits.iter().flat_map(|orbit| &orbit.satellite_ids) {
+                orbits_depth_first_sort(
+                    satellite_id,
+                    points,
+                    sorted_points,
+                    visited,
+                    current_depth + 1,
+                );
+            }
         }
     }
 }

@@ -12,4 +12,11 @@ impl StringUtils {
         )
         .into()
     }
+
+    pub fn number_to_lowercase_letter(number: u8) -> char {
+        if number > 25 {
+            panic!("Number must be between 0 and 25");
+        }
+        (97u8 + number) as char // 'a' as u8 is 97
+    }
 }

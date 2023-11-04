@@ -1,15 +1,15 @@
 [package]
 name = "planet_generator"
-version = "0.0.4-pre-alpha"
+version = "0.0.5-pre-alpha"
 edition = "2021"
 description = "[WIP] Generates data for galaxies, sectors, solar systems, planets and their inhabitants (Check README for features list)."
 license = "MIT"
 
 [dependencies]
-seeded_dice_roller = "1.0.1"
-log = "0.4.17"
-simple_logger = "4.0.0"
-serde = { version = "1.0.147", features = ["derive", "rc"] }
+seeded_dice_roller = "1.0.2"
+log = "0.4.20"
+simple_logger = "4.2.0"
+serde = { version = "1.0.190", features = ["derive", "rc"] }
 smart-default = "0.7.1"
-ordered-float = "3.7.0"
+ordered-float = "4.1.1"
 lazy_static = "1.4.0"

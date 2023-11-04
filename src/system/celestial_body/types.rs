@@ -1,5 +1,6 @@
 use crate::internal::*;
 use crate::prelude::*;
+use std::fmt;
 
 /// A list of settings used to configure the [CelestialBody] generation.
 #[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
@@ -30,6 +31,7 @@ pub enum CelestialBodyDetails {
     Telluric(TelluricBodyDetails),
     Gaseous(GaseousBodyDetails),
     Icy(IcyBodyDetails),
+    Cloud(CelestialBodySubType),
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -39,6 +41,21 @@ pub enum CelestialBodySubType {
     Rocky,
     Gaseous,
     Icy,
+}
+
+impl Display for CelestialBodySubType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CelestialBodySubType::Metallic => "Metallic",
+                CelestialBodySubType::Rocky => "Rocky",
+                CelestialBodySubType::Gaseous => "Gaseous",
+                CelestialBodySubType::Icy => "Icy",
+            }
+        )
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -59,4 +76,23 @@ pub enum CelestialBodySize {
     Tiny,
     /// A body that isn't big enough for its self-gravity to overcome rigid body forces and assume an ellipsoidal shape in equilibrium.
     Moonlet,
+}
+
+impl Display for CelestialBodySize {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CelestialBodySize::Hypergiant => "Hypergiant",
+                CelestialBodySize::Supergiant => "Supergiant",
+                CelestialBodySize::Giant => "Giant",
+                CelestialBodySize::Large => "Large",
+                CelestialBodySize::Standard => "Standard",
+                CelestialBodySize::Small => "Small",
+                CelestialBodySize::Tiny => "Tiny",
+                CelestialBodySize::Moonlet => "Asteroid-sized",
+            }
+        )
+    }
 }
