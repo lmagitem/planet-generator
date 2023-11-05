@@ -1,5 +1,5 @@
-use crate::prelude::{CelestialBodySize, CelestialBodyWorldType};
-use seeded_dice_roller::SeededDiceRoller;
+use crate::internal::*;
+use crate::prelude::*;
 
 pub(crate) fn get_size_constraint(size: CelestialBodySize, rng: &mut SeededDiceRoller) -> f32 {
     let (min, max) = match size {
@@ -11,6 +11,92 @@ pub(crate) fn get_size_constraint(size: CelestialBodySize, rng: &mut SeededDiceR
         _ => panic!("No giant or bigger planet should determine its size using this method"),
     };
     rng.gen_range(min..max)
+}
+
+pub(crate) fn downsize_world_by(size: CelestialBodySize, number: u8) -> CelestialBodySize {
+    let mut running_number = number;
+    let mut new_size = size;
+    loop {
+        if size == CelestialBodySize::Hypergiant {
+            new_size = CelestialBodySize::Supergiant;
+        } else if size == CelestialBodySize::Supergiant {
+            new_size = CelestialBodySize::Giant;
+        } else if size == CelestialBodySize::Giant {
+            new_size = CelestialBodySize::Large;
+        } else if size == CelestialBodySize::Large {
+            new_size = CelestialBodySize::Standard;
+        } else if size == CelestialBodySize::Standard {
+            new_size = CelestialBodySize::Small;
+        } else if size == CelestialBodySize::Small {
+            new_size = CelestialBodySize::Tiny;
+        } else if size == CelestialBodySize::Tiny {
+            new_size = CelestialBodySize::Moonlet;
+        } else {
+            new_size = CelestialBodySize::Moonlet;
+        }
+
+        if running_number < 1 {
+            break;
+        }
+        running_number -= 1;
+    }
+    new_size
+}
+
+pub(crate) fn generate_acceptable_telluric_parameters(
+    size_modifier: i32,
+    mut rng: &mut SeededDiceRoller,
+    min_density: f64,
+    max_density: f64,
+    size: CelestialBodySize,
+    blackbody_temp: u32,
+    planet_type: Rc<str>,
+) -> (f32, CelestialBodySize, f32, f32) {
+    let mut loop_number = 0;
+    let mut density = 0.0;
+    let mut size = size;
+    let mut radius = 0.0;
+    let mut mass = 0.0;
+    loop {
+        density = rng.roll(
+            1,
+            ((max_density * 1000.0) as u32 - (min_density * 1000.0) as u32) + 1,
+            (min_density * 1000.0) as i32 - 1,
+        ) as f32
+            / 1000.0;
+        let size_constraint = get_size_constraint(size, &mut rng);
+        radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
+        mass = calculate_mass(density,radius);
+
+        if mass < 10.0 {
+            break;
+        }
+
+        loop_number += 1;
+        if loop_number % 100 == 0 {
+            size = downsize_world_by(size, 1);
+        }
+        if loop_number > 1000 {
+            panic!("Infinite loop! Last turn was density: {}, size_constraint: {}, temp: {}, radius: {}, mass: {}, modifier: {}, for a {} {} planet.",
+                   density, size_constraint, blackbody_temp, radius, mass, size_modifier, size, planet_type);
+        }
+    }
+    (density, size, radius, mass)
+}
+
+fn calculate_mass(density: f32, radius: f32) -> f32 {
+    // Earth's radius in centimeters
+    let earth_radius_cm: f64 = 6.371e8;
+    // Earth's mass in grams
+    let earth_mass_g: f64 = 5.972e27;
+    // Volume of the planet in cubic centimeters
+    let volume_cm3: f64 = (4.0/3.0) * std::f64::consts::PI * (radius as f64 * earth_radius_cm).powi(3);
+    // Mass of the planet in grams
+    let mass_g: f64 = density as f64 * volume_cm3;
+    // Convert mass from grams to Earth masses
+    let mass_earth_masses: f64 = mass_g / earth_mass_g;
+
+    mass_earth_masses as f32
 }
 
 pub(crate) fn get_world_type(

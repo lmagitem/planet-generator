@@ -77,7 +77,7 @@ impl Display for AstronomicalObject {
             match self {
                 AstronomicalObject::Void => "Empty space".to_string(),
                 AstronomicalObject::Star(star) => format!(
-                    "[{}], a {} {}{} Star of age: {} BY, mass: {} M☉, radius: {} R☉, temperature: {} K",
+                    "[{}], a {} {}{} Star of age: {} BY, mass: {} M☉, radius: {} R☉ ({} km of diameter), temperature: {} K",
                     star.name,
                     star.population,
                     star.spectral_type,
@@ -85,8 +85,9 @@ impl Display for AstronomicalObject {
                         discriminant(&star.spectral_type) != discriminant(&StarSpectralType::XBH)   {
                        format!("{}", star.luminosity_class)
                     } else { "".to_string() }, star.age,
-                    MathUtils::round_f32_to_precision(star.mass, 4),
-                    MathUtils::round_f32_to_precision(star.radius, 4),
+                     format!("{:.2}", star.mass),
+                     format!("{:.2}", star.radius),
+                    format!("{:.2}", star.radius * 696340.0 * 2.0),
                     star.temperature,
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
@@ -98,10 +99,10 @@ impl Display for AstronomicalObject {
                           format!("{} ({})", details.body_type, details.world_type),
                         _ => "WRONG-TYPE".to_string(),
                     },
-                    MathUtils::round_f32_to_precision(body.mass,4),
-                    MathUtils::round_f32_to_precision(body.radius,4),
-                    MathUtils::round_f32_to_precision(body.radius * 12742.0,4),
-                    MathUtils::round_f32_to_precision( body.density,4),
+                     format!("{:.6}", body.mass),
+                     format!("{:.2}", body.radius),
+                     format!("{:.2}", body.radius * 12742.0),
+                     format!("{:.2}", body.density),
                     body.blackbody_temperature
                 ),
                 AstronomicalObject::IcyBody(body) => format!(
@@ -113,20 +114,20 @@ impl Display for AstronomicalObject {
                             format!("({})", details.world_type),
                         _ => "WRONG-TYPE".to_string(),
                     },
-                    MathUtils::round_f32_to_precision( body.mass,4),
-                    MathUtils::round_f32_to_precision(body.radius,4),
-                    MathUtils::round_f32_to_precision(body.radius * 12742.0,4),
-                    MathUtils::round_f32_to_precision( body.density,4),
+                     format!("{:.6}", body.mass),
+                     format!("{:.2}", body.radius),
+                     format!("{:.2}", body.radius * 12742.0),
+                     format!("{:.2}", body.density),
                     body.blackbody_temperature
                 ),
                 AstronomicalObject::GaseousBody(body) => format!(
                     "[{}], a {} Gaseous body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³, temperature: {} K",
                     body.name,
                     body.size,
-                    MathUtils::round_f32_to_precision( body.mass,4),
-                    MathUtils::round_f32_to_precision( body.radius,4),
-                    MathUtils::round_f32_to_precision( body.radius * 12742.0,4),
-                    MathUtils::round_f32_to_precision(body.density,4),
+                     format!("{:.6}", body.mass),
+                     format!("{:.2}", body.radius),
+                     format!("{:.2}", body.radius * 12742.0),
+                     format!("{:.2}", body.density),
                     body.blackbody_temperature
                 ),
                 AstronomicalObject::TelluricDisk(disk) => format!(

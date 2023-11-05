@@ -1,6 +1,8 @@
 use crate::internal::*;
 use crate::prelude::*;
-use crate::system::celestial_body::generator::{get_size_constraint, get_world_type};
+use crate::system::celestial_body::generator::{
+    downsize_world_by, generate_acceptable_telluric_parameters, get_size_constraint, get_world_type,
+};
 use crate::system::contents::utils::calculate_blackbody_temperature;
 
 impl TelluricBodyDetails {
@@ -131,20 +133,22 @@ impl TelluricBodyDetails {
             max_density = 7.0;
             size = CelestialBodySize::Large;
         }
-        density = rng.roll(
-            1,
-            ((max_density * 1000.0) as u32 - (min_density * 1000.0) as u32) + 1,
-            (min_density * 1000.0) as i32 - 1,
-        ) as f32
-            / 1000.0;
         let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
-        let size_constraint = get_size_constraint(size, &mut rng);
-        let radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
+        let (density, new_size, radius, mass) = generate_acceptable_telluric_parameters(
+            size_modifier,
+            &mut rng,
+            min_density,
+            max_density,
+            size,
+            blackbody_temp,
+            "rocky".into(),
+        );
+        size = new_size;
         let surface_gravity = density * radius;
-        let mass = density * radius.powf(3.0);
         let world_type = get_world_type(size, blackbody_temp, primary_star_mass, &mut rng);
 
-        let moons = TelluricBodyDetails::generate_moons_for_telluric_body(orbit_distance, size, &mut rng);
+        let moons =
+            TelluricBodyDetails::generate_moons_for_telluric_body(orbit_distance, size, &mut rng);
 
         if discriminant(&to_return) == discriminant(&AstronomicalObject::Void) {
             to_return = AstronomicalObject::TelluricBody(CelestialBody::new(
@@ -298,20 +302,22 @@ impl TelluricBodyDetails {
             max_density = 9.0;
             size = CelestialBodySize::Giant;
         }
-        density = rng.roll(
-            1,
-            ((max_density * 1000.0) as u32 - (min_density * 1000.0) as u32) + 1,
-            (min_density * 1000.0) as i32 - 1,
-        ) as f32
-            / 1000.0;
         let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
-        let size_constraint = get_size_constraint(size, &mut rng);
-        let radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
+        let (density, new_size, radius, mass) = generate_acceptable_telluric_parameters(
+            size_modifier,
+            &mut rng,
+            min_density,
+            max_density,
+            size,
+            blackbody_temp,
+            "metallic".into(),
+        );
+        size = new_size;
         let surface_gravity = density * radius;
-        let mass = density * radius.powf(3.0);
         let world_type = get_world_type(size, blackbody_temp, primary_star_mass, &mut rng);
 
-        let moons = TelluricBodyDetails::generate_moons_for_telluric_body(orbit_distance, size, &mut rng);
+        let moons =
+            TelluricBodyDetails::generate_moons_for_telluric_body(orbit_distance, size, &mut rng);
 
         if discriminant(&to_return) == discriminant(&AstronomicalObject::Void) {
             to_return = AstronomicalObject::TelluricBody(CelestialBody::new(

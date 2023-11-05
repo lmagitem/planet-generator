@@ -1,6 +1,8 @@
 use crate::internal::*;
 use crate::prelude::*;
-use crate::system::celestial_body::generator::{get_size_constraint, get_world_type};
+use crate::system::celestial_body::generator::{
+    downsize_world_by, generate_acceptable_telluric_parameters, get_size_constraint, get_world_type,
+};
 use crate::system::contents::utils::calculate_blackbody_temperature;
 
 impl IcyBodyDetails {
@@ -50,11 +52,14 @@ impl IcyBodyDetails {
         );
         let rolled_size = rng.roll(1, 400, size_modifier);
         let mut to_return = AstronomicalObject::Void;
-        let moons: Vec<AstronomicalObject>;
+        let mut moons: Vec<AstronomicalObject> = Vec::new();
         let mut min_density = 0.0;
         let mut max_density = 5.0;
         let mut density = 0.0;
         let mut size = CelestialBodySize::Moonlet;
+        let mut radius = 0.0;
+        let mut mass = 0.0;
+        let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
         if rolled_size <= 21 {
             // TODO: Frost belt
             to_return = AstronomicalObject::IcyDisk(CelestialDisk::new(
@@ -124,20 +129,26 @@ impl IcyBodyDetails {
             min_density = 1.5;
             max_density = 5.5;
             size = CelestialBodySize::Standard;
-        } else if Self::is_after_snow_line(own_orbit.clone()) && rolled_size <= 305 {
+        } else if Self::is_temperature_low_enough_to_retain_water(blackbody_temp)
+            && rolled_size <= 305
+        {
             // Ice small giant
             min_density = 1.2;
             max_density = 1.6;
             size = CelestialBodySize::Large;
-        } else if Self::is_after_snow_line(own_orbit.clone()) && rolled_size <= 395 {
+        } else if Self::is_temperature_low_enough_to_retain_water(blackbody_temp)
+            && rolled_size <= 395
+        {
             // Ice giant
             min_density = 0.6;
             max_density = 1.3;
+            mass = rng.roll(1, 1400, 200 - 1) as f32 / 100.0;
             size = CelestialBodySize::Giant;
-        } else if Self::is_after_snow_line(own_orbit.clone()) {
+        } else if Self::is_temperature_low_enough_to_retain_water(blackbody_temp) {
             // Ice supergiant
             min_density = 0.9;
             max_density = 1.6;
+            mass = (rng.roll(1, 1000, 200 - 1) as f32).powf(2.0) / 100.0;
             size = CelestialBodySize::Supergiant;
         } else {
             // Ice planet
@@ -145,47 +156,81 @@ impl IcyBodyDetails {
             max_density = 5.5;
             size = CelestialBodySize::Standard;
         }
-        density = rng.roll(
-            1,
-            ((max_density * 1000.0) as u32 - (min_density * 1000.0) as u32) + 1,
-            (min_density * 1000.0) as i32 - 1,
-        ) as f32
-            / 1000.0;
-        let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
 
         if size != CelestialBodySize::Giant
             && size != CelestialBodySize::Supergiant
             && size != CelestialBodySize::Hypergiant
+            && discriminant(&to_return) == discriminant(&AstronomicalObject::Void)
         {
-            let size_constraint = get_size_constraint(size, &mut rng);
-            let radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
-            let surface_gravity = density * radius;
-            let mass = density * radius.powf(3.0);
-            let world_type = get_world_type(size, blackbody_temp, primary_star_mass, &mut rng);
-
-            moons = TelluricBodyDetails::generate_moons_for_telluric_body(orbit_distance, size, &mut rng);
-
-            if discriminant(&to_return) == discriminant(&AstronomicalObject::Void) {
-                to_return = AstronomicalObject::IcyBody(CelestialBody::new(
-                    None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
-                    orbital_point_id,
-                    format!(
-                        "{}{}",
-                        star_name,
-                        StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                    )
-                    .into(),
-                    mass,
-                    radius,
-                    density,
-                    blackbody_temp,
+            let (new_density, new_size, new_radius, new_mass) =
+                generate_acceptable_telluric_parameters(
+                    size_modifier,
+                    &mut rng,
+                    min_density,
+                    max_density,
                     size,
-                    CelestialBodyDetails::Icy(IcyBodyDetails::new(world_type)),
-                ));
+                    blackbody_temp,
+                    "icy".into(),
+                );
+            density = new_density;
+            size = new_size;
+            radius = new_radius;
+            mass = new_mass;
+            let surface_gravity = density * radius;
+            let mut world_type = get_world_type(size, blackbody_temp, primary_star_mass, &mut rng);
+            if world_type == CelestialBodyWorldType::Terrestrial {
+                world_type = CelestialBodyWorldType::Ocean
             }
-        } else {
-            // TODO: Ice giants
-            moons = Vec::new();
+
+            moons = TelluricBodyDetails::generate_moons_for_telluric_body(
+                orbit_distance,
+                size,
+                &mut rng,
+            );
+
+            to_return = AstronomicalObject::IcyBody(CelestialBody::new(
+                None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
+                orbital_point_id,
+                format!(
+                    "{}{}",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                )
+                .into(),
+                mass,
+                radius,
+                density,
+                blackbody_temp,
+                size,
+                CelestialBodyDetails::Icy(IcyBodyDetails::new(world_type)),
+            ));
+        } else if discriminant(&to_return) == discriminant(&AstronomicalObject::Void) {
+            let density  = rng.roll(
+                1,
+                ((max_density * 1000.0) as u32 - (min_density * 1000.0) as u32) + 1,
+                (min_density * 1000.0) as i32 - 1,
+            ) as f32
+                / 1000.0;
+            let radius = (mass / density).cbrt();
+
+            to_return = AstronomicalObject::IcyBody(CelestialBody::new(
+                None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
+                orbital_point_id,
+                format!(
+                    "{}{}",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                )
+                .into(),
+                mass,
+                radius,
+                density,
+                blackbody_temp,
+                size,
+                CelestialBodyDetails::Icy(IcyBodyDetails::new(
+                    CelestialBodyWorldType::VolatilesGiant,
+                )),
+            ));
         }
 
         (to_return, moons)
@@ -193,5 +238,9 @@ impl IcyBodyDetails {
 
     fn is_after_snow_line(own_orbit: Option<Orbit>) -> bool {
         own_orbit.clone().unwrap_or_default().zone == ZoneType::OuterZone
+    }
+
+    fn is_temperature_low_enough_to_retain_water(temperature: u32) -> bool {
+        temperature < 321
     }
 }
