@@ -490,6 +490,7 @@ fn find_center_of_binary_pair(
         barycentre_distance_from_most_massive,
         0.0,
         0.0,
+        0.0,
     );
     let less_massive_orbit = Orbit::new(
         next_id,
@@ -497,6 +498,7 @@ fn find_center_of_binary_pair(
         ZoneType::ForbiddenZone,
         actual_distance - barycentre_distance_from_most_massive,
         actual_distance - barycentre_distance_from_most_massive,
+        0.0,
         0.0,
         0.0,
     );

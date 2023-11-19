@@ -140,8 +140,8 @@ pub enum StarPeculiarity {
     /// helium in its composition) for its region.
     UnusualMetallicity(StarMetallicityDifference),
     /// The star emits very powerful stellar winds which shortens its lifespan. Also has a
-    /// detrimental effect on the atmospheres of planets that haven't strong enough, and on planets
-    /// habitability (as stellar winds cause radiation).
+    /// detrimental effect on the atmospheres of planets that haven't strong enough magnetic fields,
+    /// and on planets habitability (as stellar winds cause radiation).
     PowerfulStellarWinds,
     /// The star has a strong magnetic field, which is often correlated with stronger stellar winds,
     /// bigger and more frequent solar flares and stellar anomalies. Those points have a detrimental

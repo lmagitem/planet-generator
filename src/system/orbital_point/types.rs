@@ -21,6 +21,9 @@ pub struct Orbit {
     /// indicates an orbit in the reference plane, while 90° is perpendicular. Values over 90°
     /// suggest a retrograde orbit.
     pub inclination: f32,
+    /// The time it takes in terran days for anything on this orbit to make a complete journey
+    /// around what it orbits.
+    pub orbital_period: f32,
 }
 
 impl Orbit {
@@ -33,6 +36,7 @@ impl Orbit {
         average_distance_from_system_center: f64,
         eccentricity: f32,
         inclination: f32,
+        orbital_period: f32,
     ) -> Self {
         Self {
             primary_body_id,
@@ -42,6 +46,7 @@ impl Orbit {
             average_distance_from_system_center,
             eccentricity,
             inclination,
+            orbital_period,
         }
     }
 }
@@ -77,7 +82,7 @@ impl Display for AstronomicalObject {
             match self {
                 AstronomicalObject::Void => "Empty space".to_string(),
                 AstronomicalObject::Star(star) => format!(
-                    "[{}], a {} {}{} Star of age: {} BY, mass: {} M☉, radius: {} R☉ ({} km of diameter), temperature: {} K",
+                    "[{}], a {} {}{} Star of age: {} BY, mass: {} M☉, radius: {} R☉ ({} km of diameter), temperature: {} K ({}° C)",
                     star.name,
                     star.population,
                     star.spectral_type,
@@ -89,46 +94,60 @@ impl Display for AstronomicalObject {
                      format!("{:.2}", star.radius),
                     format!("{:.2}", star.radius * 696340.0 * 2.0),
                     star.temperature,
+                    ConversionUtils::kelvin_to_celsius( star.temperature),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "[{}], a {} {} body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³, temperature: {} K",
+                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, temp: {} K ({}° C), atm: {} atm, traits: [{}]",
                     body.name,
                     body.size,
                     match &body.details {
                         CelestialBodyDetails::Telluric(details) =>
-                          format!("{} ({})", details.body_type, details.world_type),
+                          format!("{} ({})", details.world_type, details.body_type),
                         _ => "WRONG-TYPE".to_string(),
                     },
                      format!("{:.6}", body.mass),
                      format!("{:.2}", body.radius),
                      format!("{:.2}", body.radius * 12742.0),
                      format!("{:.2}", body.density),
-                    body.blackbody_temperature
+                    body.blackbody_temperature,
+                    ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            format!("{:.2}", details.atmospheric_pressure),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            details.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
                 ),
                 AstronomicalObject::IcyBody(body) => format!(
-                    "[{}], a {} Icy {} body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³, temperature: {} K",
+                    "[{}], Ice {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, temp: {} K ({}° C)",
                     body.name,
                     body.size,
-                    match &body.details {
-                        CelestialBodyDetails::Icy(details) =>
-                            format!("({})", details.world_type),
-                        _ => "WRONG-TYPE".to_string(),
-                    },
                      format!("{:.6}", body.mass),
                      format!("{:.2}", body.radius),
                      format!("{:.2}", body.radius * 12742.0),
                      format!("{:.2}", body.density),
-                    body.blackbody_temperature
+                    body.blackbody_temperature,
+                   ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
                 ),
                 AstronomicalObject::GaseousBody(body) => format!(
-                    "[{}], a {} Gaseous body of mass: {} M⊕, radius: {} R⊕ ({} km of diameter), density: {} g/cm³, temperature: {} K",
+                    "[{}], Gas {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, temp: {} K ({}° C), traits: [{}]",
                     body.name,
                     body.size,
                      format!("{:.6}", body.mass),
                      format!("{:.2}", body.radius),
                      format!("{:.2}", body.radius * 12742.0),
                      format!("{:.2}", body.density),
-                    body.blackbody_temperature
+                    body.blackbody_temperature,
+                   ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
+                    match &body.details {
+                        CelestialBodyDetails::Gaseous(details) =>
+                            details.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
                 ),
                 AstronomicalObject::TelluricDisk(disk) => format!(
                     "[{}], a {}",

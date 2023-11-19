@@ -72,7 +72,7 @@ pub enum SystemPeculiarity {
     /// of active star formation, the system could be exposed to higher levels of radiation from
     /// nearby young, massive stars.
     Nebulae(NebulaeApparentSize),
-    /// The system seems perfectly standard..
+    /// The system seems perfectly standard.
     #[default]
     NoPeculiarity,
 }

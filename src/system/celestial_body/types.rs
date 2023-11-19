@@ -75,7 +75,7 @@ pub enum CelestialBodySize {
     /// A world too small to retain significant atmosphere, think of bodies like Mercury, the Moon, Callisto, Europa, Io...
     Tiny,
     /// A body that isn't big enough for its self-gravity to overcome rigid body forces and assume an ellipsoidal shape in equilibrium.
-    Moonlet,
+    Puny,
 }
 
 impl Display for CelestialBodySize {
@@ -91,7 +91,7 @@ impl Display for CelestialBodySize {
                 CelestialBodySize::Standard => "Standard",
                 CelestialBodySize::Small => "Small",
                 CelestialBodySize::Tiny => "Tiny",
-                CelestialBodySize::Moonlet => "Asteroid-sized",
+                CelestialBodySize::Puny => "Puny",
             }
         )
     }
@@ -99,8 +99,10 @@ impl Display for CelestialBodySize {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub enum CelestialBodyWorldType {
-    /// Worlds cold enough to have water ice and similar frozen volatiles on its surface. May have liquid oceans under the surface if conditions are ok.
+    /// Worlds mainly made of ices and cold enough to have water ice and similar frozen volatiles on its surface. May have liquid oceans under the surface if conditions are ok.
     Ice,
+    /// Worlds mainly made of rocks and cold enough to have water ice and similar frozen volatiles on its surface.
+    DirtySnowball,
     /// Worlds orbiting gas giants that experience tremendous amount of volcanic activity because of their proximity to the giant and other moons.
     Sulfur,
     /// Worlds not large enough to retain water vapor, and too hot to have much ice without atmosphere.
@@ -132,6 +134,7 @@ impl Display for CelestialBodyWorldType {
             "{}",
             match self {
                 CelestialBodyWorldType::Ice => "Ice",
+                CelestialBodyWorldType::DirtySnowball => "Dirty Snowball",
                 CelestialBodyWorldType::Sulfur => "Sulfur",
                 CelestialBodyWorldType::Rock => "Rock",
                 CelestialBodyWorldType::Hadean => "Hadean",

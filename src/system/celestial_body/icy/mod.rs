@@ -7,7 +7,6 @@ pub mod types;
 pub struct IcyBodyDetails {
     /// The type of this world.
     pub world_type: CelestialBodyWorldType,
-    // pub special_features: Vec<Information>,
 }
 
 impl IcyBodyDetails {

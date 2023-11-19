@@ -7,7 +7,7 @@ pub(crate) fn get_size_constraint(size: CelestialBodySize, rng: &mut SeededDiceR
         CelestialBodySize::Standard => (0.030, 0.065),
         CelestialBodySize::Small => (0.024, 0.030),
         CelestialBodySize::Tiny => (0.004, 0.024),
-        CelestialBodySize::Moonlet => (0.000003, 0.004),
+        CelestialBodySize::Puny => (0.000003, 0.004),
         _ => panic!("No giant or bigger planet should determine its size using this method"),
     };
     rng.gen_range(min..max)
@@ -30,9 +30,9 @@ pub(crate) fn downsize_world_by(size: CelestialBodySize, number: u8) -> Celestia
         } else if size == CelestialBodySize::Small {
             new_size = CelestialBodySize::Tiny;
         } else if size == CelestialBodySize::Tiny {
-            new_size = CelestialBodySize::Moonlet;
+            new_size = CelestialBodySize::Puny;
         } else {
-            new_size = CelestialBodySize::Moonlet;
+            new_size = CelestialBodySize::Puny;
         }
 
         if running_number < 1 {
@@ -66,7 +66,7 @@ pub(crate) fn generate_acceptable_telluric_parameters(
             / 1000.0;
         let size_constraint = get_size_constraint(size, &mut rng);
         radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
-        mass = calculate_mass(density,radius);
+        mass = calculate_mass(density, radius);
 
         if mass < 10.0 {
             break;
@@ -90,7 +90,8 @@ fn calculate_mass(density: f32, radius: f32) -> f32 {
     // Earth's mass in grams
     let earth_mass_g: f64 = 5.972e27;
     // Volume of the planet in cubic centimeters
-    let volume_cm3: f64 = (4.0/3.0) * std::f64::consts::PI * (radius as f64 * earth_radius_cm).powi(3);
+    let volume_cm3: f64 =
+        (4.0 / 3.0) * std::f64::consts::PI * (radius as f64 * earth_radius_cm).powi(3);
     // Mass of the planet in grams
     let mass_g: f64 = density as f64 * volume_cm3;
     // Convert mass from grams to Earth masses
@@ -101,13 +102,16 @@ fn calculate_mass(density: f32, radius: f32) -> f32 {
 
 pub(crate) fn get_world_type(
     size: CelestialBodySize,
+    body_type: CelestialBodyComposition,
     blackbody_temperature: u32,
     primary_star_mass: f32,
     rng: &mut SeededDiceRoller,
 ) -> CelestialBodyWorldType {
     match size {
-        CelestialBodySize::Moonlet | CelestialBodySize::Tiny => {
-            if blackbody_temperature <= 140 {
+        CelestialBodySize::Puny | CelestialBodySize::Tiny => {
+            if blackbody_temperature <= 140 && body_type != CelestialBodyComposition::Icy {
+                CelestialBodyWorldType::DirtySnowball
+            } else if blackbody_temperature <= 140 {
                 CelestialBodyWorldType::Ice
             } else {
                 CelestialBodyWorldType::Rock
@@ -116,6 +120,8 @@ pub(crate) fn get_world_type(
         CelestialBodySize::Small => {
             if blackbody_temperature <= 80 {
                 CelestialBodyWorldType::Hadean
+            } else if blackbody_temperature <= 140 && body_type != CelestialBodyComposition::Icy {
+                CelestialBodyWorldType::DirtySnowball
             } else if blackbody_temperature <= 140 {
                 CelestialBodyWorldType::Ice
             } else {
@@ -130,10 +136,14 @@ pub(crate) fn get_world_type(
                 && primary_star_mass < 0.65
             {
                 CelestialBodyWorldType::Ammonia
+            } else if blackbody_temperature <= 240 && body_type != CelestialBodyComposition::Icy {
+                CelestialBodyWorldType::DirtySnowball
             } else if blackbody_temperature <= 240 {
                 CelestialBodyWorldType::Ice
-            } else if blackbody_temperature <= 320 {
+            } else if blackbody_temperature <= 320 && body_type != CelestialBodyComposition::Icy {
                 CelestialBodyWorldType::Terrestrial
+            } else if blackbody_temperature <= 320 {
+                CelestialBodyWorldType::Ocean
             } else if blackbody_temperature <= 500 {
                 CelestialBodyWorldType::Greenhouse
             } else {
@@ -146,6 +156,8 @@ pub(crate) fn get_world_type(
                 && primary_star_mass < 0.65
             {
                 CelestialBodyWorldType::Ammonia
+            } else if blackbody_temperature <= 240 && body_type != CelestialBodyComposition::Icy {
+                CelestialBodyWorldType::DirtySnowball
             } else if blackbody_temperature <= 240 {
                 CelestialBodyWorldType::Ice
             } else if blackbody_temperature <= 320 {
@@ -220,7 +232,7 @@ mod tests {
     fn celestial_body_generator_get_size_constraint_moonlet() {
         let mut rng = SeededDiceRoller::new("seed_for_moonlet", "test");
         for _ in 0..100 {
-            let size = get_size_constraint(CelestialBodySize::Moonlet, &mut rng);
+            let size = get_size_constraint(CelestialBodySize::Puny, &mut rng);
             assert!(
                 size >= 0.000003 && size < 0.004,
                 "Size was not within Moonlet constraints: {}",

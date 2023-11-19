@@ -31,16 +31,19 @@ impl GaseousBodyDetails {
             ),
         );
         let mut to_return = AstronomicalObject::Void;
+        let special_traits: Vec<GasGiantSpecialTrait>;
         let is_proto_giant = if let Some(traits) = settings
             .celestial_body
             .gaseous_body_settings
             .fixed_special_traits
         {
+            special_traits = traits.clone();
             traits
                 .iter()
                 .find(|o| discriminant(*o) == discriminant(&GasGiantSpecialTrait::ProtoGiant))
                 .is_some()
         } else {
+            special_traits = Vec::new();
             false
         };
         let size_modifier =
@@ -48,7 +51,7 @@ impl GaseousBodyDetails {
         let roll_result = rng.roll(1, 400, size_modifier);
 
         let mut mass: f32 = 0.0;
-        let mut size = CelestialBodySize::Moonlet;
+        let mut size = CelestialBodySize::Puny;
         let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
         if !is_proto_giant && roll_result <= 2 {
             // TODO: Gas cloud
@@ -263,7 +266,7 @@ impl GaseousBodyDetails {
                 density,
                 blackbody_temp,
                 size,
-                CelestialBodyDetails::Gaseous(GaseousBodyDetails::new()),
+                CelestialBodyDetails::Gaseous(GaseousBodyDetails::new(special_traits)),
             ));
         }
 

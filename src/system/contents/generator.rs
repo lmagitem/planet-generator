@@ -90,9 +90,11 @@ fn generate_orbits_and_bodies(
     if let AstronomicalObject::Star(star) = &star_orbital_point.object {
         let star_id = star_orbital_point.id;
         let star_name = star.name.clone();
+        let star_age = star.age;
         let star_mass = star.mass;
         let star_luminosity = star.luminosity;
         let star_type = star.spectral_type.clone();
+        let star_class = star.luminosity_class.clone();
         let star_traits = star.special_traits.clone();
         let gas_giant_arrangement = generate_gas_giant_arrangement(
             *major_bodies_left,
@@ -208,9 +210,11 @@ fn generate_orbits_and_bodies(
                 system_traits,
                 system_index,
                 star_name.clone(),
+                star_age,
                 star_mass,
                 star_luminosity,
                 &star_type,
+                &star_class,
                 &star_traits,
                 primary_star_mass,
                 coord,
@@ -418,6 +422,7 @@ fn place_orbit_if_possible(
                     zone.zone_type,
                     next_orbit,
                     next_orbit_from_center,
+                    0.0,
                     0.0,
                     0.0,
                 );
@@ -828,9 +833,11 @@ fn replace_stubs(
     system_traits: &Vec<SystemPeculiarity>,
     system_index: u16,
     star_name: Rc<str>,
+    star_age: f32,
     star_mass: f32,
     star_luminosity: f32,
     star_type: &StarSpectralType,
+    star_class: &StarLuminosityClass,
     star_traits: &Vec<StarPeculiarity>,
     primary_star_mass: f32,
     coord: SpaceCoordinates,
@@ -933,6 +940,9 @@ fn replace_stubs(
                                                     system_index,
                                                     star_orbital_point.id,
                                                     star_name.clone(),
+                                                    star_age,
+                                                    star_type,
+                                                    star_class,
                                                     star_luminosity,
                                                     star_traits,
                                                     primary_star_mass,
@@ -949,6 +959,8 @@ fn replace_stubs(
                                                     seed.clone(),
                                                     galaxy.settings.clone(),
                                                     size_modifier,
+                                                    false,
+                                                    None,
                                                 );
                                             to_return = Some(body_and_moons.0);
                                         } else {
@@ -959,6 +971,9 @@ fn replace_stubs(
                                                     system_index,
                                                     star_orbital_point.id,
                                                     star_name.clone(),
+                                                    star_age,
+                                                    star_type,
+                                                    star_class,
                                                     star_luminosity,
                                                     star_traits,
                                                     primary_star_mass,
@@ -975,6 +990,8 @@ fn replace_stubs(
                                                     seed.clone(),
                                                     galaxy.settings.clone(),
                                                     size_modifier,
+                                                    false,
+                                                    None,
                                                 );
                                             to_return = Some(body_and_moons.0);
                                         }
@@ -991,6 +1008,9 @@ fn replace_stubs(
                                     system_index,
                                     star_orbital_point.id,
                                     star_name.clone(),
+                                    star_age,
+                                    star_type,
+                                    star_class,
                                     star_luminosity,
                                     star_traits,
                                     primary_star_mass,
@@ -1021,18 +1041,17 @@ fn replace_stubs(
                                 )
                                 .into();
 
-                                Some(AstronomicalObject::GaseousBody(body.clone()))
+                                Some(OrbitalPoint::new(
+                                    current_point.id,
+                                    current_point.own_orbit.clone(),
+                                    AstronomicalObject::GaseousBody(body.clone()),
+                                    current_point.orbits.clone(),
+                                ))
                             }
                             _ => None,
                         };
                         if let Some(generated) = possibly_generated {
-                            let new_point = OrbitalPoint::new(
-                                current_point.id,
-                                current_point.own_orbit.clone(),
-                                generated,
-                                current_point.orbits.clone(),
-                            );
-                            new_objects[new_object_index] = new_point;
+                            new_objects[new_object_index] = generated;
                         }
                     }
                 }
@@ -1218,6 +1237,7 @@ fn handle_proto_gas_giant_placement(
                 zone.zone_type,
                 orbit_radius,
                 orbit_from_center,
+                0.0,
                 0.0,
                 0.0,
             );

@@ -5,10 +5,14 @@ pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct TelluricBodyDetails {
+    /// This body's atmospheric pressure, in atm, with 1 atm being equal to the average sea-level air pressure on Earth..
+    pub atmospheric_pressure: f32,
     /// The main composition of this world.
     pub body_type: TelluricBodyComposition,
     /// The type of this world.
     pub world_type: CelestialBodyWorldType,
+    /// What are the pecularities of this telluric body.
+    pub special_traits: Vec<TelluricSpecialTrait>,
     // pub atmospheric_density: AtmosphericDensityType,
     // pub hydrosphere: f32,
     // pub cryosphere: f32,
@@ -26,10 +30,17 @@ pub struct TelluricBodyDetails {
 
 impl TelluricBodyDetails {
     /// Creates a new [TelluricBodyDetails].
-    pub fn new(body_type: TelluricBodyComposition, world_type: CelestialBodyWorldType) -> Self {
+    pub fn new(
+        atmospheric_pressure: f32,
+        body_type: TelluricBodyComposition,
+        world_type: CelestialBodyWorldType,
+        special_traits: Vec<TelluricSpecialTrait>,
+    ) -> Self {
         Self {
+            atmospheric_pressure,
             body_type,
             world_type,
+            special_traits,
         }
     }
 }
