@@ -148,3 +148,33 @@ impl Display for CelestialBodyWorldType {
         )
     }
 }
+
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum CelestialBodyCoreHeat {
+    /// The core is largely inactive, leading to minimal geological activity, and often results
+    /// in a lack of magnetic field and tectonic movement.
+    #[default]
+    FrozenCore,
+    /// The core retains some residual heat, providing limited geological and possibly volcanic
+    /// activity, but with a weaker impact on the planet's magnetic field and surface.
+    WarmCore,
+    /// A significantly heated core driving robust geological processes, including volcanism and
+    /// tectonics, often accompanied by a stronger magnetic field.
+    ActiveCore,
+    /// The core is extremely hot, fueling vigorous geological activity, potentially including
+    /// powerful volcanism and dynamic tectonics, and usually results in a strong magnetic field.
+    IntenseCore,
+}
+
+impl Display for CelestialBodyCoreHeat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CelestialBodyCoreHeat::FrozenCore => write!(f, "Frozen Core"),
+            CelestialBodyCoreHeat::WarmCore => write!(f, "Warm Core"),
+            CelestialBodyCoreHeat::ActiveCore => write!(f, "Active Core"),
+            CelestialBodyCoreHeat::IntenseCore => write!(f, "Intense Core"),
+        }
+    }
+}

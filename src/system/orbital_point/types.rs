@@ -12,6 +12,10 @@ pub struct Orbit {
     pub zone: ZoneType,
     /// The average distance from the primary body to the objects in this orbit.
     pub average_distance: f64,
+    /// The minimum possible distance from the primary body to the objects in this orbit.
+    pub min_separation: f64,
+    /// The maximum possible distance from the primary body to the objects in this orbit.
+    pub max_separation: f64,
     /// The average distance from the barycentre of the solar system to the objects in this orbit.
     pub average_distance_from_system_center: f64,
     /// A measure of the orbit's deviation from a perfect circle, ranging from 0 (circular) to
@@ -33,6 +37,8 @@ impl Orbit {
         satellite_ids: Vec<u32>,
         zone: ZoneType,
         average_distance: f64,
+        min_separation: f64,
+        max_separation: f64,
         average_distance_from_system_center: f64,
         eccentricity: f32,
         inclination: f32,
@@ -43,6 +49,8 @@ impl Orbit {
             satellite_ids,
             zone,
             average_distance,
+            min_separation,
+            max_separation,
             average_distance_from_system_center,
             eccentricity,
             inclination,
@@ -97,7 +105,7 @@ impl Display for AstronomicalObject {
                     ConversionUtils::kelvin_to_celsius( star.temperature),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, temp: {} K ({}° C), atm: {} atm, traits: [{}]",
+                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, temp: {} K ({}° C), atm: {} atm, core: {}, traits: [{}]",
                     body.name,
                     body.size,
                     match &body.details {
@@ -114,6 +122,11 @@ impl Display for AstronomicalObject {
                     match &body.details {
                         CelestialBodyDetails::Telluric(details) =>
                             format!("{:.2}", details.atmospheric_pressure),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            format!("{}", details.core_heat),
                         _ => "WRONG-TYPE".to_string(),
                     },
                     match &body.details {

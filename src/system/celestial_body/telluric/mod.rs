@@ -13,6 +13,8 @@ pub struct TelluricBodyDetails {
     pub world_type: CelestialBodyWorldType,
     /// What are the pecularities of this telluric body.
     pub special_traits: Vec<TelluricSpecialTrait>,
+    /// The degree of heat this body's core still has.
+    pub core_heat: CelestialBodyCoreHeat,
     // pub atmospheric_density: AtmosphericDensityType,
     // pub hydrosphere: f32,
     // pub cryosphere: f32,
@@ -35,12 +37,14 @@ impl TelluricBodyDetails {
         body_type: TelluricBodyComposition,
         world_type: CelestialBodyWorldType,
         special_traits: Vec<TelluricSpecialTrait>,
+        core_heat: CelestialBodyCoreHeat,
     ) -> Self {
         Self {
             atmospheric_pressure,
             body_type,
             world_type,
             special_traits,
+            core_heat,
         }
     }
 }

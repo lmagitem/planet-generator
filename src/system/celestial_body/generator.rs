@@ -46,8 +46,8 @@ pub(crate) fn downsize_world_by(size: CelestialBodySize, number: u8) -> Celestia
 pub(crate) fn generate_acceptable_telluric_parameters(
     size_modifier: i32,
     mut rng: &mut SeededDiceRoller,
-    min_density: f64,
-    max_density: f64,
+    mut min_density: f64,
+    mut max_density: f64,
     size: CelestialBodySize,
     blackbody_temp: u32,
     planet_type: Rc<str>,
@@ -58,12 +58,18 @@ pub(crate) fn generate_acceptable_telluric_parameters(
     let mut radius = 0.0;
     let mut mass = 0.0;
     loop {
-        density = rng.roll(
+        if min_density > max_density {
+            let temp = max_density;
+            max_density = min_density;
+            min_density = temp;
+        }
+        density = (rng.roll(
             1,
             ((max_density * 1000.0) as u32 - (min_density * 1000.0) as u32) + 1,
             (min_density * 1000.0) as i32 - 1,
         ) as f32
-            / 1000.0;
+            / 1000.0)
+            .max(1.0);
         let size_constraint = get_size_constraint(size, &mut rng);
         radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
         mass = calculate_mass(density, radius);
