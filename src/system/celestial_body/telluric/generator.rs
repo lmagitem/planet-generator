@@ -3,7 +3,7 @@ use crate::prelude::TelluricSpecialTrait::*;
 use crate::prelude::*;
 use crate::system::celestial_body::generator::*;
 use crate::system::contents::utils::calculate_blackbody_temperature;
-use crate::system::orbital_point::generator::calculate_planet_orbit_eccentricity;
+use crate::system::orbital_point::generator::{calculate_planet_orbit_eccentricity, complete_orbit_with_period_and_eccentricity};
 
 impl TelluricBodyDetails {
     /// Generates a barebone rocky body to use in system generation.
@@ -36,6 +36,7 @@ impl TelluricBodyDetails {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
+        star_mass: f32,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_luminosity: f32,
@@ -114,22 +115,19 @@ impl TelluricBodyDetails {
             size = new_size;
 
             let body_type = CelestialBodyComposition::Rocky;
-            let (eccentricity, min_separation, max_separation) =
-                calculate_planet_orbit_eccentricity(
-                    &coord,
-                    system_index,
-                    star_id,
-                    gas_giant_arrangement,
-                    orbital_point_id,
-                    orbit_distance,
-                    &settings,
-                    blackbody_temp,
-                    body_type,
-                );
-            let mut this_orbit = own_orbit.clone().unwrap_or_default();
-            this_orbit.eccentricity = eccentricity as f32;
-            this_orbit.min_separation = min_separation;
-            this_orbit.max_separation = max_separation;
+            let this_orbit = complete_orbit_with_period_and_eccentricity(
+                &coord,
+                system_index,
+                star_id,
+                star_mass,
+                gas_giant_arrangement,
+                orbital_point_id,
+                &own_orbit,
+                orbit_distance,
+                &settings,body_type,
+                blackbody_temp,
+                mass,
+            );
 
             let surface_gravity = density * radius;
             let world_type = get_world_type(
@@ -301,6 +299,7 @@ impl TelluricBodyDetails {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
+        star_mass: f32,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_luminosity: f32,
@@ -377,22 +376,19 @@ impl TelluricBodyDetails {
             size = new_size;
 
             let body_type = CelestialBodyComposition::Metallic;
-            let (eccentricity, min_separation, max_separation) =
-                calculate_planet_orbit_eccentricity(
-                    &coord,
-                    system_index,
-                    star_id,
-                    gas_giant_arrangement,
-                    orbital_point_id,
-                    orbit_distance,
-                    &settings,
-                    blackbody_temp,
-                    body_type,
-                );
-            let mut this_orbit = own_orbit.clone().unwrap_or_default();
-            this_orbit.eccentricity = eccentricity as f32;
-            this_orbit.min_separation = min_separation;
-            this_orbit.max_separation = max_separation;
+            let this_orbit = complete_orbit_with_period_and_eccentricity(
+                &coord,
+                system_index,
+                star_id,
+                star_mass,
+                gas_giant_arrangement,
+                orbital_point_id,
+                &own_orbit,
+                orbit_distance,
+                &settings,body_type,
+                blackbody_temp,
+                mass,
+            );
 
             let surface_gravity = density * radius;
             let world_type = get_world_type(

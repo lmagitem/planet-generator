@@ -41,6 +41,44 @@ pub fn calculate_orbital_period_from_earth_masses(
     )
 }
 
+pub fn complete_orbit_with_period_and_eccentricity(
+    coord: &SpaceCoordinates,
+    system_index: u16,
+    star_id: u32,
+    star_mass: f32,
+    gas_giant_arrangement: GasGiantArrangement,
+    orbital_point_id: u32,
+    own_orbit: &Option<Orbit>,
+    orbit_distance: f64,
+    settings: &GenerationSettings,
+    body_type: CelestialBodyComposition,
+    blackbody_temp: u32,
+    mut mass: f32,
+) -> Orbit {
+    let mut this_orbit = own_orbit.clone().unwrap_or_default();
+    let orbital_period = calculate_orbital_period_from_earth_masses(
+        orbit_distance,
+        mass as f64,
+        ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
+    );
+    this_orbit.orbital_period = orbital_period as f32;
+    let (eccentricity, min_separation, max_separation) = calculate_planet_orbit_eccentricity(
+        &coord,
+        system_index,
+        star_id,
+        gas_giant_arrangement,
+        orbital_point_id,
+        orbit_distance,
+        &settings,
+        blackbody_temp,
+        body_type,
+    );
+    this_orbit.eccentricity = eccentricity as f32;
+    this_orbit.min_separation = min_separation;
+    this_orbit.max_separation = max_separation;
+    this_orbit
+}
+
 pub fn calculate_planet_orbit_eccentricity(
     coord: &SpaceCoordinates,
     system_index: u16,

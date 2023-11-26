@@ -8,6 +8,7 @@ use crate::system::celestial_body::telluric::generator::generate_peculiarities;
 use crate::system::contents::utils::calculate_blackbody_temperature;
 use crate::system::orbital_point::generator::{
     calculate_orbital_period_from_earth_masses, calculate_planet_orbit_eccentricity,
+    complete_orbit_with_period_and_eccentricity,
 };
 
 impl IcyBodyDetails {
@@ -117,29 +118,20 @@ impl IcyBodyDetails {
                 radius = new_radius;
                 mass = new_mass;
 
-                let orbital_period = calculate_orbital_period_from_earth_masses(
-                    orbit_distance,
-                    mass as f64,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                );
-
                 let body_type = CelestialBodyComposition::Icy;
-                let (eccentricity, min_separation, max_separation) =
-                    calculate_planet_orbit_eccentricity(
-                        &coord,
-                        system_index,
-                        star_id,
-                        gas_giant_arrangement,
-                        orbital_point_id,
-                        orbit_distance,
-                        &settings,
-                        blackbody_temp,
-                        body_type,
-                    );
-                let mut this_orbit = own_orbit.clone().unwrap_or_default();
-                this_orbit.eccentricity = eccentricity as f32;
-                this_orbit.min_separation = min_separation;
-                this_orbit.max_separation = max_separation;
+                let this_orbit = complete_orbit_with_period_and_eccentricity(
+                    &coord,
+                    system_index,
+                    star_id,
+                    star_mass,
+                    gas_giant_arrangement,
+                    orbital_point_id,
+                    &own_orbit,
+                    orbit_distance,
+                    &settings,body_type,
+                    blackbody_temp,
+                    mass,
+                );
 
                 let surface_gravity = density * radius;
                 let mut world_type = get_world_type(
