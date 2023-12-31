@@ -1,7 +1,9 @@
 use crate::internal::*;
 use crate::prelude::*;
 use crate::system::celestial_body::gaseous::constants::MASS_TO_DENSITY_DATASET;
-use crate::system::contents::utils::calculate_blackbody_temperature;
+use crate::system::contents::utils::{
+    calculate_blackbody_temperature, calculate_radius, calculate_surface_gravity,
+};
 
 impl GaseousBodyDetails {
     /// Returns the generated gas giant and its list of moons.
@@ -67,6 +69,7 @@ impl GaseousBodyDetails {
                 0.0,
                 0.0,
                 0.0,
+                0.0,
                 blackbody_temp,
                 CelestialBodySize::Large,
                 CelestialBodyDetails::Cloud(CelestialBodyComposition::Gaseous),
@@ -110,7 +113,8 @@ impl GaseousBodyDetails {
             interpolate_density(mass) + (rng.roll(1, 61, -31) as f32 / 100.0),
             4,
         );
-        let radius = (mass / density).cbrt();
+        let radius = calculate_radius(mass as f64, density as f64) as f32;
+        let surface_gravity = calculate_surface_gravity(density, radius);
         // TODO: Atmospheric composition
 
         let mut rng = SeededDiceRoller::new(
@@ -264,6 +268,7 @@ impl GaseousBodyDetails {
                 mass,
                 radius,
                 density,
+                surface_gravity,
                 blackbody_temp,
                 size,
                 CelestialBodyDetails::Gaseous(GaseousBodyDetails::new(special_traits)),

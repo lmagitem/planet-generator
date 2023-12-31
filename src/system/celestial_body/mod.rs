@@ -6,11 +6,12 @@ pub mod icy;
 pub mod telluric;
 pub mod types;
 
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
 pub struct CelestialBody {
     /// Is this body a simple stub to be redesigned later?
     stub: bool,
     /// This body's name.
+    #[default("default")]
     pub name: Rc<str>,
     /// The body's own orbit, along which it revolves.
     pub orbit: Option<Orbit>,
@@ -22,6 +23,8 @@ pub struct CelestialBody {
     pub radius: f32,
     /// This body's density, in g/cm³.
     pub density: f32,
+    /// This body's gravity, in Gs.
+    pub gravity: f32,
     /// This body's blackbody temperature, in Kelvins.
     pub blackbody_temperature: u32,
 
@@ -49,6 +52,7 @@ impl CelestialBody {
         mass: f32,
         radius: f32,
         density: f32,
+        gravity: f32,
         blackbody_temperature: u32,
         size: CelestialBodySize,
         details: CelestialBodyDetails,
@@ -61,6 +65,7 @@ impl CelestialBody {
             mass,
             radius,
             density,
+            gravity,
             blackbody_temperature,
             size,
             details,

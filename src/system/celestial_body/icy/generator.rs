@@ -5,7 +5,9 @@ use crate::system::celestial_body::generator::{
     downsize_world_by, generate_acceptable_telluric_parameters, get_size_constraint, get_world_type,
 };
 use crate::system::celestial_body::telluric::generator::generate_peculiarities;
-use crate::system::contents::utils::calculate_blackbody_temperature;
+use crate::system::contents::utils::{
+    calculate_blackbody_temperature, calculate_radius, calculate_surface_gravity,
+};
 use crate::system::orbital_point::generator::{
     calculate_orbital_period_from_earth_masses, calculate_planet_orbit_eccentricity,
     complete_orbit_with_period_and_eccentricity,
@@ -21,6 +23,7 @@ impl IcyBodyDetails {
             mass: 0.0,
             radius: 0.0,
             density: 0.0,
+            gravity: 0.0,
             blackbody_temperature: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Icy(IcyBodyDetails {
@@ -128,12 +131,13 @@ impl IcyBodyDetails {
                     orbital_point_id,
                     &own_orbit,
                     orbit_distance,
-                    &settings,body_type,
+                    &settings,
+                    body_type,
                     blackbody_temp,
                     mass,
                 );
 
-                let surface_gravity = density * radius;
+                let surface_gravity = calculate_surface_gravity(density, radius);
                 let mut world_type = get_world_type(
                     size,
                     CelestialBodyComposition::Icy,
@@ -148,16 +152,8 @@ impl IcyBodyDetails {
                     &mut rng,
                 );
 
-                to_return = TelluricBodyDetails::generate_world(
-                    coord,
-                    system_traits,
-                    system_index,
-                    star_id,
+                to_return = TelluricBodyDetails::bundle_world_first_pass(
                     star_name,
-                    star_age,
-                    star_type,
-                    star_class,
-                    star_traits,
                     populated_orbit_index,
                     orbital_point_id,
                     this_orbit,
@@ -171,22 +167,17 @@ impl IcyBodyDetails {
                     TelluricBodyComposition::Icy,
                     world_type,
                     special_traits,
-                    false,
-                    own_orbit.clone(), // TODO: Change when making moons
-                    &moons,
-                    0, // TODO: Change when making moons
-                    seed,
-                    settings,
                 );
             }
         } else if discriminant(&to_return.object) == discriminant(&AstronomicalObject::Void) {
-            let density = rng.roll(
+            let density = (rng.roll(
                 1,
                 ((max_density * 1000.0) as u32 - (min_density * 1000.0) as u32) + 1,
                 (min_density * 1000.0) as i32 - 1,
             ) as f32
-                / 1000.0;
-            let radius = (mass / density).cbrt();
+                / 1000.0);
+            let radius = calculate_radius(mass as f64, density as f64) as f32;
+            let surface_gravity = calculate_surface_gravity(density, radius);
 
             to_return = OrbitalPoint::new(
                 orbital_point_id,
@@ -203,6 +194,7 @@ impl IcyBodyDetails {
                     mass,
                     radius,
                     density,
+                    surface_gravity,
                     blackbody_temp,
                     size,
                     CelestialBodyDetails::Icy(IcyBodyDetails::new(

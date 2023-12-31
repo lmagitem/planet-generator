@@ -122,7 +122,7 @@ mod tests {
         }
     }
 
-    // #[test]
+    #[test]
     fn generate_interesting_example_systems() {
         // init_logger(LevelFilter::Debug);
         let mut highest_distance;

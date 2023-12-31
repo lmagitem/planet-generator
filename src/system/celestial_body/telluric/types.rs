@@ -6,9 +6,12 @@ use std::fmt;
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct TelluricBodySettings {}
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, SmartDefault, Serialize, Deserialize,
+)]
 pub enum TelluricBodyComposition {
     Metallic,
+    #[default]
     Rocky,
     Icy,
 }

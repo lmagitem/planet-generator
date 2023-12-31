@@ -3,7 +3,7 @@ use crate::prelude::*;
 pub mod generator;
 pub mod types;
 
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct TelluricBodyDetails {
     /// This body's atmospheric pressure, in atm, with 1 atm being equal to the average sea-level air pressure on Earth..
     pub atmospheric_pressure: f32,

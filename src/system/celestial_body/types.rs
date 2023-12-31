@@ -25,9 +25,10 @@ pub struct CelestialBodySettings {
     pub do_not_generate_metallic: bool,
 }
 
-#[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
 pub enum CelestialBodyDetails {
     // Exotic(ExoticBodyDetails),
+    #[default]
     Telluric(TelluricBodyDetails),
     Gaseous(GaseousBodyDetails),
     Icy(IcyBodyDetails),
@@ -58,7 +59,9 @@ impl Display for CelestialBodyComposition {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, SmartDefault, Serialize, Deserialize,
+)]
 pub enum CelestialBodySize {
     /// Bodies at least halfway through being massive enough to sustain deuterium fusion in their core.
     Hypergiant,
@@ -73,6 +76,7 @@ pub enum CelestialBodySize {
     /// A world large enough to retain molecular nitrogen. Titan and Mars lie within this category.
     Small,
     /// A world too small to retain significant atmosphere, think of bodies like Mercury, the Moon, Callisto, Europa, Io...
+    #[default]
     Tiny,
     /// A body that isn't big enough for its self-gravity to overcome rigid body forces and assume an ellipsoidal shape in equilibrium.
     Puny,
@@ -97,7 +101,9 @@ impl Display for CelestialBodySize {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, SmartDefault, Serialize, Deserialize,
+)]
 pub enum CelestialBodyWorldType {
     /// Worlds mainly made of ices and cold enough to have water ice and similar frozen volatiles on its surface. May have liquid oceans under the surface if conditions are ok.
     Ice,
@@ -106,6 +112,7 @@ pub enum CelestialBodyWorldType {
     /// Worlds orbiting gas giants that experience tremendous amount of volcanic activity because of their proximity to the giant and other moons.
     Sulfur,
     /// Worlds not large enough to retain water vapor, and too hot to have much ice without atmosphere.
+    #[default]
     Rock,
     /// Worlds large enough to retain gaseous nitrogen but so cold that their nitrogen atmosphere is frozen on the surface.
     Hadean,

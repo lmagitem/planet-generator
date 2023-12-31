@@ -2,8 +2,10 @@ use crate::internal::*;
 use crate::prelude::TelluricSpecialTrait::*;
 use crate::prelude::*;
 use crate::system::celestial_body::generator::*;
-use crate::system::contents::utils::calculate_blackbody_temperature;
-use crate::system::orbital_point::generator::{calculate_planet_orbit_eccentricity, complete_orbit_with_period_and_eccentricity};
+use crate::system::contents::utils::{calculate_blackbody_temperature, calculate_surface_gravity};
+use crate::system::orbital_point::generator::{
+    calculate_planet_orbit_eccentricity, complete_orbit_with_period_and_eccentricity,
+};
 
 impl TelluricBodyDetails {
     /// Generates a barebone rocky body to use in system generation.
@@ -16,6 +18,7 @@ impl TelluricBodyDetails {
             mass: 0.0,
             radius: 0.0,
             density: 0.0,
+            gravity: 0.0,
             blackbody_temperature: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
@@ -124,12 +127,13 @@ impl TelluricBodyDetails {
                 orbital_point_id,
                 &own_orbit,
                 orbit_distance,
-                &settings,body_type,
+                &settings,
+                body_type,
                 blackbody_temp,
                 mass,
             );
 
-            let surface_gravity = density * radius;
+            let surface_gravity = calculate_surface_gravity(density, radius);
             let world_type = get_world_type(
                 size,
                 CelestialBodyComposition::Rocky,
@@ -144,16 +148,8 @@ impl TelluricBodyDetails {
                 &mut rng,
             );
 
-            to_return = Self::generate_world(
-                coord,
-                system_traits,
-                system_index,
-                star_id,
+            to_return = Self::bundle_world_first_pass(
                 star_name,
-                star_age,
-                star_type,
-                star_class,
-                star_traits,
                 populated_orbit_index,
                 orbital_point_id,
                 this_orbit,
@@ -167,12 +163,6 @@ impl TelluricBodyDetails {
                 TelluricBodyComposition::Rocky,
                 world_type,
                 special_traits,
-                is_moon,
-                own_orbit.clone(), // TODO: Change when making moons
-                &moons,
-                0, // TODO: Change when making moons
-                seed,
-                settings,
             );
         }
 
@@ -279,6 +269,7 @@ impl TelluricBodyDetails {
             mass: 0.0,
             radius: 0.0,
             density: 0.0,
+            gravity: 0.0,
             blackbody_temperature: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
@@ -385,12 +376,13 @@ impl TelluricBodyDetails {
                 orbital_point_id,
                 &own_orbit,
                 orbit_distance,
-                &settings,body_type,
+                &settings,
+                body_type,
                 blackbody_temp,
                 mass,
             );
 
-            let surface_gravity = density * radius;
+            let surface_gravity = calculate_surface_gravity(density, radius);
             let world_type = get_world_type(
                 size,
                 CelestialBodyComposition::Metallic,
@@ -405,16 +397,8 @@ impl TelluricBodyDetails {
                 &mut rng,
             );
 
-            to_return = Self::generate_world(
-                coord,
-                system_traits,
-                system_index,
-                star_id,
+            to_return = Self::bundle_world_first_pass(
                 star_name,
-                star_age,
-                star_type,
-                star_class,
-                star_traits,
                 populated_orbit_index,
                 orbital_point_id,
                 this_orbit,
@@ -428,12 +412,6 @@ impl TelluricBodyDetails {
                 TelluricBodyComposition::Metallic,
                 world_type,
                 special_traits,
-                is_moon,
-                own_orbit.clone(), // TODO: Change when making moons
-                &moons,
-                0, // TODO: Change when making moons
-                seed,
-                settings,
             );
         }
 
@@ -520,10 +498,57 @@ impl TelluricBodyDetails {
             // Metal giant
             min_density = 6.0;
             max_density = 9.0;
-            size = CelestialBodySize::Giant;
+            size = CelestialBodySize::Large;
         }
 
         (to_return, min_density, max_density, size)
+    }
+
+    pub(crate) fn bundle_world_first_pass(
+        star_name: Rc<str>,
+        populated_orbit_index: u32,
+        orbital_point_id: u32,
+        own_orbit: Orbit,
+        orbits: Vec<Orbit>,
+        mut size: CelestialBodySize,
+        blackbody_temperature: u32,
+        density: f32,
+        radius: f32,
+        mass: f32,
+        gravity: f32,
+        body_type: TelluricBodyComposition,
+        world_type: CelestialBodyWorldType,
+        special_traits: Vec<TelluricSpecialTrait>,
+    ) -> OrbitalPoint {
+        OrbitalPoint::new(
+            orbital_point_id,
+            Some(own_orbit.clone()),
+            AstronomicalObject::TelluricBody(CelestialBody {
+                stub: true,
+                name: format!(
+                    "{}{}",
+                    star_name,
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                )
+                .into(),
+                orbit: None,
+                orbital_point_id,
+                mass,
+                radius,
+                density,
+                gravity,
+                blackbody_temperature,
+                size,
+                details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
+                    0.0,
+                    body_type,
+                    world_type,
+                    special_traits,
+                    CelestialBodyCoreHeat::ActiveCore,
+                )),
+            }),
+            orbits.clone(),
+        )
     }
 
     pub(crate) fn generate_world(
@@ -531,7 +556,6 @@ impl TelluricBodyDetails {
         system_traits: &Vec<SystemPeculiarity>,
         system_index: u16,
         star_id: u32,
-        star_name: Rc<str>,
         star_age: f32,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
@@ -540,15 +564,7 @@ impl TelluricBodyDetails {
         orbital_point_id: u32,
         own_orbit: Orbit,
         orbits: Vec<Orbit>,
-        mut size: CelestialBodySize,
-        blackbody_temp: u32,
-        density: f32,
-        radius: f32,
-        mass: f32,
-        gravity: f32,
-        body_type: TelluricBodyComposition,
-        world_type: CelestialBodyWorldType,
-        special_traits: Vec<TelluricSpecialTrait>,
+        world: CelestialBody,
         is_moon: bool,
         primary_planet_orbit: Option<Orbit>,
         moons: &Vec<OrbitalPoint>,
@@ -556,6 +572,27 @@ impl TelluricBodyDetails {
         seed: Rc<str>,
         settings: GenerationSettings,
     ) -> OrbitalPoint {
+        let CelestialBody {
+            name,
+            orbit,
+            mass,
+            radius,
+            density,
+            gravity,
+            blackbody_temperature,
+            size,
+            details,
+            ..
+        } = world;
+        let CelestialBodyDetails::Telluric(TelluricBodyDetails {
+            body_type,
+            world_type,
+            special_traits,
+            ..
+        }) = details
+        else {
+            panic!("At this point, details should be telluric.")
+        };
         let distance_from_star = if let Some(orbit) = primary_planet_orbit {
             orbit.average_distance
         } else {
@@ -652,20 +689,16 @@ impl TelluricBodyDetails {
             AstronomicalObject::TelluricBody(CelestialBody::new(
                 None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
                 orbital_point_id,
-                format!(
-                    "{}{}",
-                    star_name,
-                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                )
-                .into(),
+                name,
                 mass,
                 radius,
                 density,
-                blackbody_temp,
+                gravity,
+                blackbody_temperature,
                 size,
                 CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                     atmospheric_pressure,
-                    if body_type == TelluricBodyComposition::Icy && blackbody_temp >= 170 {
+                    if body_type == TelluricBodyComposition::Icy && blackbody_temperature >= 170 {
                         TelluricBodyComposition::Rocky
                     } else {
                         body_type

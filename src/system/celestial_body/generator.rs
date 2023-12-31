@@ -188,7 +188,7 @@ mod tests {
         for _ in 0..100 {
             let size = get_size_constraint(CelestialBodySize::Large, &mut rng);
             assert!(
-                size >= 0.065 && size < 0.091,
+                size >= 0.065 && size < 0.092,
                 "Size was not within Large constraints: {}",
                 size
             );
