@@ -143,9 +143,15 @@ impl TelluricBodyDetails {
             );
 
             moons = TelluricBodyDetails::generate_moons_for_telluric_body(
+                coord,
+                system_index,
+                star_id,
+                orbit_index,
+                orbital_point_id,
                 orbit_distance,
                 size,
-                &mut rng,
+                is_moon,
+                &settings,
             );
 
             to_return = Self::bundle_world_first_pass(
@@ -392,9 +398,15 @@ impl TelluricBodyDetails {
             );
 
             moons = TelluricBodyDetails::generate_moons_for_telluric_body(
+                coord,
+                system_index,
+                star_id,
+                orbit_index,
+                orbital_point_id,
                 orbit_distance,
                 size,
-                &mut rng,
+                is_moon,
+                &settings,
             );
 
             to_return = Self::bundle_world_first_pass(
@@ -872,10 +884,55 @@ impl TelluricBodyDetails {
     }
 
     pub(crate) fn generate_moons_for_telluric_body(
+        coord: SpaceCoordinates,
+        system_index: u16,
+        star_id: u32,
+        orbit_index: u32,
+        orbital_point_id: u32,
         orbit_distance: f64,
         size: CelestialBodySize,
-        rng: &mut SeededDiceRoller,
+        is_moon: bool,
+        settings: &GenerationSettings,
     ) -> Vec<OrbitalPoint> {
+        let result = Vec::new();
+        if is_moon {
+            return result;
+        }
+
+        let (number_of_major_moons, number_of_moonlets) = Self::get_number_of_moons(
+            coord,
+            system_index,
+            star_id,
+            orbit_index,
+            orbital_point_id,
+            orbit_distance,
+            size,
+            &settings,
+        );
+
+        // TODO: Remember to calculate orbital_resonance
+        let orbits_to_generate = number_of_major_moons + number_of_moonlets;
+
+        result
+    }
+
+    fn get_number_of_moons(
+        coord: SpaceCoordinates,
+        system_index: u16,
+        star_id: u32,
+        orbit_index: u32,
+        orbital_point_id: u32,
+        orbit_distance: f64,
+        size: CelestialBodySize,
+        settings: &&GenerationSettings,
+    ) -> (i8, i8) {
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_orbit{}_bdy{}_moons",
+                coord, system_index, star_id, orbit_index, orbital_point_id
+            ),
+        );
         let mut modifier = if orbit_distance < 0.5 {
             -6
         } else if orbit_distance < 0.75 {
@@ -900,10 +957,7 @@ impl TelluricBodyDetails {
         } else {
             rng.roll(1, 6, -2 + modifier) as i8
         };
-
-        // TODO: Remember to calculate orbital_resonance
-
-        Vec::new()
+        (major_moons, moonlets)
     }
 
     pub(crate) fn make_ash_belt(

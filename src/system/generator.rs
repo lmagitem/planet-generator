@@ -531,18 +531,6 @@ fn find_center_of_binary_pair(
     )
 }
 
-/// Calculates the Roche limit, which is the minimum distance there can be between two objects for them to have a stable binary relation.
-/// The radius of the heaviest star is in solar radii, but the return of the function is in AU.
-#[allow(dead_code)]
-fn calculate_roche_limit(
-    radius_heaviest_object: f32,
-    mass_heaviest_object: f32,
-    mass_lighter_object: f32,
-) -> f64 {
-    ConversionUtils::solar_radii_to_astronomical_units(radius_heaviest_object as f64)
-        * (2.0 * mass_heaviest_object as f64 / mass_lighter_object as f64).powf(1.0 / 3.0)
-}
-
 /// Calculates the minimum distance there can be between two stars.
 /// The radius are in solar radii, but the return of the function is in AU.
 fn calculate_stars_minimum_distance(radius_first_star: f64, radius_second_star: f64) -> f64 {

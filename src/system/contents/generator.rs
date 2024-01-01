@@ -1199,6 +1199,8 @@ fn generate_body_and_moons(
                 seed.clone(),
                 galaxy.settings.clone(),
                 size_modifier,
+                false,
+                None,
             );
 
             Some(body_and_moons)

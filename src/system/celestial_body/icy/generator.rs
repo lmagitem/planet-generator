@@ -56,6 +56,8 @@ impl IcyBodyDetails {
         seed: Rc<str>,
         settings: GenerationSettings,
         size_modifier: i32,
+        is_moon: bool,
+        fixed_size: Option<CelestialBodySize>,
     ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
@@ -82,7 +84,11 @@ impl IcyBodyDetails {
         let mut to_return = size_parameters.0;
         let mut min_density = size_parameters.1;
         let mut max_density = size_parameters.2;
-        let mut size = size_parameters.3;
+        let mut size = if let Some(s) = fixed_size {
+            s
+        } else {
+            size_parameters.3
+        };
         let mut mass = size_parameters.4;
         let mut density = 0.0;
         let mut radius = 0.0;
@@ -147,9 +153,15 @@ impl IcyBodyDetails {
                 );
 
                 moons = TelluricBodyDetails::generate_moons_for_telluric_body(
+                    coord,
+                    system_index,
+                    star_id,
+                    orbit_index,
+                    orbital_point_id,
                     orbit_distance,
                     size,
-                    &mut rng,
+                    is_moon,
+                    &settings,
                 );
 
                 to_return = TelluricBodyDetails::bundle_world_first_pass(

@@ -23,7 +23,7 @@ pub struct CelestialBody {
     pub radius: f32,
     /// This body's density, in g/cm³.
     pub density: f32,
-    /// This body's gravity, in Gs.
+    /// This body's surface gravity, in Gs.
     pub gravity: f32,
     /// This body's blackbody temperature, in Kelvins.
     pub blackbody_temperature: u32,
