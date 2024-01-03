@@ -34,6 +34,7 @@ impl IcyBodyDetails {
 
     /// Generates a fully fledged icy body.
     pub fn generate_icy_body(
+        body_id: u32,
         coord: SpaceCoordinates,
         system_traits: &Vec<SystemPeculiarity>,
         system_index: u16,
@@ -47,12 +48,11 @@ impl IcyBodyDetails {
         star_traits: &Vec<StarPeculiarity>,
         primary_star_mass: f32,
         gas_giant_arrangement: GasGiantArrangement,
-        orbit_index: u32,
+        next_id: &mut u32,
         populated_orbit_index: u32,
-        orbital_point_id: u32,
         own_orbit: Option<Orbit>,
         orbit_distance: f64,
-        orbits: Vec<Orbit>,
+        mut orbits: Vec<Orbit>,
         seed: Rc<str>,
         settings: GenerationSettings,
         size_modifier: i32,
@@ -62,8 +62,8 @@ impl IcyBodyDetails {
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
             &format!(
-                "sys_{}_{}_str_{}_orbit{}_bdy{}",
-                coord, system_index, star_id, orbit_index, orbital_point_id
+                "sys_{}_{}_str_{}_bdy{}",
+                coord, system_index, star_id, body_id
             ),
         );
         let rolled_size = rng.roll(1, 400, size_modifier);
@@ -73,12 +73,13 @@ impl IcyBodyDetails {
         let size_parameters = Self::determine_icy_size(
             &star_name,
             populated_orbit_index,
-            orbital_point_id,
+            body_id,
             &own_orbit,
             &orbits,
             &mut rng,
             rolled_size,
             blackbody_temp,
+            is_moon,
             &mut special_traits,
         );
         let mut to_return = size_parameters.0;
@@ -103,8 +104,7 @@ impl IcyBodyDetails {
                     &coord,
                     &system_index,
                     &star_id,
-                    &orbit_index,
-                    &orbital_point_id,
+                    &body_id,
                     &settings,
                     &mut min_density,
                     &mut max_density,
@@ -128,20 +128,25 @@ impl IcyBodyDetails {
                 mass = new_mass;
 
                 let body_type = CelestialBodyComposition::Icy;
-                let this_orbit = complete_orbit_with_period_and_eccentricity(
-                    &coord,
-                    system_index,
-                    star_id,
-                    star_mass,
-                    gas_giant_arrangement,
-                    orbital_point_id,
-                    &own_orbit,
-                    orbit_distance,
-                    &settings,
-                    body_type,
-                    blackbody_temp,
-                    mass,
-                );
+                let this_orbit = if is_moon {
+                    own_orbit.clone().unwrap_or_default()
+                } else {
+                    complete_orbit_with_period_and_eccentricity(
+                        &coord,
+                        system_index,
+                        star_id,
+                        ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
+                        gas_giant_arrangement,
+                        body_id,
+                        &own_orbit,
+                        orbit_distance,
+                        body_type == CelestialBodyComposition::Gaseous,
+                        blackbody_temp,
+                        mass,
+                        false,
+                        &settings,
+                    )
+                };
 
                 let surface_gravity = calculate_surface_gravity(density, radius);
                 let mut world_type = get_world_type(
@@ -153,21 +158,36 @@ impl IcyBodyDetails {
                 );
 
                 moons = TelluricBodyDetails::generate_moons_for_telluric_body(
-                    coord,
+                    system_traits,
                     system_index,
                     star_id,
-                    orbit_index,
-                    orbital_point_id,
+                    star_name.clone(),
+                    star_age,
+                    star_mass,
+                    star_luminosity,
+                    star_type,
+                    star_class,
+                    star_traits,
+                    primary_star_mass,
                     orbit_distance,
+                    coord,
+                    &seed.clone(),
+                    next_id,
+                    gas_giant_arrangement,
+                    populated_orbit_index,
+                    body_id,
                     size,
+                    mass,
+                    blackbody_temp,
+                    &mut orbits,
+                    settings,
                     is_moon,
-                    &settings,
                 );
 
                 to_return = TelluricBodyDetails::bundle_world_first_pass(
                     star_name,
                     populated_orbit_index,
-                    orbital_point_id,
+                    body_id,
                     this_orbit,
                     orbits,
                     size,
@@ -179,6 +199,7 @@ impl IcyBodyDetails {
                     TelluricBodyComposition::Icy,
                     world_type,
                     special_traits,
+                    is_moon,
                 );
             }
         } else if discriminant(&to_return.object) == discriminant(&AstronomicalObject::Void) {
@@ -192,11 +213,11 @@ impl IcyBodyDetails {
             let surface_gravity = calculate_surface_gravity(density, radius);
 
             to_return = OrbitalPoint::new(
-                orbital_point_id,
+                body_id,
                 own_orbit.clone(),
                 AstronomicalObject::IcyBody(CelestialBody::new(
                     None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
-                    orbital_point_id,
+                    body_id,
                     format!(
                         "{}{}",
                         star_name,
@@ -229,6 +250,7 @@ impl IcyBodyDetails {
         rng: &mut SeededDiceRoller,
         rolled_size: i64,
         blackbody_temp: u32,
+        is_moon: bool,
         special_traits: &mut Vec<TelluricSpecialTrait>,
     ) -> (OrbitalPoint, f64, f64, CelestialBodySize, f32) {
         let mut to_return = OrbitalPoint::new(
@@ -242,7 +264,10 @@ impl IcyBodyDetails {
         let mut size = CelestialBodySize::Puny;
         let mut mass = 0.0;
 
-        if rolled_size <= 21 {
+        if is_moon {
+            min_density = 1.0;
+            max_density = 3.9;
+        } else if rolled_size <= 21 {
             // Frost belt
             to_return = if blackbody_temp >= 170 {
                 TelluricBodyDetails::make_dust_belt(

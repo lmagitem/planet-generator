@@ -45,34 +45,50 @@ pub fn complete_orbit_with_period_and_eccentricity(
     coord: &SpaceCoordinates,
     system_index: u16,
     star_id: u32,
-    star_mass: f32,
+    orbited_object_mass: f64,
     gas_giant_arrangement: GasGiantArrangement,
     orbital_point_id: u32,
     own_orbit: &Option<Orbit>,
     orbit_distance: f64,
-    settings: &GenerationSettings,
-    body_type: CelestialBodyComposition,
+    is_gas_giant: bool,
     blackbody_temp: u32,
-    mut mass: f32,
+    mass: f32,
+    is_moon: bool,
+    settings: &GenerationSettings,
 ) -> Orbit {
     let mut this_orbit = own_orbit.clone().unwrap_or_default();
     let orbital_period = calculate_orbital_period_from_earth_masses(
         orbit_distance,
         mass as f64,
-        ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
+        orbited_object_mass,
     );
     this_orbit.orbital_period = orbital_period as f32;
-    let (eccentricity, min_separation, max_separation) = calculate_planet_orbit_eccentricity(
-        &coord,
-        system_index,
-        star_id,
-        gas_giant_arrangement,
-        orbital_point_id,
-        orbit_distance,
-        &settings,
-        blackbody_temp,
-        body_type,
-    );
+    let (eccentricity, min_separation, max_separation) = if is_moon {
+        // TODO: Change this
+        calculate_planet_orbit_eccentricity(
+            &coord,
+            system_index,
+            star_id,
+            gas_giant_arrangement,
+            orbital_point_id,
+            orbit_distance,
+            &settings,
+            blackbody_temp,
+            is_gas_giant,
+        )
+    } else {
+        calculate_planet_orbit_eccentricity(
+            &coord,
+            system_index,
+            star_id,
+            gas_giant_arrangement,
+            orbital_point_id,
+            orbit_distance,
+            &settings,
+            blackbody_temp,
+            is_gas_giant,
+        )
+    };
     this_orbit.eccentricity = eccentricity as f32;
     this_orbit.min_separation = min_separation;
     this_orbit.max_separation = max_separation;
@@ -88,7 +104,7 @@ pub fn calculate_planet_orbit_eccentricity(
     orbit_distance: f64,
     settings: &GenerationSettings,
     blackbody_temp: u32,
-    body_type: CelestialBodyComposition,
+    is_gas_giant: bool,
 ) -> (f64, f64, f64) {
     let mut rng = SeededDiceRoller::new(
         &settings.seed,
@@ -102,7 +118,7 @@ pub fn calculate_planet_orbit_eccentricity(
             -6
         } else if gas_giant_arrangement == GasGiantArrangement::EccentricGasGiant
             && blackbody_temp < 170
-            && body_type == CelestialBodyComposition::Gaseous
+            && is_gas_giant
         {
             -4
         } else {

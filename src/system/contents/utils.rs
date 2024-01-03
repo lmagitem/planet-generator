@@ -157,6 +157,18 @@ mod tests {
     }
 
     #[test]
+    fn test_calculate_hill_sphere_radius_earth_sun() {
+        let semi_major_axis_earth: f64 = 1.0;
+        let earth_mass: f64 = 1.0 / 333000.0;
+        let sun_mass: f64 = 1.0;
+        let expected_hill_sphere_radius_au: f64 = 0.01;
+
+        let hill_sphere_radius =
+            calculate_hill_sphere_radius(semi_major_axis_earth, earth_mass, sun_mass);
+        assert!((hill_sphere_radius - expected_hill_sphere_radius_au).abs() < EPSILON);
+    }
+
+    #[test]
     fn test_calculate_roche_limit_mass_gas_giant_moon() {
         let titan_radius: f64 = 0.00040356612;
         let saturn_mass: f64 = 95.16;

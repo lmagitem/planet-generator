@@ -124,11 +124,12 @@ fn generate_orbits_and_bodies(
             coord,
             galaxy,
         ) {
-            let (orbit_radius, orbit, point) = handle_proto_gas_giant_placement(
+            let (orbit_radius, orbit, point, mut moons) = handle_proto_gas_giant_placement(
                 &all_zones,
                 system_traits,
                 system_index,
                 star_orbital_point.id,
+                star_name.clone(),
                 star_mass,
                 star_luminosity,
                 &star.spectral_type,
@@ -138,7 +139,7 @@ fn generate_orbits_and_bodies(
                 &galaxy,
                 seed.clone(),
                 major_bodies_left,
-                next_id,
+                &mut next_id,
                 star.orbit.clone(),
                 gas_giant_arrangement,
                 reference_orbit_radius,
@@ -153,6 +154,7 @@ fn generate_orbits_and_bodies(
                 generated_proto_giant_id = Some(p.id);
                 new_objects.push(p);
             }
+            new_objects.append(&mut moons);
         }
 
         // Generate all possible orbits
@@ -197,7 +199,7 @@ fn generate_orbits_and_bodies(
                 seed.clone(),
                 new_objects,
                 major_bodies_left,
-                next_id,
+                &mut next_id,
                 star_orbital_point,
                 gas_giant_arrangement,
                 spawn_chances,
@@ -222,7 +224,7 @@ fn generate_orbits_and_bodies(
                 seed.clone(),
                 new_objects,
                 major_bodies_left,
-                next_id,
+                &mut next_id,
                 star_orbital_point,
                 gas_giant_arrangement,
                 spawn_chances,
@@ -455,7 +457,7 @@ fn place_body_stubs(
     seed: Rc<str>,
     mut new_objects: &mut Vec<OrbitalPoint>,
     major_bodies_left: &mut i32,
-    mut next_id: u32,
+    next_id: &mut u32,
     star_orbital_point: &mut OrbitalPoint,
     gas_giant_arrangement: GasGiantArrangement,
     spawn_chances: i32,
@@ -494,16 +496,16 @@ fn place_body_stubs(
                     outwards_gas_giant.map(|&(_, distance)| distance - orbit.average_distance);
 
                 debug!(
-                    "Looking at orbit n°{}, distance: {}au",
-                    possible_orbit_index, orbit.average_distance
+                    "Looking at orbit n°{}, nextId is: {}, distance: {}au",
+                    possible_orbit_index, next_id, orbit.average_distance
                 );
                 let should_spawn =
                     should_spawn(&mut rng, spawn_chances) && major_bodies_left > &mut 0;
                 if should_spawn {
                     populated_orbit_index += 1;
                     debug!(
-                        "Should spawn one of {} bodies left in {}",
-                        *major_bodies_left, orbit.zone
+                        "Should spawn one of {} bodies left in {}, nextId is: {}",
+                        *major_bodies_left, orbit.zone, next_id
                     );
                     let settings = &galaxy.settings;
                     let celestial_body_settings = &settings.celestial_body;
@@ -511,8 +513,9 @@ fn place_body_stubs(
                         GasGiantArrangement::NoGasGiant => {
                             match orbit.zone {
                                 ZoneType::InnerZone | ZoneType::BioZone => {
-                                    next_id += 1;
-                                    orbit.satellite_ids.push(next_id);
+                                    let body_id = *next_id;
+                                    *next_id += 1;
+                                    orbit.satellite_ids.push(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: true,
@@ -524,7 +527,8 @@ fn place_body_stubs(
                                     };
 
                                     let body_type = generate_inner_body_type(&mut rng, settings);
-                                    let body_orbital_point = generate_new_body(
+                                    let mut body_orbital_point = generate_new_body_and_moons(
+                                        body_id,
                                         system_traits,
                                         system_index,
                                         star_id,
@@ -543,7 +547,8 @@ fn place_body_stubs(
                                         orbit,
                                         body_type,
                                     );
-                                    new_objects.push(body_orbital_point);
+                                    new_objects.push(body_orbital_point.0);
+                                    new_objects.append(&mut body_orbital_point.1);
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
@@ -557,8 +562,9 @@ fn place_body_stubs(
                                     }
                                 }
                                 ZoneType::OuterZone => {
-                                    next_id += 1;
-                                    orbit.satellite_ids.push(next_id);
+                                    let body_id = *next_id;
+                                    *next_id += 1;
+                                    orbit.satellite_ids.push(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: true,
@@ -571,7 +577,8 @@ fn place_body_stubs(
 
                                     let body_type =
                                         generate_outer_body_type(&mut rng, settings.clone());
-                                    let body_orbital_point = generate_new_body(
+                                    let mut body_orbital_point = generate_new_body_and_moons(
+                                        body_id,
                                         system_traits,
                                         system_index,
                                         star_id,
@@ -590,7 +597,8 @@ fn place_body_stubs(
                                         orbit,
                                         body_type,
                                     );
-                                    new_objects.push(body_orbital_point);
+                                    new_objects.push(body_orbital_point.0);
+                                    new_objects.append(&mut body_orbital_point.1);
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
@@ -606,8 +614,9 @@ fn place_body_stubs(
                         GasGiantArrangement::ConventionalGasGiant => {
                             match orbit.zone {
                                 ZoneType::InnerZone | ZoneType::BioZone => {
-                                    next_id += 1;
-                                    orbit.satellite_ids.push(next_id);
+                                    let body_id = *next_id;
+                                    *next_id += 1;
+                                    orbit.satellite_ids.push(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: true,
@@ -619,7 +628,8 @@ fn place_body_stubs(
                                     };
 
                                     let body_type = generate_inner_body_type(&mut rng, settings);
-                                    let body_orbital_point = generate_new_body(
+                                    let mut body_orbital_point = generate_new_body_and_moons(
+                                        body_id,
                                         system_traits,
                                         system_index,
                                         star_id,
@@ -638,7 +648,8 @@ fn place_body_stubs(
                                         orbit,
                                         body_type,
                                     );
-                                    new_objects.push(body_orbital_point);
+                                    new_objects.push(body_orbital_point.0);
+                                    new_objects.append(&mut body_orbital_point.1);
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
@@ -652,8 +663,9 @@ fn place_body_stubs(
                                     }
                                 }
                                 ZoneType::OuterZone => {
-                                    next_id += 1;
-                                    orbit.satellite_ids.push(next_id);
+                                    let body_id = *next_id;
+                                    *next_id += 1;
+                                    orbit.satellite_ids.push(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: should_skip_gaseous_body_gen(
@@ -670,7 +682,8 @@ fn place_body_stubs(
                                     };
 
                                     let body_type = generate_outer_body_type(&mut rng, settings);
-                                    let body_orbital_point = generate_new_body(
+                                    let mut body_orbital_point = generate_new_body_and_moons(
+                                        body_id,
                                         system_traits,
                                         system_index,
                                         star_id,
@@ -689,7 +702,9 @@ fn place_body_stubs(
                                         orbit,
                                         body_type,
                                     );
-                                    new_objects.push(body_orbital_point);
+                                    debug!("{} - Generated: {:?}", body_id, body_orbital_point.0);
+                                    new_objects.push(body_orbital_point.0);
+                                    new_objects.append(&mut body_orbital_point.1);
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
@@ -706,8 +721,9 @@ fn place_body_stubs(
                         | GasGiantArrangement::EccentricGasGiant => {
                             match orbit.zone {
                                 ZoneType::InnerZone | ZoneType::BioZone => {
-                                    next_id += 1;
-                                    orbit.satellite_ids.push(next_id);
+                                    let body_id = *next_id;
+                                    *next_id += 1;
+                                    orbit.satellite_ids.push(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: should_skip_gaseous_body_gen(
@@ -724,7 +740,8 @@ fn place_body_stubs(
                                     };
 
                                     let body_type = generate_inner_body_type(&mut rng, settings);
-                                    let body_orbital_point = generate_new_body(
+                                    let mut body_orbital_point = generate_new_body_and_moons(
+                                        body_id,
                                         system_traits,
                                         system_index,
                                         star_id,
@@ -743,7 +760,8 @@ fn place_body_stubs(
                                         orbit,
                                         body_type,
                                     );
-                                    new_objects.push(body_orbital_point);
+                                    new_objects.push(body_orbital_point.0);
+                                    new_objects.append(&mut body_orbital_point.1);
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
@@ -757,8 +775,9 @@ fn place_body_stubs(
                                     }
                                 }
                                 ZoneType::OuterZone => {
-                                    next_id += 1;
-                                    orbit.satellite_ids.push(next_id);
+                                    let body_id = *next_id;
+                                    *next_id += 1;
+                                    orbit.satellite_ids.push(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: should_skip_gaseous_body_gen(
@@ -775,7 +794,8 @@ fn place_body_stubs(
                                     };
 
                                     let body_type = generate_outer_body_type(&mut rng, settings);
-                                    let body_orbital_point = generate_new_body(
+                                    let mut body_orbital_point = generate_new_body_and_moons(
+                                        body_id,
                                         system_traits,
                                         system_index,
                                         star_id,
@@ -794,7 +814,8 @@ fn place_body_stubs(
                                         orbit,
                                         body_type,
                                     );
-                                    new_objects.push(body_orbital_point);
+                                    new_objects.push(body_orbital_point.0);
+                                    new_objects.append(&mut body_orbital_point.1);
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
@@ -811,8 +832,8 @@ fn place_body_stubs(
                 }
             } else {
                 debug!(
-                    "Skipping orbit n°{}, distance: {}au",
-                    possible_orbit_index, orbit.average_distance
+                    "Skipping orbit n°{}, nextId is: {}, distance: {}au",
+                    possible_orbit_index, next_id, orbit.average_distance
                 );
             }
             if let Some(id) = orbit.satellite_ids.first() {
@@ -847,7 +868,7 @@ fn replace_stubs(
     seed: Rc<str>,
     mut new_objects: &mut Vec<OrbitalPoint>,
     major_bodies_left: &mut i32,
-    mut next_id: u32,
+    next_id: &mut u32,
     star_orbital_point: &mut OrbitalPoint,
     gas_giant_arrangement: GasGiantArrangement,
     spawn_chances: i32,
@@ -881,52 +902,61 @@ fn replace_stubs(
                 let (_, _, object_id) = orbit_contents.iter().find(|o| o.0 == orbit_index).unwrap();
 
                 debug!(
-                    "Looking at orbit n°{}, distance: {}au",
-                    orbit_index, orbit.average_distance
+                    "Looking at orbit n°{}, object_id: {:?}, distance: {}au",
+                    orbit_index, object_id, orbit.average_distance
                 );
                 if let Some(id) = object_id {
                     populated_orbit_index += 1;
                     let index_to_replace = new_objects.iter().position(|o| o.id == *id);
                     if let Some(new_object_index) = index_to_replace {
-                        let mut current_stub = &mut new_objects[new_object_index];
-                        let size_modifier = get_body_size_modifier(
-                            coord,
-                            system_index,
-                            star_orbital_point.id,
-                            star_mass,
-                            star_type,
-                            orbit_index,
-                            major_bodies_left,
-                            gas_giant_orbits_inwards_proximity,
-                            gas_giant_orbits_outwards_proximity,
-                            nearest_forbidden_distance,
-                            zone_change_orbits_proximity,
-                            &seed,
-                        );
-                        let possibly_generated = generate_body_and_moons(
-                            system_traits,
-                            system_index,
-                            star_orbital_point.id,
-                            star_name.clone(),
-                            star_age,
-                            star_mass,
-                            star_luminosity,
-                            star_type,
-                            star_class,
-                            star_traits,
-                            primary_star_mass,
-                            coord,
-                            galaxy,
-                            &seed,
-                            gas_giant_arrangement,
-                            populated_orbit_index,
-                            orbit_index,
-                            current_stub,
-                            size_modifier,
-                        );
-                        if let Some(mut generated) = possibly_generated {
-                            new_objects[new_object_index] = generated.0;
-                            new_objects.append(&mut generated.1);
+                        let mut current_stub: &mut OrbitalPoint =
+                            &mut new_objects[new_object_index];
+                        if match current_stub.object.clone() {
+                            AstronomicalObject::TelluricBody(body) => body.is_stub(),
+                            AstronomicalObject::IcyBody(body) => body.is_stub(),
+                            AstronomicalObject::GaseousBody(body) => body.is_stub(),
+                            _ => false,
+                        } {
+                            let size_modifier = get_body_size_modifier(
+                                coord,
+                                system_index,
+                                star_orbital_point.id,
+                                star_mass,
+                                star_type,
+                                orbit_index,
+                                major_bodies_left,
+                                gas_giant_orbits_inwards_proximity,
+                                gas_giant_orbits_outwards_proximity,
+                                nearest_forbidden_distance,
+                                zone_change_orbits_proximity,
+                                &seed,
+                            );
+                            let possibly_generated = generate_body_and_moons(
+                                system_traits,
+                                system_index,
+                                star_orbital_point.id,
+                                star_name.clone(),
+                                star_age,
+                                star_mass,
+                                star_luminosity,
+                                star_type,
+                                star_class,
+                                star_traits,
+                                primary_star_mass,
+                                coord,
+                                galaxy,
+                                &seed,
+                                next_id,
+                                gas_giant_arrangement,
+                                populated_orbit_index,
+                                orbit_index,
+                                current_stub,
+                                size_modifier,
+                            );
+                            if let Some(mut generated) = possibly_generated {
+                                new_objects[new_object_index] = generated.0;
+                                new_objects.append(&mut generated.1);
+                            }
                         }
                     }
                 }
@@ -1089,121 +1119,37 @@ fn generate_body_and_moons(
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
     seed: &Rc<str>,
+    next_id: &mut u32,
     gas_giant_arrangement: GasGiantArrangement,
     mut populated_orbit_index: u32,
     orbit_index: usize,
     mut current_stub: &mut OrbitalPoint,
     size_modifier: i32,
 ) -> Option<(OrbitalPoint, Vec<OrbitalPoint>)> {
+    let mut to_return = None;
+    let mut body_type = TelluricBodyComposition::Rocky;
+    let body_id = current_stub.id;
+    let orbit = current_stub.own_orbit.clone();
+    let orbit_distance = current_stub
+        .own_orbit
+        .clone()
+        .unwrap_or_default()
+        .average_distance;
+    let orbited_by = current_stub.orbits.clone();
+    let settings = galaxy.settings.clone();
+    let is_moon = false;
+    let fixed_size = None;
+
     match current_stub.object.clone() {
         AstronomicalObject::TelluricBody(body) => {
-            let mut to_return = None;
-            match body.details {
-                CelestialBodyDetails::Telluric(details) => {
-                    if details.body_type == TelluricBodyComposition::Metallic {
-                        let body_and_moons = TelluricBodyDetails::generate_metallic_body(
-                            coord,
-                            system_traits,
-                            system_index,
-                            star_id,
-                            star_name.clone(),
-                            star_age,
-                            star_mass,
-                            star_type,
-                            star_class,
-                            star_luminosity,
-                            star_traits,
-                            primary_star_mass,
-                            gas_giant_arrangement,
-                            orbit_index as u32,
-                            populated_orbit_index,
-                            current_stub.id,
-                            current_stub.own_orbit.clone(),
-                            current_stub
-                                .own_orbit
-                                .clone()
-                                .unwrap_or_default()
-                                .average_distance,
-                            current_stub.orbits.clone(),
-                            seed.clone(),
-                            galaxy.settings.clone(),
-                            size_modifier,
-                            false,
-                            None,
-                        );
-                        to_return = Some(body_and_moons);
-                    } else {
-                        let body_and_moons = TelluricBodyDetails::generate_rocky_body(
-                            coord,
-                            system_traits,
-                            system_index,
-                            star_id,
-                            star_name.clone(),
-                            star_age,
-                            star_mass,
-                            star_type,
-                            star_class,
-                            star_luminosity,
-                            star_traits,
-                            primary_star_mass,
-                            gas_giant_arrangement,
-                            orbit_index as u32,
-                            populated_orbit_index,
-                            current_stub.id,
-                            current_stub.own_orbit.clone(),
-                            current_stub
-                                .own_orbit
-                                .clone()
-                                .unwrap_or_default()
-                                .average_distance,
-                            current_stub.orbits.clone(),
-                            seed.clone(),
-                            galaxy.settings.clone(),
-                            size_modifier,
-                            false,
-                            None,
-                        );
-                        to_return = Some(body_and_moons);
-                    }
-                }
-                _ => {}
+            if let CelestialBodyDetails::Telluric(details) = body.details {
+                body_type = details.body_type
             }
-
-            to_return
+            to_return = None;
         }
         AstronomicalObject::IcyBody(body) => {
-            let body_and_moons = IcyBodyDetails::generate_icy_body(
-                coord,
-                system_traits,
-                system_index,
-                star_id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_type,
-                star_class,
-                star_luminosity,
-                star_traits,
-                primary_star_mass,
-                gas_giant_arrangement,
-                orbit_index as u32,
-                populated_orbit_index,
-                current_stub.id,
-                current_stub.own_orbit.clone(),
-                current_stub
-                    .own_orbit
-                    .clone()
-                    .unwrap_or_default()
-                    .average_distance,
-                current_stub.orbits.clone(),
-                seed.clone(),
-                galaxy.settings.clone(),
-                size_modifier,
-                false,
-                None,
-            );
-
-            Some(body_and_moons)
+            body_type = TelluricBodyComposition::Icy;
+            to_return = None;
         }
         AstronomicalObject::GaseousBody(ref mut body) => {
             body.name = format!(
@@ -1213,17 +1159,181 @@ fn generate_body_and_moons(
             )
             .into();
 
-            Some((
+            to_return = Some((
                 OrbitalPoint::new(
-                    current_stub.id,
-                    current_stub.own_orbit.clone(),
+                    body_id,
+                    orbit.clone(),
                     AstronomicalObject::GaseousBody(body.clone()),
-                    current_stub.orbits.clone(),
+                    orbited_by.clone(),
                 ),
                 vec![],
-            ))
+            ));
         }
-        _ => None,
+        _ => {
+            to_return = None;
+        }
+    }
+
+    if to_return.is_none() {
+        to_return = Some(generate_body_from_type(
+            system_traits,
+            system_index,
+            star_id,
+            star_name,
+            star_age,
+            star_mass,
+            star_luminosity,
+            star_type,
+            star_class,
+            star_traits,
+            primary_star_mass,
+            coord,
+            seed,
+            next_id,
+            gas_giant_arrangement,
+            populated_orbit_index,
+            size_modifier,
+            body_type,
+            body_id,
+            orbit,
+            orbit_distance,
+            orbited_by,
+            settings,
+            is_moon,
+            fixed_size,
+        ));
+    }
+
+    to_return
+}
+
+pub(crate) fn generate_body_from_type(
+    system_traits: &Vec<SystemPeculiarity>,
+    system_index: u16,
+    star_id: u32,
+    star_name: Rc<str>,
+    star_age: f32,
+    star_mass: f32,
+    star_luminosity: f32,
+    star_type: &StarSpectralType,
+    star_class: &StarLuminosityClass,
+    star_traits: &Vec<StarPeculiarity>,
+    primary_star_mass: f32,
+    coord: SpaceCoordinates,
+    seed: &Rc<str>,
+    next_id: &mut u32,
+    gas_giant_arrangement: GasGiantArrangement,
+    mut populated_orbit_index: u32,
+    size_modifier: i32,
+    body_type: TelluricBodyComposition,
+    body_id: u32,
+    orbit: Option<Orbit>,
+    orbit_distance: f64,
+    orbited_by: Vec<Orbit>,
+    settings: GenerationSettings,
+    is_moon: bool,
+    fixed_size: Option<CelestialBodySize>,
+) -> (OrbitalPoint, Vec<OrbitalPoint>) {
+    if body_type == TelluricBodyComposition::Metallic {
+        TelluricBodyDetails::generate_metallic_body(
+            body_id,
+            coord,
+            system_traits,
+            system_index,
+            star_id,
+            star_name.clone(),
+            star_age,
+            star_mass,
+            star_type,
+            star_class,
+            star_luminosity,
+            star_traits,
+            primary_star_mass,
+            gas_giant_arrangement,
+            next_id,
+            populated_orbit_index,
+            orbit.clone(),
+            orbit_distance,
+            orbited_by.clone(),
+            seed.clone(),
+            settings.clone(),
+            size_modifier,
+            is_moon,
+            fixed_size,
+        )
+    } else if body_type == TelluricBodyComposition::Rocky {
+        TelluricBodyDetails::generate_rocky_body(
+            body_id,
+            coord,
+            system_traits,
+            system_index,
+            star_id,
+            star_name.clone(),
+            star_age,
+            star_mass,
+            star_type,
+            star_class,
+            star_luminosity,
+            star_traits,
+            primary_star_mass,
+            gas_giant_arrangement,
+            next_id,
+            populated_orbit_index,
+            orbit.clone(),
+            orbit_distance,
+            orbited_by.clone(),
+            seed.clone(),
+            settings.clone(),
+            size_modifier,
+            is_moon,
+            fixed_size,
+        )
+    } else if body_type == TelluricBodyComposition::Icy {
+        IcyBodyDetails::generate_icy_body(
+            body_id,
+            coord,
+            system_traits,
+            system_index,
+            star_id,
+            star_name.clone(),
+            star_age,
+            star_mass,
+            star_type,
+            star_class,
+            star_luminosity,
+            star_traits,
+            primary_star_mass,
+            gas_giant_arrangement,
+            next_id,
+            populated_orbit_index,
+            orbit,
+            orbit_distance,
+            orbited_by.clone(),
+            seed.clone(),
+            settings.clone(),
+            size_modifier,
+            is_moon,
+            fixed_size,
+        )
+    } else {
+        GaseousBodyDetails::generate_gas_giant(
+            body_id,
+            system_traits,
+            system_index,
+            star_id,
+            star_name,
+            star_mass,
+            star_luminosity,
+            star_type,
+            star_traits,
+            orbit.unwrap_or_default(),
+            orbit_distance,
+            populated_orbit_index,
+            next_id,
+            coord,
+            seed.clone(),
+            settings.clone(),
+        )
     }
 }
 
@@ -1301,7 +1411,8 @@ fn should_skip_gaseous_body_gen(
                 && gas_giant_au_outwards_proximity.unwrap() < 0.5)))
 }
 
-fn generate_new_body(
+fn generate_new_body_and_moons(
+    body_id: u32,
     system_traits: &Vec<SystemPeculiarity>,
     system_index: u16,
     star_id: u32,
@@ -1316,37 +1427,37 @@ fn generate_new_body(
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
     seed: Rc<str>,
-    next_id: u32,
+    next_id: &mut u32,
     orbit: &mut Orbit,
     body_type: CelestialBodyComposition,
-) -> OrbitalPoint {
+) -> (OrbitalPoint, Vec<OrbitalPoint>) {
+    let mut moons: Vec<OrbitalPoint> = Vec::new();
     let orbital_point;
     let body;
     match body_type {
         CelestialBodyComposition::Metallic => {
-            body = TelluricBodyDetails::generate_metallic_body_stub(next_id);
+            body = TelluricBodyDetails::generate_metallic_body_stub(body_id);
 
             orbital_point = OrbitalPoint::new(
-                next_id,
+                body_id,
                 Some(orbit.clone()),
                 AstronomicalObject::TelluricBody(body),
                 vec![],
             );
         }
         CelestialBodyComposition::Rocky => {
-            body = TelluricBodyDetails::generate_rocky_body_stub(next_id);
+            body = TelluricBodyDetails::generate_rocky_body_stub(body_id);
 
             orbital_point = OrbitalPoint::new(
-                next_id,
+                body_id,
                 Some(orbit.clone()),
                 AstronomicalObject::TelluricBody(body),
                 vec![],
             );
         }
         CelestialBodyComposition::Gaseous => {
-            let giant_id = next_id;
-            let giant_and_moons = GaseousBodyDetails::generate_gas_giant(
-                giant_id,
+            let mut giant_and_moons = GaseousBodyDetails::generate_gas_giant(
+                body_id,
                 system_traits,
                 system_index,
                 star_id,
@@ -1355,30 +1466,29 @@ fn generate_new_body(
                 star_luminosity,
                 star_type,
                 star_traits,
+                orbit.clone(),
                 orbit_distance,
-                orbit_id,
                 populated_orbit_id,
                 next_id,
                 coord,
                 seed.clone(),
                 galaxy.settings.clone(),
             );
-            let body = giant_and_moons.0;
-
-            orbital_point = OrbitalPoint::new(giant_id, Some(orbit.clone()), body, vec![]);
+            orbital_point = giant_and_moons.0;
+            moons.append(&mut giant_and_moons.1);
         }
         CelestialBodyComposition::Icy => {
-            body = IcyBodyDetails::generate_icy_body_stub(next_id);
+            body = IcyBodyDetails::generate_icy_body_stub(body_id);
 
             orbital_point = OrbitalPoint::new(
-                next_id,
+                body_id,
                 Some(orbit.clone()),
                 AstronomicalObject::IcyBody(body),
                 vec![],
             );
         }
     }
-    orbital_point
+    (orbital_point, moons)
 }
 
 fn handle_proto_gas_giant_placement(
@@ -1386,6 +1496,7 @@ fn handle_proto_gas_giant_placement(
     system_traits: &Vec<SystemPeculiarity>,
     system_index: u16,
     star_id: u32,
+    star_name: Rc<str>,
     star_mass: f32,
     star_luminosity: f32,
     star_type: &StarSpectralType,
@@ -1395,12 +1506,13 @@ fn handle_proto_gas_giant_placement(
     galaxy: &&mut Galaxy,
     seed: Rc<str>,
     major_bodies_left: &mut i32,
-    mut next_id: u32,
+    next_id: &mut u32,
     star_orbit: Option<Orbit>,
     gas_giant_arrangement: GasGiantArrangement,
     mut reference_orbit_radius: f64,
     orbit_radius: f64,
-) -> (f64, Option<Orbit>, Option<OrbitalPoint>) {
+) -> (f64, Option<Orbit>, Option<OrbitalPoint>, Vec<OrbitalPoint>) {
+    let mut moons: Vec<OrbitalPoint> = Vec::new();
     let orbit_from_center = orbit_radius
         + star_orbit
             .unwrap_or_default()
@@ -1410,11 +1522,13 @@ fn handle_proto_gas_giant_placement(
         .find(|zone| orbit_from_center >= zone.start && orbit_from_center <= zone.end)
     {
         if zone.zone_type != ZoneType::ForbiddenZone {
+            let giant_id = *next_id;
+            *next_id += 1;
             reference_orbit_radius = orbit_radius;
             // Create an Orbit
             let mut orbit = Orbit::new(
                 star_id,
-                vec![next_id],
+                vec![giant_id],
                 zone.zone_type,
                 orbit_radius,
                 0.0,
@@ -1449,19 +1563,18 @@ fn handle_proto_gas_giant_placement(
             };
 
             // Generate the Gas Giant
-            let giant_id = next_id;
-            let giant_and_moons = GaseousBodyDetails::generate_gas_giant(
+            let mut giant_and_moons = GaseousBodyDetails::generate_gas_giant(
                 giant_id,
                 system_traits,
                 system_index,
                 star_id,
-                "Temporary name".into(),
+                star_name,
                 star_mass,
                 star_luminosity,
                 star_type,
                 star_traits,
+                orbit,
                 orbit_distance,
-                0,
                 0,
                 next_id,
                 coord,
@@ -1469,10 +1582,7 @@ fn handle_proto_gas_giant_placement(
                 settings,
             );
             let gas_giant = giant_and_moons.0;
-
-            // Create an Orbital Point for the Gas Giant
-            let object_orbital_point =
-                OrbitalPoint::new(giant_id, Some(orbit.clone()), gas_giant, vec![]);
+            moons.append(&mut giant_and_moons.1);
 
             // Book-keeping
             *major_bodies_left -= 1;
@@ -1482,12 +1592,13 @@ fn handle_proto_gas_giant_placement(
 
             return (
                 reference_orbit_radius,
-                Some(orbit),
-                Some(object_orbital_point),
+                gas_giant.own_orbit.clone(),
+                Some(gas_giant),
+                moons,
             );
         }
     }
-    (reference_orbit_radius, None, None)
+    (reference_orbit_radius, None, None, moons)
 }
 
 fn generate_number_of_bodies(
@@ -1989,7 +2100,7 @@ fn should_spawn(mut rng: &mut SeededDiceRoller, spawn_chances: i32) -> bool {
     .expect("A boolean result should have been picked.")
 }
 
-fn generate_inner_body_type(
+pub(crate) fn generate_inner_body_type(
     mut rng: &mut SeededDiceRoller,
     settings: GenerationSettings,
 ) -> CelestialBodyComposition {
@@ -2042,7 +2153,7 @@ fn generate_inner_body_type(
     .expect("A body type should have been picked.")
 }
 
-fn generate_outer_body_type(
+pub(crate) fn generate_outer_body_type(
     mut rng: &mut SeededDiceRoller,
     settings: GenerationSettings,
 ) -> CelestialBodyComposition {

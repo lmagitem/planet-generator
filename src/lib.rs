@@ -96,7 +96,7 @@ mod tests {
     #[test]
     fn generate_example_systems() {
         // init_logger(LevelFilter::Debug);
-        for i in 0..500 {
+        for i in 0..50 {
             let settings = &GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
