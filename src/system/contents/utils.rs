@@ -42,11 +42,11 @@ pub fn calculate_roche_limit(radius_satellite: f64, mass_primary: f64, mass_sate
 /// being pulled out by the system's star.
 /// The distance must be in AU and the masses in Solar Masses.
 pub(crate) fn calculate_hill_sphere_radius(
-    semi_major_axis_a: f64,
+    orbital_radius_planet: f64,
     mass_planet: f64,
     mass_star: f64,
 ) -> f64 {
-    semi_major_axis_a * (mass_planet / (3.0 * mass_star)).powf(1.0 / 3.0)
+    orbital_radius_planet * (mass_planet / (3.0 * mass_star)).powf(1.0 / 3.0)
 }
 
 #[cfg(test)]

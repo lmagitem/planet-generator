@@ -157,7 +157,7 @@ impl IcyBodyDetails {
                     &mut rng,
                 );
 
-                moons = TelluricBodyDetails::generate_moons_for_telluric_body(
+                moons = MoonGenerator::generate_planets_moons(
                     system_traits,
                     system_index,
                     star_id,
@@ -178,8 +178,8 @@ impl IcyBodyDetails {
                     body_id,
                     size,
                     mass,
+                    radius,
                     blackbody_temp,
-                    &mut orbits,
                     settings,
                     is_moon,
                 );
@@ -199,6 +199,7 @@ impl IcyBodyDetails {
                     TelluricBodyComposition::Icy,
                     world_type,
                     special_traits,
+                    &moons,
                     is_moon,
                 );
             }
@@ -212,6 +213,33 @@ impl IcyBodyDetails {
             let radius = calculate_radius(mass as f64, density as f64) as f32;
             let surface_gravity = calculate_surface_gravity(density, radius);
 
+            moons = MoonGenerator::generate_giants_moons(
+                system_traits,
+                system_index,
+                star_id,
+                star_name.clone(),
+                star_age,
+                star_mass,
+                star_luminosity,
+                star_type,
+                star_class,
+                star_traits,
+                primary_star_mass,
+                orbit_distance,
+                coord,
+                &seed.clone(),
+                next_id,
+                gas_giant_arrangement,
+                populated_orbit_index,
+                body_id,
+                size,
+                mass,
+                radius,
+                blackbody_temp,
+                settings,
+                false,
+            );
+
             to_return = OrbitalPoint::new(
                 body_id,
                 own_orbit.clone(),
@@ -221,7 +249,7 @@ impl IcyBodyDetails {
                     format!(
                         "{}{}",
                         star_name,
-                        StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                        StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                     )
                     .into(),
                     mass,
@@ -265,8 +293,8 @@ impl IcyBodyDetails {
         let mut mass = 0.0;
 
         if is_moon {
-            min_density = 1.0;
-            max_density = 3.9;
+            min_density = 0.6;
+            max_density = 3.0;
         } else if rolled_size <= 21 {
             // Frost belt
             to_return = if blackbody_temp >= 170 {
@@ -404,7 +432,7 @@ impl IcyBodyDetails {
                 format!(
                     "{}{}",
                     star_name,
-                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
                 CelestialDiskType::Shell,
@@ -429,7 +457,7 @@ impl IcyBodyDetails {
                 format!(
                     "{}{}",
                     star_name,
-                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
                 CelestialDiskType::Belt(CelestialBeltDetails::new(CelestialBeltType::Comet)),
@@ -454,7 +482,7 @@ impl IcyBodyDetails {
                 format!(
                     "{}{}",
                     star_name,
-                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
                 CelestialDiskType::Belt(CelestialBeltDetails::new(CelestialBeltType::Frost)),

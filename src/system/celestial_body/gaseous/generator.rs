@@ -1,3 +1,4 @@
+use crate::internal::types::MoonDistance;
 use crate::internal::*;
 use crate::prelude::*;
 use crate::system::celestial_body::gaseous::constants::MASS_TO_DENSITY_DATASET;
@@ -13,10 +14,14 @@ impl GaseousBodyDetails {
         system_index: u16,
         star_id: u32,
         star_name: Rc<str>,
+        star_age: f32,
         star_mass: f32,
-        star_luminosity: f32,
         star_type: &StarSpectralType,
+        star_class: &StarLuminosityClass,
+        star_luminosity: f32,
         star_traits: &Vec<StarPeculiarity>,
+        primary_star_mass: f32,
+        gas_giant_arrangement: GasGiantArrangement,
         orbit: Orbit,
         orbit_distance: f64,
         populated_orbit_index: u32,
@@ -32,10 +37,11 @@ impl GaseousBodyDetails {
                 coord, system_index, star_id, body_id
             ),
         );
-        let mut object = AstronomicalObject::Void;
         let mut moons: Vec<OrbitalPoint> = Vec::new();
+        let mut object = AstronomicalObject::Void;
         let special_traits: Vec<GasGiantSpecialTrait>;
         let is_proto_giant = if let Some(traits) = settings
+            .clone()
             .celestial_body
             .gaseous_body_settings
             .fixed_special_traits
@@ -64,7 +70,7 @@ impl GaseousBodyDetails {
                 format!(
                     "{}{}",
                     star_name,
-                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
                 0.0,
@@ -83,7 +89,7 @@ impl GaseousBodyDetails {
                 format!(
                     "{}{}",
                     star_name,
-                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
                 CelestialDiskType::Belt(CelestialBeltDetails::new(CelestialBeltType::GasBelt)),
@@ -119,159 +125,32 @@ impl GaseousBodyDetails {
             let surface_gravity = calculate_surface_gravity(density, radius);
             // TODO: Atmospheric composition
 
-            let mut rng = SeededDiceRoller::new(
-                &settings.seed,
-                &format!(
-                    "sys_{}_{}_str_{}_gas_bdy{}_moons",
-                    coord, system_index, star_id, body_id
-                ),
+            moons = MoonGenerator::generate_giants_moons(
+                system_traits,
+                system_index,
+                star_id,
+                star_name.clone(),
+                star_age,
+                star_mass,
+                star_luminosity,
+                star_type,
+                star_class,
+                star_traits,
+                primary_star_mass,
+                orbit_distance,
+                coord,
+                &seed.clone(),
+                next_id,
+                gas_giant_arrangement,
+                populated_orbit_index,
+                body_id,
+                size,
+                mass,
+                radius,
+                blackbody_temp,
+                settings,
+                false,
             );
-            let moonlets: i8 = rng.roll(
-                2,
-                6,
-                if orbit_distance < 0.1 {
-                    -10
-                } else if orbit_distance < 0.5 {
-                    -8
-                } else if orbit_distance < 0.75 {
-                    -6
-                } else if orbit_distance < 1.5 {
-                    -3
-                } else {
-                    0
-                },
-            ) as i8;
-
-            let composition = rng
-                .get_result(&CopyableRollToProcess::new(
-                    vec![
-                        CopyableWeightedResult::new(
-                            CelestialRingComposition::Ice,
-                            if blackbody_temp < 241 {
-                                12
-                            } else if blackbody_temp < 300 {
-                                1
-                            } else {
-                                0
-                            },
-                        ),
-                        CopyableWeightedResult::new(
-                            CelestialRingComposition::Rock,
-                            if blackbody_temp < 241 { 5 } else { 12 },
-                        ),
-                        CopyableWeightedResult::new(CelestialRingComposition::Metal, 1),
-                    ],
-                    RollMethod::SimpleRoll,
-                ))
-                .expect("Should have picked a ring composition.");
-
-            let ring_id = *next_id;
-            *next_id += 1;
-            let rings: CelestialDisk = if moonlets < 4 {
-                CelestialDisk::new(
-                    None, // TODO
-                    ring_id,
-                    format!(
-                        "{}{}_ring",
-                        star_name,
-                        StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                    )
-                    .into(),
-                    CelestialDiskType::Ring(CelestialRingDetails::new(
-                        CelestialRingLevel::Unnoticeable,
-                        CelestialRingComposition::Dust,
-                    )),
-                )
-            } else if moonlets < 6 {
-                CelestialDisk::new(
-                    None,
-                    ring_id,
-                    format!(
-                        "{}{}_ring",
-                        star_name,
-                        StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                    )
-                    .into(),
-                    CelestialDiskType::Ring(CelestialRingDetails::new(
-                        CelestialRingLevel::Noticeable,
-                        composition,
-                    )),
-                )
-            } else if moonlets < 10 {
-                CelestialDisk::new(
-                    None,
-                    ring_id,
-                    format!(
-                        "{}{}_ring",
-                        star_name,
-                        StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                    )
-                    .into(),
-                    CelestialDiskType::Ring(CelestialRingDetails::new(
-                        CelestialRingLevel::Visible,
-                        composition,
-                    )),
-                )
-            } else {
-                CelestialDisk::new(
-                    None,
-                    ring_id,
-                    format!(
-                        "{}{}_ring",
-                        star_name,
-                        StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
-                    )
-                    .into(),
-                    CelestialDiskType::Ring(CelestialRingDetails::new(
-                        CelestialRingLevel::Spectacular,
-                        composition,
-                    )),
-                )
-            };
-            moons.push(OrbitalPoint::new(
-                ring_id,
-                Some(Orbit {
-                    primary_body_id: body_id,
-                    satellite_ids: vec![ring_id],
-                    ..Default::default()
-                }),
-                match composition {
-                    CelestialRingComposition::Ice => AstronomicalObject::IcyDisk(rings),
-                    _ => AstronomicalObject::TelluricDisk(rings),
-                },
-                Vec::new(),
-            ));
-
-            let major_moons: i8 = rng.roll(
-                1,
-                6,
-                if orbit_distance < 0.1 {
-                    -6
-                } else if orbit_distance < 0.5 {
-                    -5
-                } else if orbit_distance < 0.75 {
-                    -4
-                } else if orbit_distance < 1.5 {
-                    -1
-                } else {
-                    0
-                },
-            ) as i8; // TODO: Determine major moon sizes
-            let other_moonlets: i8 = rng.roll(
-                1,
-                6,
-                if orbit_distance < 0.5 {
-                    -6
-                } else if orbit_distance < 0.75 {
-                    -5
-                } else if orbit_distance < 1.5 {
-                    -4
-                } else if orbit_distance < 3.0 {
-                    -1
-                } else {
-                    0
-                },
-            ) as i8;
 
             object = AstronomicalObject::GaseousBody(CelestialBody::new(
                 None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
@@ -279,7 +158,7 @@ impl GaseousBodyDetails {
                 format!(
                     "{}{}",
                     star_name,
-                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8)
+                    StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
                 mass,

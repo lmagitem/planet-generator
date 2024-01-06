@@ -46,7 +46,8 @@ This is the current roadmap of the library:
   - [x] Orbital zones
   - [x] Filling orbits
   - [ ] Orbit eccentricity and inclination
-- [ ] Planet generation
+- [x] Planet generation
+  - [x] Moons
   - [ ] Exotic planets
   - [ ] Resources
     - [ ] Accessibility

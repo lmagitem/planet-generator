@@ -54,6 +54,7 @@ pub mod prelude {
 }
 
 mod internal {
+    pub use crate::system::celestial_body::moon::*;
     pub use crate::utils::conversion::ConversionUtils;
     pub use crate::utils::math::MathUtils;
     pub use crate::utils::string::StringUtils;
@@ -118,7 +119,21 @@ mod tests {
                 .expect("Should have returned a sub-sector.");
             let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
             let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
-            print_system_bodies(system);
+            let main_star = system
+                .clone()
+                .all_objects
+                .iter()
+                .find(|o| o.id == system.main_star_id)
+                .cloned()
+                .unwrap()
+                .object;
+            //  if system.all_objects.len() > 60 {
+            //  if let AstronomicalObject::Star(star) = main_star {
+            //      if discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0)) {
+            print_system_bodies(i, system);
+            //     }
+            // }
+            //  }
         }
     }
 
@@ -274,13 +289,13 @@ mod tests {
             {
                 highest_distance = higher_distance;
                 println!("\nseed: {}, distance: {}", settings.seed, highest_distance);
-                print_system_bodies(system);
+                print_system_bodies(i, system);
             };
         }
     }
 
-    fn print_system_bodies(system: StarSystem) {
-        println!("\n>>>>> {}", system.name);
+    fn print_system_bodies(i: usize, system: StarSystem) {
+        println!("\n>>>>> {} - {}", i, system.name);
 
         let mut sorted_objects = Vec::new();
         let mut visited = HashSet::new();
@@ -301,8 +316,7 @@ mod tests {
                 "{}{} ({} AU):\n{}{}",
                 " ".repeat(*depth * 2),
                 format!("{:03}", o.id),
-                format!(
-                    "{:08.4}",
+                StringUtils::to_significant_decimals(
                     o.own_orbit.clone().unwrap_or_default().average_distance
                 ),
                 " ".repeat(*depth * 2 + 4),
