@@ -56,6 +56,7 @@ pub mod prelude {
 mod internal {
     pub use crate::system::celestial_body::moon::*;
     pub use crate::utils::conversion::ConversionUtils;
+    pub use crate::utils::harmonics::OrbitalHarmonicsUtils;
     pub use crate::utils::math::MathUtils;
     pub use crate::utils::string::StringUtils;
     pub use log::*;
