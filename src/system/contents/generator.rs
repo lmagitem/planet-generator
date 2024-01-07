@@ -109,7 +109,7 @@ fn generate_orbits_and_bodies(
         );
 
         debug!(
-            "Major bodies left: {}, star index: {}, star id: {:#?}",
+            "Major bodies left: {}, star index: {}, star id: {}",
             major_bodies_left, star_index, star_orbital_point.id
         );
 
@@ -684,6 +684,7 @@ fn place_body_stubs(
                                     }
                                 }
                                 ZoneType::OuterZone => {
+                                    debug!("GasGiantArrangement::ConventionalGasGiant ZoneType::OuterZone");
                                     let body_id = *next_id;
                                     *next_id += 1;
                                     orbit.satellite_ids.push(body_id);
@@ -727,6 +728,8 @@ fn place_body_stubs(
                                         orbit,
                                         body_type,
                                     );
+                                    new_objects.push(body_orbital_point.0);
+                                    new_objects.append(&mut body_orbital_point.1);
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
@@ -1113,13 +1116,13 @@ fn replace_telluric_stubs(
                             star_type,
                             star_class,
                             star_traits,
+                            stub_orbit.clone().unwrap().average_distance,
                             populated_orbit_index,
                             stub_id,
                             stub_orbit.unwrap_or_default(),
                             stub_orbits,
                             stub_body,
                             false,
-                            None,
                             &moons,
                             0,
                             seed.clone(),

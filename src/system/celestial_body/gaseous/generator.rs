@@ -146,6 +146,7 @@ impl GaseousBodyDetails {
                 body_id,
                 size,
                 mass,
+                density,
                 radius,
                 blackbody_temp,
                 settings,

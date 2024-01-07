@@ -42,7 +42,7 @@ pub fn calculate_orbital_period_from_earth_masses(
 }
 
 pub fn complete_orbit_with_period_and_eccentricity(
-    coord: &SpaceCoordinates,
+    coord: SpaceCoordinates,
     system_index: u16,
     star_id: u32,
     orbited_object_mass: f64,
@@ -59,8 +59,8 @@ pub fn complete_orbit_with_period_and_eccentricity(
     let mut this_orbit = own_orbit.clone().unwrap_or_default();
     let orbital_period = calculate_orbital_period_from_earth_masses(
         orbit_distance,
-        mass as f64,
         orbited_object_mass,
+        mass as f64,
     );
     this_orbit.orbital_period = orbital_period as f32;
     let (eccentricity, min_separation, max_separation) = if is_moon {
@@ -153,4 +153,46 @@ pub fn calculate_planet_orbit_eccentricity(
     let min_separation = (1.0 - eccentricity) * orbit_distance;
     let max_separation = (1.0 + eccentricity) * orbit_distance;
     (eccentricity, min_separation, max_separation)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_moon_orbital_period() {
+        let radius = 0.00257; // in AU
+        let earth_mass = 1.0; // Earth mass
+        let moon_mass = 0.0123; // Moon's mass in Earth masses
+        let period = calculate_orbital_period_from_earth_masses(radius, earth_mass, moon_mass);
+        assert!(
+            (period - 27.32).abs() < 1.0,
+            "The calculated period for the Moon is incorrect"
+        );
+    }
+
+    #[test]
+    fn test_ganymede_orbital_period() {
+        let radius = 0.00716; // in AU
+        let jupiter_mass = 317.8; // Jupiter's mass in Earth masses
+        let ganymede_mass = 0.0248; // Ganymede's mass in Earth masses
+        let period =
+            calculate_orbital_period_from_earth_masses(radius, jupiter_mass, ganymede_mass);
+        assert!(
+            (period - 7.15).abs() < 0.1,
+            "The calculated period for Ganymede is incorrect"
+        );
+    }
+
+    #[test]
+    fn test_titan_orbital_period() {
+        let radius = 0.00817; // in AU
+        let saturn_mass = 95.16; // Saturn's mass in Earth masses
+        let titan_mass = 0.0225; // Titan's mass in Earth masses
+        let period = calculate_orbital_period_from_earth_masses(radius, saturn_mass, titan_mass);
+        assert!(
+            (period - 15.94).abs() < 0.1,
+            "The calculated period for Titan is incorrect"
+        );
+    }
 }

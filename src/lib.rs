@@ -300,6 +300,9 @@ mod tests {
         let mut sorted_objects = Vec::new();
         let mut visited = HashSet::new();
 
+        // Sort the collected objects at each depth level by their orbital distance
+        sort_by_orbital_distance(&mut sorted_objects);
+
         // Start the sort with the object that orbits nothing (i.e., the central object)
         if let Some(central_object) = system.all_objects.iter().find(|o| o.own_orbit.is_none()) {
             orbits_depth_first_sort(
@@ -330,25 +333,25 @@ mod tests {
         points: &Vec<OrbitalPoint>,
         sorted_points: &mut Vec<(OrbitalPoint, usize)>,
         visited: &mut HashSet<u32>,
-        current_depth: usize, // Add the current depth as a parameter
+        current_depth: usize,
     ) {
-        // If we've already visited this point, skip it
         if visited.contains(&point_id) {
             return;
         }
 
-        // Mark this point as visited
         visited.insert(point_id);
 
-        // Find the orbital point with the given id
         if let Some(point) = points.iter().find(|p| p.id == point_id) {
-            // Add it to the sorted list along with its depth
             sorted_points.push((point.clone(), current_depth));
 
-            // Recursively visit each satellite in its orbit
-            for &satellite_id in point.orbits.iter().flat_map(|orbit| &orbit.satellite_ids) {
+            // Iterate over all orbital points to find direct satellites of 'point'
+            for satellite in points.iter().filter(|p| {
+                p.own_orbit
+                    .as_ref()
+                    .map_or(false, |o| o.primary_body_id == point_id)
+            }) {
                 orbits_depth_first_sort(
-                    satellite_id,
+                    satellite.id,
                     points,
                     sorted_points,
                     visited,
@@ -356,5 +359,22 @@ mod tests {
                 );
             }
         }
+    }
+
+    fn sort_by_orbital_distance(sorted_points: &mut Vec<(OrbitalPoint, usize)>) {
+        sorted_points.sort_by(|a, b| {
+            let depth_a = a.1;
+            let depth_b = b.1;
+            let distance_a = a.0.own_orbit.clone().unwrap_or_default().average_distance;
+            let distance_b = b.0.own_orbit.clone().unwrap_or_default().average_distance;
+
+            if depth_a == depth_b {
+                distance_a
+                    .partial_cmp(&distance_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            } else {
+                depth_a.cmp(&depth_b)
+            }
+        });
     }
 }

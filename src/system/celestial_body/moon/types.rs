@@ -10,6 +10,8 @@ pub enum MoonDistance {
     BeforeMajor,
     #[default]
     Close,
+    MajorPlanetClose,
+    MajorGiantClose,
     Medium,
     MediumOrFar,
     Far,

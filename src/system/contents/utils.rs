@@ -29,13 +29,16 @@ pub(crate) fn calculate_surface_gravity(density_g_cm3: f32, radius_earth_radii: 
     (density_g_cm3 / 5.513) * radius_earth_radii
 }
 
-/// Calculates the Roche limit based on the masses of the primary and the satellite.
-/// The radius of the satellite is in Earth radii, mass can be any shared unit, and the return value is in AU.
-pub fn calculate_roche_limit(radius_satellite: f64, mass_primary: f64, mass_satellite: f64) -> f64 {
-    let earth_radius_to_au: f64 = 1.0 / 215.032;
-    let radius_satellite_au = radius_satellite * earth_radius_to_au;
-
-    radius_satellite_au * (2.0 * mass_primary / mass_satellite).powf(1.0 / 3.0)
+/// Calculates the Roche limit based on the densities of the primary and the satellite.
+/// The radius of the primary is in Earth radii, density can be any shared unit, and the return value is in AU.
+pub fn calculate_roche_limit(
+    radius_primary: f64,
+    density_primary: f64,
+    density_satellite: f64,
+) -> f64 {
+    ConversionUtils::earth_radii_to_astronomical_units(
+        2.44 * radius_primary * (density_primary / density_satellite).powf(1.0 / 3.0),
+    )
 }
 
 /// Calculates the Hill sphere radius, aka the region around a planet where it can have stable satellites instead of them
@@ -170,25 +173,25 @@ mod tests {
 
     #[test]
     fn test_calculate_roche_limit_mass_gas_giant_moon() {
-        let titan_radius: f64 = 0.00040356612;
-        let saturn_mass: f64 = 95.16;
-        let titan_mass: f64 = 2.30424618e-22;
-        let expected_roche_limit_au =
-            titan_radius * (2.0 * saturn_mass / titan_mass).powf(1.0 / 3.0) / 215.032;
+        let saturn_radius: f64 = 9.14;
+        let saturn_density: f64 = 0.687;
+        let titan_density: f64 = 1.88;
 
-        let roche_limit = calculate_roche_limit(titan_radius, saturn_mass, titan_mass);
+        let expected_roche_limit_au = 0.0006790230406567097;
+        let roche_limit = calculate_roche_limit(saturn_radius, saturn_density, titan_density);
+
         assert!((roche_limit - expected_roche_limit_au).abs() < EPSILON);
     }
 
     #[test]
     fn test_calculate_roche_limit_mass_star_planet() {
-        let earth_radius: f64 = 1.0;
-        let sun_mass: f64 = 333000.0;
-        let earth_mass: f64 = 1.0;
-        let expected_roche_limit_au =
-            earth_radius * (2.0 * sun_mass / earth_mass).powf(1.0 / 3.0) / 215.032;
+        let sun_radius: f64 = 109.2;
+        let sun_density: f64 = 1.41;
+        let earth_density: f64 = 5.51;
 
-        let roche_limit = calculate_roche_limit(earth_radius, sun_mass, earth_mass);
+        let expected_roche_limit_au = 0.00720416795141276;
+        let roche_limit = calculate_roche_limit(sun_radius, sun_density, earth_density);
+
         assert!((roche_limit - expected_roche_limit_au).abs() < EPSILON);
     }
 }

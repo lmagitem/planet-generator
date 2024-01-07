@@ -132,7 +132,7 @@ impl IcyBodyDetails {
                     own_orbit.clone().unwrap_or_default()
                 } else {
                     complete_orbit_with_period_and_eccentricity(
-                        &coord,
+                        coord,
                         system_index,
                         star_id,
                         ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
@@ -178,6 +178,7 @@ impl IcyBodyDetails {
                     body_id,
                     size,
                     mass,
+                    density,
                     radius,
                     blackbody_temp,
                     settings,
@@ -234,6 +235,7 @@ impl IcyBodyDetails {
                 body_id,
                 size,
                 mass,
+                density,
                 radius,
                 blackbody_temp,
                 settings,

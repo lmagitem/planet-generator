@@ -6,8 +6,7 @@ use crate::system::contents::generator::{
     generate_body_from_type, generate_inner_body_type, generate_outer_body_type,
 };
 use crate::system::contents::utils::{
-    calculate_blackbody_temperature, calculate_hill_sphere_radius, calculate_roche_limit,
-    calculate_surface_gravity,
+    calculate_blackbody_temperature, calculate_hill_sphere_radius, calculate_surface_gravity,
 };
 use crate::system::orbital_point::generator::{
     calculate_planet_orbit_eccentricity, complete_orbit_with_period_and_eccentricity,
@@ -123,25 +122,21 @@ impl TelluricBodyDetails {
             size = new_size;
 
             let body_type = CelestialBodyComposition::Rocky;
-            let this_orbit = if is_moon {
-                own_orbit.clone().unwrap_or_default()
-            } else {
-                complete_orbit_with_period_and_eccentricity(
-                    &coord,
-                    system_index,
-                    star_id,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                    gas_giant_arrangement,
-                    body_id,
-                    &own_orbit,
-                    orbit_distance,
-                    body_type == CelestialBodyComposition::Gaseous,
-                    blackbody_temp,
-                    mass,
-                    false,
-                    &settings,
-                )
-            };
+            let this_orbit = complete_orbit_with_period_and_eccentricity(
+                coord,
+                system_index,
+                star_id,
+                ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
+                gas_giant_arrangement,
+                body_id,
+                &own_orbit,
+                orbit_distance,
+                body_type == CelestialBodyComposition::Gaseous,
+                blackbody_temp,
+                mass,
+                false,
+                &settings,
+            );
 
             let surface_gravity = calculate_surface_gravity(density, radius);
             let world_type = get_world_type(
@@ -173,6 +168,7 @@ impl TelluricBodyDetails {
                 body_id,
                 size,
                 mass,
+                density,
                 radius,
                 blackbody_temp,
                 settings,
@@ -406,7 +402,7 @@ impl TelluricBodyDetails {
                 own_orbit.clone().unwrap_or_default()
             } else {
                 complete_orbit_with_period_and_eccentricity(
-                    &coord,
+                    coord,
                     system_index,
                     star_id,
                     ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
@@ -452,6 +448,7 @@ impl TelluricBodyDetails {
                 body_id,
                 size,
                 mass,
+                density,
                 radius,
                 blackbody_temp,
                 settings,
@@ -633,13 +630,13 @@ impl TelluricBodyDetails {
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_traits: &Vec<StarPeculiarity>,
+        distance_from_star: f64,
         populated_orbit_index: u32,
         orbital_point_id: u32,
         own_orbit: Orbit,
         orbits: Vec<Orbit>,
         world: CelestialBody,
         is_moon: bool,
-        primary_planet_orbit: Option<Orbit>,
         moons: &Vec<OrbitalPoint>,
         tidal_heating: i32,
         seed: Rc<str>,
@@ -665,11 +662,6 @@ impl TelluricBodyDetails {
         }) = details
         else {
             panic!("At this point, details should be telluric.")
-        };
-        let distance_from_star = if let Some(orbit) = primary_planet_orbit {
-            orbit.average_distance
-        } else {
-            own_orbit.average_distance
         };
 
         // Core heat
