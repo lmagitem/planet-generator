@@ -6,6 +6,7 @@ pub mod icy;
 pub mod moon;
 pub mod telluric;
 pub mod types;
+pub mod world;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
 pub struct CelestialBody {

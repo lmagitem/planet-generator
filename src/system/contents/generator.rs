@@ -1136,7 +1136,7 @@ fn replace_telluric_stubs(
                             .collect::<Vec<OrbitalPoint>>();
 
                         let tidal_heating = tidal_heating_array[new_object_index];
-                        let generated = TelluricBodyDetails::generate_world(
+                        let generated = WorldGenerator::generate_world(
                             coord,
                             system_traits,
                             system_index,

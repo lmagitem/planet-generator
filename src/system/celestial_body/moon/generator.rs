@@ -527,7 +527,7 @@ impl MoonGenerator {
             let tidal_heating = tidal_heating_array[i];
             match stub_body {
                 AstronomicalObject::TelluricBody(stub_body) => {
-                    let polished = TelluricBodyDetails::generate_world(
+                    let polished = WorldGenerator::generate_world(
                         coord,
                         system_traits,
                         system_index,

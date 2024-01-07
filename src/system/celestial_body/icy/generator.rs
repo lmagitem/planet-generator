@@ -185,7 +185,7 @@ impl IcyBodyDetails {
                     is_moon,
                 );
 
-                to_return = TelluricBodyDetails::bundle_world_first_pass(
+                to_return = WorldGenerator::bundle_world_first_pass(
                     star_name,
                     populated_orbit_index,
                     body_id,
