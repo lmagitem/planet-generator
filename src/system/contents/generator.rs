@@ -2,6 +2,7 @@ use crate::internal::*;
 use crate::prelude::*;
 use crate::system::contents::get_next_id;
 use crate::system::contents::zones::collect_all_zones;
+use crate::system::orbital_point::utils::sort_orbital_points_by_average_distance;
 
 pub fn generate_stars_systems(
     all_objects: &mut Vec<OrbitalPoint>,
@@ -31,7 +32,7 @@ pub fn generate_stars_systems(
     number_of_bodies_per_star
         .iter_mut()
         .for_each(|(major_bodies_left, star_index)| {
-            generate_orbits_and_bodies(
+            new_objects.append(&mut generate_orbits_and_bodies(
                 all_objects,
                 system_traits,
                 system_index,
@@ -39,11 +40,11 @@ pub fn generate_stars_systems(
                 galaxy,
                 seed.clone(),
                 &all_zones,
-                &mut new_objects,
+                &mut Vec::new(),
                 major_bodies_left,
                 star_index,
                 primary_star_mass,
-            );
+            ));
         });
 
     all_objects.extend(new_objects);
@@ -83,10 +84,11 @@ fn generate_orbits_and_bodies(
     major_bodies_left: &mut i32,
     star_index: &mut usize,
     primary_star_mass: f32,
-) {
+) -> Vec<OrbitalPoint> {
     let mut next_id = get_next_id(&all_objects);
     let initial_number_of_bodies = major_bodies_left.clone();
     let star_orbital_point = &mut all_objects[*star_index];
+    let mut result: Vec<OrbitalPoint> = Vec::new();
     if let AstronomicalObject::Star(star) = &star_orbital_point.object {
         let star_id = star_orbital_point.id;
         let star_name = star.name.clone();
@@ -214,7 +216,8 @@ fn generate_orbits_and_bodies(
             );
             let orbits_with_gas_giants_data =
                 get_orbits_with_gas_giants(new_objects, star_orbital_point);
-            replace_stubs(
+
+            result.append(&mut replace_stubs(
                 system_traits,
                 system_index,
                 star_name.clone(),
@@ -236,14 +239,16 @@ fn generate_orbits_and_bodies(
                 spawn_chances,
                 orbits_with_gas_giants_data,
                 orbit_contents,
-            );
+            ));
         } else {
             debug!(
             "Spawn chances are 0% for star index: {}, star id: {:#?}, skipping bodies generation altogether",
             star_index, star_orbital_point.id
         );
+            result.append(new_objects);
         }
     }
+    result
 }
 
 fn get_orbits_with_gas_giants(
@@ -907,7 +912,7 @@ fn replace_stubs(
     spawn_chances: i32,
     orbits_with_gas_giants_data: Vec<(usize, f64)>,
     mut orbit_contents: Vec<(usize, f64, Option<u32>)>,
-) {
+) -> Vec<OrbitalPoint> {
     let star_orbits = star_orbital_point.orbits.clone();
     let star_object = star_orbital_point.object.clone();
     let number_of_orbits = star_orbits.len();
@@ -995,6 +1000,7 @@ fn replace_stubs(
                 }
             }
         });
+
     replace_telluric_stubs(
         system_traits,
         system_index,
@@ -1005,10 +1011,10 @@ fn replace_stubs(
         coord,
         galaxy,
         seed,
-        &mut new_objects,
+        new_objects,
         star_orbital_point,
         populated_orbit_index,
-    );
+    )
 }
 
 fn calculate_stub_orbital_relationships(
@@ -1073,16 +1079,37 @@ fn replace_telluric_stubs(
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
     seed: Rc<str>,
-    mut new_objects: &mut &mut Vec<OrbitalPoint>,
+    new_objects: &mut Vec<OrbitalPoint>,
     star_orbital_point: &mut OrbitalPoint,
     mut populated_orbit_index: u32,
-) {
-    let new_objects_ids = new_objects.iter().map(|o| o.id).collect::<Vec<u32>>();
+) -> Vec<OrbitalPoint> {
+    let mut non_finished_objects: Vec<OrbitalPoint> = new_objects
+        .iter()
+        .filter(|o| !is_finished(o))
+        .cloned()
+        .collect();
+    let mut finished_objects: Vec<OrbitalPoint> = new_objects
+        .iter()
+        .filter(|o| is_finished(o))
+        .cloned()
+        .collect();
+
+    let new_objects_ids = non_finished_objects
+        .iter()
+        .map(|o| o.id)
+        .collect::<Vec<u32>>();
+
+    sort_orbital_points_by_average_distance(&mut non_finished_objects);
+    let tidal_heating_array = OrbitalHarmonicsUtils::calculate_gravitational_harmonics(
+        &OrbitalHarmonicsUtils::prepare_harmonics_array(&non_finished_objects, false),
+        0.03,
+    );
+
     new_objects_ids.iter().for_each(|orbit_id| {
-        let index_to_replace = new_objects.iter().position(|o| o.id == *orbit_id);
+        let index_to_replace = non_finished_objects.iter().position(|o| o.id == *orbit_id);
         if let Some(new_object_index) = index_to_replace {
             let (stub_id, stub_orbit, stub_orbits, stub_body) = {
-                let current_stub = &new_objects[new_object_index];
+                let current_stub = &non_finished_objects[new_object_index];
                 (
                     current_stub.id,
                     current_stub.own_orbit.clone(),
@@ -1094,7 +1121,7 @@ fn replace_telluric_stubs(
             match stub_body {
                 AstronomicalObject::TelluricBody(stub_body) => {
                     if (stub_body.clone().is_stub()) {
-                        let moons = new_objects
+                        let moons = finished_objects
                             .iter_mut()
                             .filter(|possible_moon_point| {
                                 possible_moon_point.own_orbit.is_some()
@@ -1107,6 +1134,8 @@ fn replace_telluric_stubs(
                             })
                             .map(|o| o.clone())
                             .collect::<Vec<OrbitalPoint>>();
+
+                        let tidal_heating = tidal_heating_array[new_object_index];
                         let generated = TelluricBodyDetails::generate_world(
                             coord,
                             system_traits,
@@ -1124,17 +1153,30 @@ fn replace_telluric_stubs(
                             stub_body,
                             false,
                             &moons,
-                            0,
+                            tidal_heating,
                             seed.clone(),
                             galaxy.settings.clone(),
                         );
-                        new_objects[new_object_index] = generated;
+                        non_finished_objects[new_object_index] = generated;
                     }
                 }
                 _ => {}
             }
         }
     });
+
+    finished_objects.append(&mut non_finished_objects);
+    finished_objects
+}
+
+fn is_finished(o: &OrbitalPoint) -> bool {
+    if let AstronomicalObject::TelluricBody(body)
+    | AstronomicalObject::GaseousBody(body)
+    | AstronomicalObject::IcyBody(body) = o.object.clone()
+    {
+        body.is_stub();
+    }
+    false
 }
 
 fn generate_body_and_moons(

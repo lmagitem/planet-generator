@@ -638,7 +638,7 @@ impl TelluricBodyDetails {
         world: CelestialBody,
         is_moon: bool,
         moons: &Vec<OrbitalPoint>,
-        tidal_heating: i32,
+        tidal_heating: u32,
         seed: Rc<str>,
         settings: GenerationSettings,
     ) -> OrbitalPoint {
@@ -788,7 +788,7 @@ impl TelluricBodyDetails {
         density: f32,
         body_type: TelluricBodyComposition,
         special_traits: &Vec<TelluricSpecialTrait>,
-        tidal_heating: i32,
+        tidal_heating: u32,
         settings: &GenerationSettings,
         distance_from_star: f64,
     ) -> CelestialBodyCoreHeat {
@@ -922,7 +922,7 @@ impl TelluricBodyDetails {
             } else {
                 0
             };
-            core_heat_modifier += tidal_heating;
+            core_heat_modifier += tidal_heating as i32;
             rng.get_result(&CopyableRollToProcess::new(
                 vec![
                     CopyableWeightedResult::new(CelestialBodyCoreHeat::FrozenCore, 1),

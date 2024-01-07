@@ -6,6 +6,7 @@ use crate::system::contents::generator::{
 };
 use crate::system::contents::utils::{calculate_hill_sphere_radius, calculate_roche_limit};
 use crate::system::orbital_point::generator::complete_orbit_with_period_and_eccentricity;
+use crate::system::orbital_point::utils::sort_orbital_points_by_average_distance;
 use std::fmt::format;
 use std::rc::Rc;
 
@@ -506,6 +507,12 @@ impl MoonGenerator {
             }
         }
 
+        sort_orbital_points_by_average_distance(&mut moon_stubs);
+        let tidal_heating_array = OrbitalHarmonicsUtils::calculate_gravitational_harmonics(
+            &OrbitalHarmonicsUtils::prepare_harmonics_array(&moon_stubs, true),
+            0.03,
+        );
+
         for i in 0..moon_stubs.len() {
             let (stub_id, stub_orbit, stub_orbits, stub_body) = {
                 let current_stub = &moon_stubs[i];
@@ -516,17 +523,8 @@ impl MoonGenerator {
                     current_stub.object.clone(),
                 )
             };
-            // TODO: Remember to calculate orbital_resonance
-            // TODO: Understand why the orbital distance of moons is probably too big, which is the reason
-            //       the orbital periods are so huge. I guess the problem might come from bad inputs sent
-            //       to roche limit calculation function
-            let tidal_heating = 0;
-            println!(
-                "id: {}, moon period: {}",
-                stub_id,
-                stub_orbit.clone().unwrap().orbital_period
-            );
 
+            let tidal_heating = tidal_heating_array[i];
             match stub_body {
                 AstronomicalObject::TelluricBody(stub_body) => {
                     let polished = TelluricBodyDetails::generate_world(

@@ -1,3 +1,5 @@
+use crate::prelude::{AstronomicalObject, CelestialBodySize, OrbitalPoint};
+
 pub struct OrbitalHarmonicsUtils {}
 impl OrbitalHarmonicsUtils {
     /// Calculates the gravitational harmonics for a set of orbital periods.
@@ -84,6 +86,42 @@ impl OrbitalHarmonicsUtils {
         }
 
         0.0
+    }
+
+    pub fn prepare_harmonics_array(
+        orbital_points: &[OrbitalPoint],
+        are_moons: bool,
+    ) -> Vec<(f64, f64)> {
+        orbital_points
+            .iter()
+            .filter_map(|orbital_point| {
+                if let Some(own_orbit) = &orbital_point.own_orbit {
+                    let distance_multiplier = if are_moons { 1.0 } else { 0.3 };
+                    let size_multiplier = match orbital_point.object {
+                        AstronomicalObject::TelluricBody(ref body)
+                        | AstronomicalObject::IcyBody(ref body)
+                        | AstronomicalObject::GaseousBody(ref body) => match body.size {
+                            CelestialBodySize::Puny => 0.2,
+                            CelestialBodySize::Tiny => 0.5,
+                            CelestialBodySize::Small => 1.0,
+                            CelestialBodySize::Standard => 1.5,
+                            CelestialBodySize::Large => 3.0,
+                            CelestialBodySize::Giant => 4.0,
+                            CelestialBodySize::Supergiant => 5.0,
+                            CelestialBodySize::Hypergiant => 6.0,
+                        },
+                        _ => 0.0,
+                    };
+
+                    Some((
+                        own_orbit.orbital_period as f64,
+                        distance_multiplier * size_multiplier,
+                    ))
+                } else {
+                    Some((0.0, 0.0))
+                }
+            })
+            .collect()
     }
 }
 

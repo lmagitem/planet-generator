@@ -2,6 +2,7 @@ use crate::internal::*;
 use crate::prelude::*;
 pub mod generator;
 pub mod types;
+pub mod utils;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct OrbitalPoint {

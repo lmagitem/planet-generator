@@ -28,16 +28,6 @@ pub struct CelestialBody {
     pub gravity: f32,
     /// This body's blackbody temperature, in Kelvins.
     pub blackbody_temperature: u32,
-
-    // General Properties
-    // pub id: u32,
-    // pub distance_from_orbited: f64,
-    // pub exploitable_resources: Vec<ExploitableResource>,
-    // pub diameter: f64,
-    // pub gravity: f64,
-    // pub axial_tilt: f32,
-    // pub hours_in_a_day: f32,
-    // pub terran_years_in_a_year: f32,
     /// The size class in which this body falls.
     pub size: CelestialBodySize,
     /// Specific body details.
