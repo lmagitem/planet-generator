@@ -41,10 +41,11 @@ pub fn calculate_orbital_period_from_earth_masses(
     )
 }
 
-pub fn complete_orbit_with_period_and_eccentricity(
+pub fn complete_orbit_with_dynamic_parameters(
     coord: SpaceCoordinates,
     system_index: u16,
     star_id: u32,
+    star_age: f32,
     orbited_object_mass: f64,
     gas_giant_arrangement: GasGiantArrangement,
     orbital_point_id: u32,
@@ -52,47 +53,131 @@ pub fn complete_orbit_with_period_and_eccentricity(
     orbit_distance: f64,
     is_gas_giant: bool,
     blackbody_temp: u32,
-    mass: f32,
+    mass: f64,
+    radius: f64,
+    size: CelestialBodySize,
+    moons: &Vec<OrbitalPoint>,
     is_moon: bool,
     settings: &GenerationSettings,
 ) -> Orbit {
     let mut this_orbit = own_orbit.clone().unwrap_or_default();
-    let orbital_period = calculate_orbital_period_from_earth_masses(
+    this_orbit.orbital_period = calculate_orbital_period_from_earth_masses(
         orbit_distance,
         orbited_object_mass,
         mass as f64,
+    ) as f32;
+    let (eccentricity, min_separation, max_separation) = calculate_planet_orbit_eccentricity(
+        &coord,
+        system_index,
+        star_id,
+        gas_giant_arrangement,
+        orbital_point_id,
+        orbit_distance,
+        &settings,
+        blackbody_temp,
+        size,
+        is_gas_giant,
+        is_moon,
     );
-    this_orbit.orbital_period = orbital_period as f32;
-    let (eccentricity, min_separation, max_separation) = if is_moon {
-        // TODO: Change this
-        calculate_planet_orbit_eccentricity(
-            &coord,
-            system_index,
-            star_id,
-            gas_giant_arrangement,
-            orbital_point_id,
-            orbit_distance,
-            &settings,
-            blackbody_temp,
-            is_gas_giant,
-        )
-    } else {
-        calculate_planet_orbit_eccentricity(
-            &coord,
-            system_index,
-            star_id,
-            gas_giant_arrangement,
-            orbital_point_id,
-            orbit_distance,
-            &settings,
-            blackbody_temp,
-            is_gas_giant,
-        )
-    };
     this_orbit.eccentricity = eccentricity as f32;
     this_orbit.min_separation = min_separation;
     this_orbit.max_separation = max_separation;
+
+    // TODO: - Tidal Braking
+    let tidal_braking = if is_moon {
+        calculate_moon_tidal_braking(
+            radius,
+            orbited_object_mass,
+            orbit_distance,
+            star_age as f64,
+            mass,
+        )
+    } else {
+        let moons_masses_and_radii: Vec<(f64, f64)> = moons
+            .iter()
+            .map(|o| {
+                if let AstronomicalObject::TelluricBody(moon)
+                | AstronomicalObject::IcyBody(moon)
+                | AstronomicalObject::GaseousBody(moon) = o.object.clone()
+                {
+                    return (moon.mass, moon.radius);
+                }
+                (0.0, 0.0)
+            })
+            .collect::<Vec<(f64, f64)>>();
+        calculate_planet_tidal_braking(
+            radius,
+            orbited_object_mass,
+            orbit_distance,
+            star_age as f64,
+            mass,
+            moons_masses_and_radii,
+        )
+    };
+
+    // TODO: - Rotation Period
+    // TODO: - Local Calendar
+    // TODO: - Axial Tilt
     this_orbit
+}
+
+fn calculate_planet_tidal_braking(
+    planet_radius_in_earth_radii: f64,
+    star_mass_in_earth_masses: f64,
+    orbit_distance: f64,
+    system_age_in_billion_years: f64,
+    planet_mass_in_earth_masses: f64,
+    moons_masses_and_radii: Vec<(f64, f64)>,
+) -> u32 {
+    let star_mass_in_solar_masses =
+        ConversionUtils::earth_mass_to_solar_mass(star_mass_in_earth_masses);
+
+    // Tidal Force by Star
+    let tidal_force_star =
+        0.46 * star_mass_in_solar_masses * planet_radius_in_earth_radii / orbit_distance.powi(3);
+
+    // Tidal Force by Moons
+    let tidal_force_moons: f64 = moons_masses_and_radii
+        .iter()
+        .map(|(moon_mass, moon_orbit_radius_in_earth_radii)| {
+            if MathUtils::does_f64_equal_zero(*moon_mass)
+                || MathUtils::does_f64_equal_zero(*moon_orbit_radius_in_earth_radii)
+            {
+                return 0.0;
+            }
+            let moon_orbit_radius_in_earth_diameter = moon_orbit_radius_in_earth_radii / 2.0;
+            17.8e6 * moon_mass * planet_radius_in_earth_radii
+                / moon_orbit_radius_in_earth_diameter.powi(3)
+        })
+        .sum();
+
+    // Total Tidal Effect
+    let total_tidal_effect = ((tidal_force_star + tidal_force_moons) * system_age_in_billion_years)
+        / planet_mass_in_earth_masses;
+
+    total_tidal_effect.round() as u32
+}
+
+fn calculate_moon_tidal_braking(
+    moon_radius_in_earth_radii: f64,
+    planet_mass_in_earth_masses: f64,
+    moon_orbit_radius_in_astronomical_units: f64,
+    system_age_in_billion_years: f64,
+    moon_mass_in_earth_masses: f64,
+) -> u32 {
+    let moon_orbit_radius_in_earth_diameters =
+        ConversionUtils::astronomical_units_to_earth_radii(moon_orbit_radius_in_astronomical_units)
+            * 2.0;
+
+    // Tidal Force by Planet on Moon
+    let tidal_force_planet = 17.8e6 * planet_mass_in_earth_masses * moon_radius_in_earth_radii
+        / moon_orbit_radius_in_earth_diameters.powi(3);
+
+    // Total Tidal Effect on Moon
+    let total_tidal_effect_moon =
+        (tidal_force_planet * system_age_in_billion_years) / moon_mass_in_earth_masses;
+
+    total_tidal_effect_moon.round() as u32
 }
 
 pub fn calculate_planet_orbit_eccentricity(
@@ -104,7 +189,9 @@ pub fn calculate_planet_orbit_eccentricity(
     orbit_distance: f64,
     settings: &GenerationSettings,
     blackbody_temp: u32,
+    size: CelestialBodySize,
     is_gas_giant: bool,
+    is_moon: bool,
 ) -> (f64, f64, f64) {
     let mut rng = SeededDiceRoller::new(
         &settings.seed,
@@ -113,14 +200,16 @@ pub fn calculate_planet_orbit_eccentricity(
             coord, system_index, star_id, orbital_point_id
         ),
     );
-    let eccentricity_modifier =
-        if gas_giant_arrangement == GasGiantArrangement::ConventionalGasGiant {
+    let mut eccentricity_modifier =
+        if !is_moon && gas_giant_arrangement == GasGiantArrangement::ConventionalGasGiant {
             -6
-        } else if gas_giant_arrangement == GasGiantArrangement::EccentricGasGiant
+        } else if is_gas_giant
+            && gas_giant_arrangement == GasGiantArrangement::EccentricGasGiant
             && blackbody_temp < 170
-            && is_gas_giant
         {
             -4
+        } else if is_moon && size != CelestialBodySize::Puny {
+            -2
         } else {
             0
         };

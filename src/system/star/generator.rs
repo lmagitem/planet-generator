@@ -29,10 +29,10 @@ impl Star {
             )
         };
 
-        let mut mass = if settings.star.fixed_mass.is_some() {
+        let mut mass: f64 = if settings.star.fixed_mass.is_some() {
             settings.star.fixed_mass.unwrap()
         } else {
-            let generated_mass = generate_mass(star_index, system_index, coord, galaxy);
+            let generated_mass: f64 = generate_mass(star_index, system_index, coord, galaxy);
             simulate_mass_loss_over_the_years(generated_mass, age)
         };
 
@@ -55,7 +55,7 @@ impl Star {
             giant_lifespan,
         );
 
-        let mut radius: f32;
+        let mut radius: f64;
         let mut luminosity: f32;
         let temperature: u32;
         let spectral_type: StarSpectralType;
@@ -82,7 +82,7 @@ impl Star {
                 let precise_radius = calculate_precise_radius_of_neutron_star_or_black_hole(mass);
                 temperature = calculate_neutron_star_temperature(age, full_lifespan);
                 luminosity = calculate_luminosity_using_temperature(temperature, precise_radius);
-                radius = precise_radius as f32;
+                radius = precise_radius;
                 spectral_type = StarSpectralType::XNS;
                 luminosity_class = StarLuminosityClass::XNS;
             } else {
@@ -90,7 +90,7 @@ impl Star {
                 let precise_radius = calculate_precise_radius_of_neutron_star_or_black_hole(mass);
                 temperature = 0;
                 luminosity = 0.0;
-                radius = precise_radius as f32;
+                radius = precise_radius;
                 spectral_type = StarSpectralType::XBH;
                 luminosity_class = StarLuminosityClass::XBH;
             }
@@ -119,11 +119,16 @@ impl Star {
             );
 
             // Then mix main sequence and interpolated values if applicable
-            radius = mix_values(ms_radius, interpolated_radius, age, main_lifespan);
-            luminosity = mix_values(ms_luminosity, interpolated_luminosity, age, main_lifespan);
+            radius = mix_values(ms_radius, interpolated_radius as f64, age, main_lifespan) as f64;
+            luminosity = mix_values(
+                ms_luminosity as f64,
+                interpolated_luminosity as f64,
+                age,
+                main_lifespan,
+            ) as f32;
             temperature = mix_values(
-                ms_temperature as f32,
-                interpolated_temperature as f32,
+                ms_temperature as f64,
+                interpolated_temperature as f64,
                 age,
                 main_lifespan,
             ) as u32;
@@ -195,15 +200,15 @@ fn calculate_luminosity_using_temperature(temperature: u32, radius: f64) -> f32 
     result
 }
 
-fn calculate_radius_using_luminosity_and_temperature(luminosity: f32, temperature: u32) -> f32 {
+fn calculate_radius_using_luminosity_and_temperature(luminosity: f32, temperature: u32) -> f64 {
     let pi = std::f64::consts::PI;
     // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
     // in order to get working results.
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
     // Same there, I've added the "x0.88937" because it gives me results that are, on average (and exactly in the case of Sun), closer
     // to the ones I found on existing stars.
-    let mut result =
-        f64::sqrt(luminosity as f64 / (4.0 * pi * sigma * (temperature as f64).powf(4.0))) as f32;
+    let mut result: f64 =
+        f64::sqrt(luminosity as f64 / (4.0 * pi * sigma * (temperature as f64).powf(4.0)));
     result = result * 0.88937;
     result
 }
@@ -213,7 +218,7 @@ fn generate_mass(
     system_index: u16,
     coord: SpaceCoordinates,
     galaxy: &Galaxy,
-) -> f32 {
+) -> f64 {
     let mut rng = SeededDiceRoller::new(
         &galaxy.settings.seed,
         &format!("star_{}_{}_{}_mass", coord, system_index, star_index),
@@ -319,10 +324,10 @@ fn generate_mass(
             RollMethod::SimpleRoll,
         ))
         .expect("Should return a range to generate a star's mass.");
-    rng.gen_f32() % (range.1 - range.0) + range.0
+    rng.gen_f64() % (range.1 - range.0) + range.0
 }
 
-fn adjust_mass_to_population(mass: f32, population: StellarEvolution) -> f32 {
+fn adjust_mass_to_population(mass: f64, population: StellarEvolution) -> f64 {
     match population {
         StellarEvolution::Hyperdwarf => {
             if mass > BLUE_GIANT_POP_HYPERDWARF_MAX_MASS {
@@ -366,7 +371,7 @@ fn adjust_lifespan_to_population(lifespan: f32, population: StellarEvolution) ->
     }
 }
 
-fn adjust_radius_to_population(radius: f32, population: StellarEvolution) -> f32 {
+fn adjust_radius_to_population(radius: f64, population: StellarEvolution) -> f64 {
     match population {
         StellarEvolution::Hyperdwarf => radius * 1.5,
         StellarEvolution::Superdwarf => radius * 1.25,
@@ -387,16 +392,16 @@ fn adjust_luminosity_to_population(luminosity: f32, population: StellarEvolution
 }
 
 /// Reduces mass towards 150 solar masses if higher, as a star that is bigger than that blows off its mass as solar wind until it gets to 150.
-fn simulate_mass_loss_over_the_years(mass: f32, age: f32) -> f32 {
+fn simulate_mass_loss_over_the_years(mass: f64, age: f32) -> f64 {
     if mass > 150.0 {
-        150.0_f32.max(mass - age)
+        150.0_f64.max(mass - age as f64)
     } else {
         mass
     }
 }
 
 fn calculate_radius(
-    mass: f32,
+    mass: f64,
     age: f32,
     main_lifespan: f32,
     subgiant_lifespan: f32,
@@ -405,14 +410,14 @@ fn calculate_radius(
     system_index: u16,
     coord: SpaceCoordinates,
     galaxy: &Galaxy,
-) -> f32 {
+) -> f64 {
     let mut rng = SeededDiceRoller::new(
         &galaxy.settings.seed,
         &format!("star_{}_{}_{}_radius", coord, system_index, star_index),
     );
     let mut radius = mass.powf(0.8);
 
-    let rand_multiplier = rng.roll(1, 4666, 999) as f32 / 10000.0;
+    let rand_multiplier = rng.roll(1, 4666, 999) as f64 / 10000.0;
     if age < main_lifespan {
         // Do nothing
     } else if age < main_lifespan + subgiant_lifespan {
@@ -428,7 +433,7 @@ fn calculate_radius(
             radius = radius / 60.0;
         } else if mass < 50.0 {
             // Neutron star
-            radius = 0.001_f32.max((mass / (mass - 6.0) + mass) / 20000.0);
+            radius = 0.001_f64.max((mass / (mass - 6.0) + mass) / 20000.0);
         } else {
             // Black hole
             radius = mass / 33333.33333;
@@ -437,17 +442,17 @@ fn calculate_radius(
     (radius * 1000.0).round() / 1000.0
 }
 
-fn calculate_main_sequence_luminosity(mass: f32) -> f32 {
-    if mass <= 0.27 {
-        0.0002 + f32::powf(mass, 3.0)
+fn calculate_main_sequence_luminosity(mass: f64) -> f32 {
+    (if mass <= 0.27 {
+        0.0002 + f64::powf(mass, 3.0)
     } else if mass <= 0.45 {
-        0.8 * f32::powf(mass, 3.0)
+        0.8 * f64::powf(mass, 3.0)
     } else if mass <= 0.6 {
-        0.66 * f32::powf(mass, 3.0)
+        0.66 * f64::powf(mass, 3.0)
     } else if mass <= 0.8 {
-        0.56 * f32::powf(mass, 3.0)
+        0.56 * f64::powf(mass, 3.0)
     } else if mass <= 0.9 {
-        f32::powf(mass, 3.0) - 0.25
+        f64::powf(mass, 3.0) - 0.25
     } else if mass <= 1.0 {
         mass - 0.36
     } else if mass <= 1.05 {
@@ -455,16 +460,16 @@ fn calculate_main_sequence_luminosity(mass: f32) -> f32 {
     } else if mass <= 1.1 {
         mass
     } else if mass <= 1.2 {
-        f32::powf(mass, 3.0)
+        f64::powf(mass, 3.0)
     } else if mass <= 1.4 {
-        f32::powf(mass, 3.9)
+        f64::powf(mass, 3.9)
     } else if mass <= 2.0 {
-        f32::powf(mass, 4.0)
+        f64::powf(mass, 4.0)
     } else if mass <= 55.0 {
-        1.4 * f32::powf(mass, 3.5)
+        1.4 * f64::powf(mass, 3.5)
     } else {
         32000.0 * mass
-    }
+    }) as f32
 }
 
 /// In millions of years.
@@ -504,11 +509,11 @@ fn generate_age(
 }
 
 /// In millions of years.
-fn calculate_lifespan(mass: f32, luminosity: f32) -> f32 {
-    f32::powi(10.0, 4) * mass / luminosity
+fn calculate_lifespan(mass: f64, luminosity: f32) -> f32 {
+    f32::powi(10.0, 4) * mass as f32 / luminosity
 }
 
-fn calculate_subgiant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
+fn calculate_subgiant_lifespan(mass: f64, main_lifespan: f32) -> f32 {
     if mass > RED_DWARF_POP_PALEODWARF_MIN_MASS {
         main_lifespan * 0.15
     } else {
@@ -516,7 +521,7 @@ fn calculate_subgiant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
     }
 }
 
-fn calculate_giant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
+fn calculate_giant_lifespan(mass: f64, main_lifespan: f32) -> f32 {
     if mass > RED_DWARF_POP_PALEODWARF_MIN_MASS {
         main_lifespan * 0.0917
     } else {
@@ -525,11 +530,11 @@ fn calculate_giant_lifespan(mass: f32, main_lifespan: f32) -> f32 {
 }
 
 fn get_interpolated_radius(
-    mass: f32,
-    ms_radius: f32,
+    mass: f64,
+    ms_radius: f64,
     interpolated_luminosity: f32,
     interpolated_temperature: u32,
-) -> f32 {
+) -> f64 {
     if mass < 0.4 {
         ms_radius
     } else {
@@ -540,7 +545,7 @@ fn get_interpolated_radius(
     }
 }
 
-fn get_interpolated_luminosity(mass: f32, ms_luminosity: f32, interpolated_lum_factor: f32) -> f32 {
+fn get_interpolated_luminosity(mass: f64, ms_luminosity: f32, interpolated_lum_factor: f32) -> f32 {
     if mass < 0.4 {
         ms_luminosity
     } else {
@@ -564,7 +569,7 @@ fn get_interpolated_luminosity_factor(
 }
 
 fn get_interpolated_temperature(
-    mass: f32,
+    mass: f64,
     ms_temperature: u32,
     nearest_values: [TemperatureAndLuminosity; 4],
     age_range: f32,
@@ -712,7 +717,7 @@ fn calculate_luminosity_class(
     };
 }
 
-fn calculate_remnant_mass(mass: f32, _settings: &GenerationSettings) -> f32 {
+fn calculate_remnant_mass(mass: f64, _settings: &GenerationSettings) -> f64 {
     if mass < 2.7 {
         0.096 * mass + 0.429
     } else {
@@ -724,11 +729,11 @@ fn calculate_white_dwarf_temperature(initial_temperature: f32, age: f32) -> u32 
     (initial_temperature * f32::powf(age / 1000.0, -1.3 / 4.0)) as u32
 }
 
-fn calculate_white_dwarf_initial_luminosity(mass: f32) -> f32 {
-    10.0_f32.powf(-2.15) * mass.powf(3.95)
+fn calculate_white_dwarf_initial_luminosity(mass: f64) -> f32 {
+    (10.0_f64.powf(-2.15) * mass.powf(3.95)) as f32
 }
 
-fn calculate_white_dwarf_radius(mass: f32) -> f32 {
+fn calculate_white_dwarf_radius(mass: f64) -> f64 {
     0.0084 * mass.powf(-1.0 / 3.0)
 }
 
@@ -746,7 +751,7 @@ fn calculate_neutron_star_temperature(age: f32, full_lifespan: f32) -> u32 {
     };
 }
 
-fn calculate_precise_radius_of_neutron_star_or_black_hole(mass: f32) -> f64 {
+fn calculate_precise_radius_of_neutron_star_or_black_hole(mass: f64) -> f64 {
     let g: f64 = 6.674e-11;
     let c: f64 = 299_792_458.0;
     let sun_in_km = 696_340.0;
@@ -773,8 +778,8 @@ fn get_age_range_in_star_lifecycle_dataset(
     };
 }
 
-fn get_mass_range_in_star_lifecycle_dataset(mass: f32) -> f32 {
-    return if mass < 0.4 {
+fn get_mass_range_in_star_lifecycle_dataset(mass: f64) -> f32 {
+    (if mass < 0.4 {
         0.0
     } else if mass >= 0.4 && mass <= 0.5 {
         mass / 0.5
@@ -792,7 +797,7 @@ fn get_mass_range_in_star_lifecycle_dataset(mass: f32) -> f32 {
         6.0 + ((mass - 60.0) / (500.0 - 60.0))
     } else {
         8.0
-    };
+    }) as f32
 }
 
 fn get_nearest_star_lifecycle_dataset_cells(
@@ -835,9 +840,9 @@ fn interpolate_f32(x0_y0: f32, x1_y0: f32, x0_y1: f32, x1_y1: f32, x: f32, y: f3
 /// However, I need to go forward, so I'll mix the two for main sequence and use the dataset for giants.
 /// If you're reading this, have knowledge in the field and an idea of how to improve my star generation sequence in a more realistic way,
 /// feel free to reach out to me and contribute!
-fn mix_values(a: f32, b: f32, age: f32, main_lifespan: f32) -> f32 {
+fn mix_values(a: f64, b: f64, age: f32, main_lifespan: f32) -> f64 {
     let result;
-    let pond_a = 0.3 + age / main_lifespan;
+    let pond_a = 0.3 + age as f64 / main_lifespan as f64;
     if pond_a >= 1.0 {
         result = b;
     } else {
@@ -878,10 +883,13 @@ mod tests {
 
                 n += 1;
                 rad_ms_sum += MathUtils::get_difference_percentage(ms_radius, star.radius);
-                lum_ms_sum += MathUtils::get_difference_percentage(ms_luminosity, star.luminosity);
+                lum_ms_sum += MathUtils::get_difference_percentage(
+                    ms_luminosity as f64,
+                    star.luminosity as f64,
+                );
                 temp_ms_sum += MathUtils::get_difference_percentage(
-                    ms_temperature as f32,
-                    star.temperature as f32,
+                    ms_temperature as f64,
+                    star.temperature as f64,
                 );
 
                 print_real_to_generated_star_comparison(
@@ -903,12 +911,16 @@ mod tests {
             }
         }
 
-        rad_ms_sum /= n as f32;
-        lum_ms_sum /= n as f32;
-        temp_ms_sum /= n as f32;
+        rad_ms_sum /= n as f64;
+        lum_ms_sum /= n as f64;
+        temp_ms_sum /= n as f64;
 
         // The results shouldn't have a variance higher than 10% in general
-        print_real_to_generated_stars_comparison_results(rad_ms_sum, lum_ms_sum, temp_ms_sum);
+        print_real_to_generated_stars_comparison_results(
+            rad_ms_sum as f64,
+            lum_ms_sum as f64,
+            temp_ms_sum as f64,
+        );
 
         assert!(-0.2 <= rad_ms_sum && rad_ms_sum <= 0.2);
         assert!(-0.2 <= lum_ms_sum && lum_ms_sum <= 0.2);
@@ -978,12 +990,12 @@ mod tests {
                     rad_sum +=
                         MathUtils::get_difference_percentage(interpolated_radius, star.radius);
                     lum_sum += MathUtils::get_difference_percentage(
-                        interpolated_luminosity,
-                        star.luminosity,
+                        interpolated_luminosity as f64,
+                        star.luminosity as f64,
                     );
                     temp_sum += MathUtils::get_difference_percentage(
-                        interpolated_temperature as f32,
-                        star.temperature as f32,
+                        interpolated_temperature as f64,
+                        star.temperature as f64,
                     );
 
                     print_real_to_generated_star_comparison(
@@ -1006,9 +1018,9 @@ mod tests {
             }
         }
 
-        rad_sum /= n as f32;
-        lum_sum /= n as f32;
-        temp_sum /= n as f32;
+        rad_sum /= n as f64;
+        lum_sum /= n as f64;
+        temp_sum /= n as f64;
 
         // The results shouldn't have a variance higher than 10% in general
         print_real_to_generated_stars_comparison_results(rad_sum, lum_sum, temp_sum);
@@ -1041,10 +1053,14 @@ mod tests {
 
                 n += 1;
                 rad_calc_sum += MathUtils::get_difference_percentage(calc_radius, star.radius);
-                lum_calc_sum +=
-                    MathUtils::get_difference_percentage(calc_luminosity, star.luminosity);
-                temp_calc_sum +=
-                    MathUtils::get_difference_percentage(calc_temperature, star.temperature as f32);
+                lum_calc_sum += MathUtils::get_difference_percentage(
+                    calc_luminosity as f64,
+                    star.luminosity as f64,
+                );
+                temp_calc_sum += MathUtils::get_difference_percentage(
+                    calc_temperature as f64,
+                    star.temperature as f64,
+                );
 
                 print_real_to_generated_star_comparison(
                     star,
@@ -1065,9 +1081,9 @@ mod tests {
             }
         }
 
-        rad_calc_sum /= n as f32;
-        lum_calc_sum /= n as f32;
-        temp_calc_sum /= n as f32;
+        rad_calc_sum /= n as f64;
+        lum_calc_sum /= n as f64;
+        temp_calc_sum /= n as f64;
 
         // The results shouldn't have a variance higher than 10% in general
         print_real_to_generated_stars_comparison_results(rad_calc_sum, lum_calc_sum, temp_calc_sum);
@@ -1130,19 +1146,19 @@ mod tests {
                 n += 1;
                 rad_sum += MathUtils::get_difference_percentage(generated_star.radius, star.radius);
                 lum_sum += MathUtils::get_difference_percentage(
-                    generated_star.luminosity,
-                    star.luminosity,
+                    generated_star.luminosity as f64,
+                    star.luminosity as f64,
                 );
                 temp_sum += MathUtils::get_difference_percentage(
-                    generated_star.temperature as f32,
-                    star.temperature as f32,
+                    generated_star.temperature as f64,
+                    star.temperature as f64,
                 );
             }
         }
 
-        rad_sum /= n as f32;
-        lum_sum /= n as f32;
-        temp_sum /= n as f32;
+        rad_sum /= n as f64;
+        lum_sum /= n as f64;
+        temp_sum /= n as f64;
 
         // The results shouldn't have a variance higher than 10% in general
         print_real_to_generated_stars_comparison_results(rad_sum, lum_sum, temp_sum);
@@ -1203,7 +1219,7 @@ mod tests {
                     ..Default::default()
                 },
                 star: StarSettings {
-                    fixed_mass: Some(expected.0 as f32),
+                    fixed_mass: Some(expected.0 as f64),
                     fixed_age: Some(0.00001f32),
                     ..Default::default()
                 },
@@ -1384,7 +1400,7 @@ mod tests {
         assert!((result - expected).abs() < 0.001);
     }
 
-    fn print_real_to_generated_stars_comparison_results(rad_sum: f32, lum_sum: f32, temp_sum: f32) {
+    fn print_real_to_generated_stars_comparison_results(rad_sum: f64, lum_sum: f64, temp_sum: f64) {
         println!(
         "\nVariance from generated values to real ones - radius: {}%, luminosity: {}%, temperature: {}%\n",
         format!("{}{}", if rad_sum > 0.0 {"+"} else {""}, rad_sum * 100.0),
@@ -1395,8 +1411,8 @@ mod tests {
 
     fn print_real_to_generated_star_comparison(
         star: &Star,
-        mass: f32,
-        radius: f32,
+        mass: f64,
+        radius: f64,
         luminosity: f32,
         temperature: u32,
         spectral_type: StarSpectralType,
@@ -1421,9 +1437,9 @@ mod tests {
             radius,
             StringUtils::get_difference_percentage_str(radius, star.radius),
             luminosity,
-            StringUtils::get_difference_percentage_str(luminosity, star.luminosity),
+            StringUtils::get_difference_percentage_str(luminosity as f64, star.luminosity as f64),
             temperature,
-            StringUtils::get_difference_percentage_str(temperature as f32, star.temperature as f32),
+            StringUtils::get_difference_percentage_str(temperature as f64, star.temperature as f64),
             spectral_type,
             luminosity_class,
             age

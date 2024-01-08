@@ -25,8 +25,8 @@ pub(crate) fn calculate_radius(mass_earth_masses: f64, density_g_cm3: f64) -> f6
 }
 
 /// Returns a value in Gs
-pub(crate) fn calculate_surface_gravity(density_g_cm3: f32, radius_earth_radii: f32) -> f32 {
-    (density_g_cm3 / 5.513) * radius_earth_radii
+pub(crate) fn calculate_surface_gravity(density_g_cm3: f32, radius_earth_radii: f64) -> f32 {
+    (density_g_cm3 / 5.513) * radius_earth_radii as f32
 }
 
 /// Calculates the Roche limit based on the densities of the primary and the satellite.
@@ -115,7 +115,7 @@ mod tests {
     fn test_calculate_surface_gravity_earth() {
         let earth_density = 5.513;
         let earth_radius = 1.0;
-        let gravity = calculate_surface_gravity(earth_density as f32, earth_radius as f32);
+        let gravity = calculate_surface_gravity(earth_density, earth_radius);
         assert!(within_error_margin(gravity as f64, 1.0));
     }
 
@@ -123,7 +123,7 @@ mod tests {
     fn test_calculate_surface_gravity_mars() {
         let mars_density = 3.93;
         let mars_radius = 0.532;
-        let gravity = calculate_surface_gravity(mars_density as f32, mars_radius as f32);
+        let gravity = calculate_surface_gravity(mars_density, mars_radius);
         assert!(within_error_margin(gravity as f64, 0.38));
     }
 
@@ -131,7 +131,7 @@ mod tests {
     fn test_calculate_surface_gravity_jupiter() {
         let jupiter_density = 1.33;
         let jupiter_radius = 11.2;
-        let gravity = calculate_surface_gravity(jupiter_density as f32, jupiter_radius as f32);
+        let gravity = calculate_surface_gravity(jupiter_density, jupiter_radius);
         assert!(within_error_margin(gravity as f64, 2.528));
     }
 
@@ -139,7 +139,7 @@ mod tests {
     fn test_calculate_surface_gravity_saturn() {
         let saturn_density = 0.69;
         let saturn_radius = 9.45;
-        let gravity = calculate_surface_gravity(saturn_density as f32, saturn_radius as f32);
+        let gravity = calculate_surface_gravity(saturn_density, saturn_radius);
         assert!(within_error_margin(gravity as f64, 1.065));
     }
 
@@ -147,7 +147,7 @@ mod tests {
     fn test_calculate_surface_gravity_ganymede() {
         let ganymede_density = 1.942;
         let ganymede_radius = 0.413;
-        let gravity = calculate_surface_gravity(ganymede_density as f32, ganymede_radius as f32);
+        let gravity = calculate_surface_gravity(ganymede_density, ganymede_radius);
         assert!(within_error_margin(gravity as f64, 0.146));
     }
 
@@ -155,7 +155,7 @@ mod tests {
     fn test_calculate_surface_gravity_moon() {
         let moon_density = 3.344;
         let moon_radius = 0.273;
-        let gravity = calculate_surface_gravity(moon_density as f32, moon_radius as f32);
+        let gravity = calculate_surface_gravity(moon_density, moon_radius);
         assert!(within_error_margin(gravity as f64, 0.165));
     }
 

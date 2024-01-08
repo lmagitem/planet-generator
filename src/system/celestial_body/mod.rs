@@ -20,9 +20,9 @@ pub struct CelestialBody {
     /// The id of the orbital point this body inhabits.
     pub orbital_point_id: u32,
     /// This body's mass, in Earth's masses.
-    pub mass: f32,
+    pub mass: f64,
     /// This body's radius, in Earth's radii.
-    pub radius: f32,
+    pub radius: f64,
     /// This body's density, in g/cm³.
     pub density: f32,
     /// This body's surface gravity, in Gs.
@@ -41,8 +41,8 @@ impl CelestialBody {
         orbit: Option<Orbit>,
         orbital_point_id: u32,
         name: Rc<str>,
-        mass: f32,
-        radius: f32,
+        mass: f64,
+        radius: f64,
         density: f32,
         gravity: f32,
         blackbody_temperature: u32,

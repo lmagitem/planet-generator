@@ -32,9 +32,9 @@ pub mod prelude {
     pub use crate::system::celestial_body::icy::IcyBodyDetails;
     pub use crate::system::celestial_body::telluric::types::*;
     pub use crate::system::celestial_body::telluric::TelluricBodyDetails;
+    pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::world::types::*;
     pub use crate::system::celestial_body::world::WorldGenerator;
-    pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::CelestialBody;
     pub use crate::system::celestial_disk::belt::types::*;
     pub use crate::system::celestial_disk::belt::CelestialBeltDetails;

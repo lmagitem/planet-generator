@@ -411,11 +411,11 @@ fn generate_binary_relations(
 /// and radius ([f32], res.3) of that pair, and the actual distance between the two elements ([f64], res.4) to use in further calculations.
 fn make_binary_pair(
     mut last_id: u32,
-    mut most_massive_mass: f32,
-    mut most_massive_radius: f32,
+    mut most_massive_mass: f64,
+    mut most_massive_radius: f64,
     mut most_massive_point: OrbitalPoint,
-    mut less_massive_mass: f32,
-    mut less_massive_radius: f32,
+    mut less_massive_mass: f64,
+    mut less_massive_radius: f64,
     mut less_massive_point: OrbitalPoint,
     min_distance_between_bodies: f64,
     star_index: usize,
@@ -423,7 +423,7 @@ fn make_binary_pair(
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
     all_objects: &mut Vec<OrbitalPoint>,
-) -> (u32, OrbitalPoint, f32, f32, f64) {
+) -> (u32, OrbitalPoint, f64, f64, f64) {
     // Switch stars if necessary so that most_massive_point is the most massive.
     if less_massive_mass > most_massive_mass {
         let temp_mass = less_massive_mass;
@@ -463,18 +463,18 @@ fn make_binary_pair(
 /// ([f64], res.3) to use in further calculations.
 fn find_center_of_binary_pair(
     most_massive_point: &mut OrbitalPoint,
-    most_massive_mass: f32,
-    most_massive_radius: f32,
+    most_massive_mass: f64,
+    most_massive_radius: f64,
     less_massive_point: &mut OrbitalPoint,
-    less_massive_mass: f32,
-    less_massive_radius: f32,
+    less_massive_mass: f64,
+    less_massive_radius: f64,
     min_distance: f64,
     next_id: u32,
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
-) -> (OrbitalPoint, f32, f32, f64) {
+) -> (OrbitalPoint, f64, f64, f64) {
     let mut center = OrbitalPoint::new(next_id, None, AstronomicalObject::Void, vec![]);
 
     let actual_distance =
@@ -518,9 +518,9 @@ fn find_center_of_binary_pair(
     let less_massive_distance_and_radius =
         less_massive_radius as f64 + actual_distance - barycentre_distance_from_most_massive;
     let radius = if most_massive_distance_and_radius > less_massive_distance_and_radius {
-        most_massive_distance_and_radius as f32
+        most_massive_distance_and_radius
     } else {
-        less_massive_distance_and_radius as f32
+        less_massive_distance_and_radius
     };
 
     (
@@ -680,6 +680,6 @@ fn generate_distance_between_stars(
 }
 
 /// Finds where the barycentre between two stars or centers of mass is.
-fn calculate_barycentre(distance_between: f64, heaviest_mass: f32, lowest_mass: f32) -> f64 {
+fn calculate_barycentre(distance_between: f64, heaviest_mass: f64, lowest_mass: f64) -> f64 {
     distance_between * (lowest_mass as f64 / (heaviest_mass as f64 + lowest_mass as f64))
 }

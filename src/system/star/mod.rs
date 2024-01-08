@@ -9,11 +9,11 @@ pub struct Star {
     #[default("default")]
     pub name: Rc<str>,
     /// In solar masses.
-    pub mass: f32,
+    pub mass: f64,
     /// In solar luminosities.
     pub luminosity: f32,
     /// In solar radii.
-    pub radius: f32,
+    pub radius: f64,
     /// In billions of years.
     pub age: f32,
     /// In kelvins.
@@ -37,9 +37,9 @@ pub struct Star {
 impl Star {
     pub fn new(
         name: Rc<str>,
-        mass: f32,
+        mass: f64,
         luminosity: f32,
-        radius: f32,
+        radius: f64,
         age: f32,
         temperature: u32,
         population: StellarEvolution,
@@ -108,7 +108,7 @@ impl Star {
                 .unwrap_or(Orbit {
                     ..Default::default()
                 })
-                .eccentricity)
+                .eccentricity) as f64
             * self.radius) as f64
     }
 
@@ -121,7 +121,7 @@ impl Star {
                 .unwrap_or(Orbit {
                     ..Default::default()
                 })
-                .eccentricity)
+                .eccentricity) as f64
             * self.radius) as f64
     }
 }

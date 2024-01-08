@@ -5,7 +5,7 @@ use crate::system::contents::generator::{
     generate_body_from_type, generate_inner_body_type, generate_outer_body_type,
 };
 use crate::system::contents::utils::{calculate_hill_sphere_radius, calculate_roche_limit};
-use crate::system::orbital_point::generator::complete_orbit_with_period_and_eccentricity;
+use crate::system::orbital_point::generator::complete_orbit_with_dynamic_parameters;
 use crate::system::orbital_point::utils::sort_orbital_points_by_average_distance;
 use std::fmt::format;
 use std::rc::Rc;
@@ -17,12 +17,12 @@ impl MoonGenerator {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
-        star_mass: f32,
+        star_mass: f64,
         star_luminosity: f32,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f32,
+        primary_star_mass: f64,
         orbit_distance_from_star: f64,
         coord: SpaceCoordinates,
         seed: &Rc<str>,
@@ -31,11 +31,11 @@ impl MoonGenerator {
         mut populated_orbit_index: u32,
         planet_id: u32,
         planet_size: CelestialBodySize,
-        planet_mass: f32,
+        planet_mass: f64,
         planet_density: f32,
-        planet_radius: f32,
+        planet_radius: f64,
         blackbody_temperature: u32,
-        settings: GenerationSettings,
+        settings: &GenerationSettings,
         is_moon: bool,
     ) -> Vec<OrbitalPoint> {
         let mut result = Vec::new();
@@ -99,12 +99,12 @@ impl MoonGenerator {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
-        star_mass: f32,
+        star_mass: f64,
         star_luminosity: f32,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f32,
+        primary_star_mass: f64,
         orbit_distance_from_star: f64,
         coord: SpaceCoordinates,
         seed: &Rc<str>,
@@ -113,9 +113,9 @@ impl MoonGenerator {
         mut populated_orbit_index: u32,
         planet_id: u32,
         planet_size: CelestialBodySize,
-        planet_mass: f32,
+        planet_mass: f64,
         planet_density: f32,
-        planet_radius: f32,
+        planet_radius: f64,
         blackbody_temperature: u32,
         settings: GenerationSettings,
         is_moon: bool,
@@ -204,12 +204,12 @@ impl MoonGenerator {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
-        star_mass: f32,
+        star_mass: f64,
         star_luminosity: f32,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f32,
+        primary_star_mass: f64,
         orbit_distance_from_star: f64,
         coord: SpaceCoordinates,
         seed: &Rc<str>,
@@ -218,9 +218,9 @@ impl MoonGenerator {
         mut populated_orbit_index: u32,
         planet_id: u32,
         planet_size: CelestialBodySize,
-        planet_mass: f32,
+        planet_mass: f64,
         planet_density: f32,
-        planet_radius: f32,
+        planet_radius: f64,
         blackbody_temperature: u32,
         settings: &GenerationSettings,
         result: &mut Vec<OrbitalPoint>,
@@ -470,10 +470,18 @@ impl MoonGenerator {
                             average_distance: moon_orbit_distance,
                             ..orbit.clone().unwrap_or_default()
                         });
-                        moon_stub.own_orbit = Some(complete_orbit_with_period_and_eccentricity(
+                        let moon_clone = if let AstronomicalObject::TelluricBody(moon) =
+                            moon_stub.clone().object
+                        {
+                            moon
+                        } else {
+                            CelestialBody::default()
+                        };
+                        moon_stub.own_orbit = Some(complete_orbit_with_dynamic_parameters(
                             coord,
                             system_index,
                             star_id,
+                            star_age,
                             planet_mass as f64,
                             GasGiantArrangement::NoGasGiant,
                             moon_id,
@@ -481,12 +489,10 @@ impl MoonGenerator {
                             moon_orbit_distance,
                             false,
                             blackbody_temperature,
-                            if let AstronomicalObject::TelluricBody(moon) = moon_stub.clone().object
-                            {
-                                moon.mass
-                            } else {
-                                0.0
-                            },
+                            moon_clone.mass,
+                            moon_clone.radius,
+                            moon_clone.size,
+                            &Vec::new(),
                             true,
                             &settings,
                         ));
@@ -895,15 +901,15 @@ impl MoonGenerator {
         system_index: u16,
         star_id: u32,
         star_name: Rc<str>,
-        star_mass: f32,
+        star_mass: f64,
         orbit_distance_from_star: f64,
         coord: SpaceCoordinates,
         next_id: &mut u32,
         mut populated_orbit_index: u32,
         planet_id: u32,
-        planet_mass: f32,
+        planet_mass: f64,
         planet_density: f32,
-        planet_radius: f32,
+        planet_radius: f64,
         blackbody_temperature: u32,
         settings: &GenerationSettings,
         moons: &mut Vec<OrbitalPoint>,

@@ -51,7 +51,7 @@ pub(crate) fn generate_acceptable_telluric_parameters(
     size: CelestialBodySize,
     blackbody_temp: u32,
     planet_type: Rc<str>,
-) -> (f32, CelestialBodySize, f32, f32) {
+) -> (f32, CelestialBodySize, f64, f64) {
     let mut loop_number = 0;
     let mut density = 0.0;
     let mut size = size;
@@ -71,7 +71,7 @@ pub(crate) fn generate_acceptable_telluric_parameters(
             / 1000.0)
             .max(1.0);
         let size_constraint = get_size_constraint(size, &mut rng);
-        radius = size_constraint * (blackbody_temp as f32 / (density / 5.513)).sqrt(); // in Earth radii
+        radius = size_constraint as f64 * (blackbody_temp as f64 / (density as f64 / 5.513)).sqrt(); // in Earth radii
         mass = calculate_mass(density, radius);
 
         if mass < 10.0 {
@@ -90,7 +90,7 @@ pub(crate) fn generate_acceptable_telluric_parameters(
     (density, size, radius, mass)
 }
 
-fn calculate_mass(density: f32, radius: f32) -> f32 {
+fn calculate_mass(density: f32, radius: f64) -> f64 {
     // Earth's radius in centimeters
     let earth_radius_cm: f64 = 6.371e8;
     // Earth's mass in grams
@@ -103,14 +103,14 @@ fn calculate_mass(density: f32, radius: f32) -> f32 {
     // Convert mass from grams to Earth masses
     let mass_earth_masses: f64 = mass_g / earth_mass_g;
 
-    mass_earth_masses as f32
+    mass_earth_masses
 }
 
 pub(crate) fn get_world_type(
     size: CelestialBodySize,
     body_type: CelestialBodyComposition,
     blackbody_temperature: u32,
-    primary_star_mass: f32,
+    primary_star_mass: f64,
     rng: &mut SeededDiceRoller,
 ) -> CelestialBodyWorldType {
     match size {

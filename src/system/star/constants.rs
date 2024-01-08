@@ -2,22 +2,22 @@
 use crate::internal::*;
 use crate::prelude::*;
 
-pub const BROWN_DWARF_MIN_MASS: f32 = 0.015;
-pub const RED_DWARF_POP_HYPERDWARF_MIN_MASS: f32 = 1.0 / 25.0;
-pub const RED_DWARF_POP_SUPERDWARF_MIN_MASS: f32 = 1.0 / 16.0;
-pub const RED_DWARF_POP_DWARF_MIN_MASS: f32 = 0.07;
-pub const RED_DWARF_POP_SUBDWARF_MIN_MASS: f32 = 0.125;
-pub const RED_DWARF_POP_PALEODWARF_MIN_MASS: f32 = 0.4;
-pub const ORANGE_DWARF_MIN_MASS: f32 = 0.5;
-pub const YELLOW_DWARF_MIN_MASS: f32 = 1.0;
-pub const WHITE_DWARF_MIN_MASS: f32 = 2.0;
-pub const WHITE_GIANT_MIN_MASS: f32 = 4.0;
-pub const BLUE_GIANT_MIN_MASS: f32 = 8.0;
-pub const BLUE_GIANT_POP_HYPERDWARF_MAX_MASS: f32 = 25.0;
-pub const BLUE_GIANT_POP_SUPERDWARF_MAX_MASS: f32 = 50.0;
-pub const BLUE_GIANT_POP_DWARF_MAX_MASS: f32 = 100.0;
-pub const BLUE_GIANT_POP_SUBDWARF_MAX_MASS: f32 = 200.0;
-pub const BLUE_GIANT_POP_PALEODWARF_MAX_MASS: f32 = 500.0;
+pub const BROWN_DWARF_MIN_MASS: f64 = 0.015;
+pub const RED_DWARF_POP_HYPERDWARF_MIN_MASS: f64 = 1.0 / 25.0;
+pub const RED_DWARF_POP_SUPERDWARF_MIN_MASS: f64 = 1.0 / 16.0;
+pub const RED_DWARF_POP_DWARF_MIN_MASS: f64 = 0.07;
+pub const RED_DWARF_POP_SUBDWARF_MIN_MASS: f64 = 0.125;
+pub const RED_DWARF_POP_PALEODWARF_MIN_MASS: f64 = 0.4;
+pub const ORANGE_DWARF_MIN_MASS: f64 = 0.5;
+pub const YELLOW_DWARF_MIN_MASS: f64 = 1.0;
+pub const WHITE_DWARF_MIN_MASS: f64 = 2.0;
+pub const WHITE_GIANT_MIN_MASS: f64 = 4.0;
+pub const BLUE_GIANT_MIN_MASS: f64 = 8.0;
+pub const BLUE_GIANT_POP_HYPERDWARF_MAX_MASS: f64 = 25.0;
+pub const BLUE_GIANT_POP_SUPERDWARF_MAX_MASS: f64 = 50.0;
+pub const BLUE_GIANT_POP_DWARF_MAX_MASS: f64 = 100.0;
+pub const BLUE_GIANT_POP_SUBDWARF_MAX_MASS: f64 = 200.0;
+pub const BLUE_GIANT_POP_PALEODWARF_MAX_MASS: f64 = 500.0;
 
 /// The following array gives expected temperatures and luminosity (powers of 10) for solar masses at each stage of their lifespan
 /// 1st entry is "birth", 3rd is beginning of subgiant, 5th beginning of giant/supergiant, 7th end of giant/supergiant, and inbetween are mid-points

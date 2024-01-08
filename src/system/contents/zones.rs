@@ -38,7 +38,7 @@ fn calculate_corona_zone(star: &mut Star) {
 
 fn calculate_inner_limit_zone(star: &mut Star) {
     let using_mass = 0.1 * star.mass;
-    let using_luminosity = 0.01 * star.luminosity.sqrt();
+    let using_luminosity = 0.01 * star.luminosity.sqrt() as f64;
     let inner_limit_radius = if using_mass > using_luminosity {
         using_mass
     } else {

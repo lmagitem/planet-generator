@@ -4,8 +4,8 @@ use crate::prelude::*;
 
 /// The following array contains equivalencies between masses and densities.
 /// Masses are in Earth masses, and density in gram per cubic centimeter.
-pub const MASS_TO_DENSITY_DATASET: &[(f32, f32); 28] = &[
-    (f32::MAX, 11.02),
+pub const MASS_TO_DENSITY_DATASET: &[(f64, f64); 28] = &[
+    (f64::MAX, 11.02),
     (25440.0, 60.0),
     (4131.0, 6.0),
     (4000.0, 8.82),

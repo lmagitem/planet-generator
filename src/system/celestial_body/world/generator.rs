@@ -10,8 +10,8 @@ impl WorldGenerator {
         mut size: CelestialBodySize,
         blackbody_temperature: u32,
         density: f32,
-        radius: f32,
-        mass: f32,
+        radius: f64,
+        mass: f64,
         gravity: f32,
         body_type: TelluricBodyComposition,
         world_type: CelestialBodyWorldType,
@@ -39,11 +39,12 @@ impl WorldGenerator {
                 blackbody_temperature,
                 size,
                 details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
-                    0.0,
                     body_type,
                     world_type,
                     special_traits,
                     CelestialBodyCoreHeat::ActiveCore,
+                    MagneticFieldStrength::None,
+                    0.0,
                 )),
             }),
             moons
@@ -116,6 +117,7 @@ impl WorldGenerator {
         );
 
         // TODO: Magnetic field
+        let magnetic_field = MagneticFieldStrength::None;
         // TODO: Volcanism
         // TODO: Tectonics
 
@@ -176,12 +178,6 @@ impl WorldGenerator {
 
         // TODO: Climate
 
-        // TODO: Dynamic parameters
-        // TODO: - Tidal Braking
-        // TODO: - Rotation Period
-        // TODO: - Local Calendar
-        // TODO: - Axial Tilt
-
         OrbitalPoint::new(
             orbital_point_id,
             Some(own_orbit.clone()),
@@ -196,7 +192,6 @@ impl WorldGenerator {
                 blackbody_temperature,
                 size,
                 CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
-                    atmospheric_pressure,
                     if body_type == TelluricBodyComposition::Icy && blackbody_temperature >= 170 {
                         TelluricBodyComposition::Rocky
                     } else {
@@ -205,6 +200,8 @@ impl WorldGenerator {
                     world_type,
                     special_traits,
                     core_heat,
+                    magnetic_field,
+                    atmospheric_pressure,
                 )),
             )),
             orbits.clone(),
@@ -382,7 +379,7 @@ fn generate_atmosphere(
     orbital_point_id: &u32,
     own_orbit: &Orbit,
     size: CelestialBodySize,
-    mass: f32,
+    mass: f64,
     body_type: TelluricBodyComposition,
     world_type: CelestialBodyWorldType,
     is_moon: bool,

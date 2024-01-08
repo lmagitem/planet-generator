@@ -8,7 +8,7 @@ pub struct StarSettings {
     pub fixed_age: Option<f32>,
     /// The specific mass to use for star generation, if any. Only applies during the lifespan of the star, in other words, if the star
     /// is older than its estimated lifespan, it will be generated as a remnant, with a new mass calculated using the given mass.
-    pub fixed_mass: Option<f32>,
+    pub fixed_mass: Option<f64>,
     /// Skip the star generation and just uses a copy of ours.
     pub use_ours: bool,
 }

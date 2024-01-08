@@ -5,9 +5,19 @@ impl ConversionUtils {
         radius * 4.6524726374 / 1000.0
     }
 
+    /// Converts a value from Astronomical units to Solar radii.
+    pub fn astronomical_units_to_solar_radii(au: f64) -> f64 {
+        au * 214.9394693836
+    }
+
     /// Converts a value from Earth radii to Astronomical units.
     pub fn earth_radii_to_astronomical_units(radius: f64) -> f64 {
         radius * 6371.0 / 149597870.7
+    }
+
+    /// Converts a value from Astronomical units to Earth radii.
+    pub fn astronomical_units_to_earth_radii(au: f64) -> f64 {
+        au * 23454.706481336
     }
 
     /// Converts a temperature from Kelvin to Celsius.
@@ -45,6 +55,32 @@ mod tests {
         let earth_radii = 1.0;
         let au = ConversionUtils::earth_radii_to_astronomical_units(earth_radii);
         assert!((au - (6371.0 / 149597870.7)).abs() < EPSILON);
+    }
+
+    #[test]
+    fn test_astronomical_units_to_solar_radii() {
+        let au = 1.0; // 1 AU
+        let solar_radii = ConversionUtils::astronomical_units_to_solar_radii(au);
+        let expected_solar_radii = 214.939;
+        assert!(
+            (solar_radii - expected_solar_radii).abs() < 0.001,
+            "solar_radii = {}, expected_solar_radii = {}",
+            solar_radii,
+            expected_solar_radii
+        );
+    }
+
+    #[test]
+    fn test_astronomical_units_to_earth_radii() {
+        let au = 1.0; // 1 AU
+        let earth_radii = ConversionUtils::astronomical_units_to_earth_radii(au);
+        let expected_earth_radii = 23454.706;
+        assert!(
+            (earth_radii - expected_earth_radii).abs() < 0.001,
+            "earth_radii = {}, expected_earth_radii = {}",
+            earth_radii,
+            expected_earth_radii
+        );
     }
 
     #[test]

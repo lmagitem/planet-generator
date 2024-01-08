@@ -10,7 +10,7 @@ use crate::system::contents::utils::{
 };
 use crate::system::orbital_point::generator::{
     calculate_orbital_period_from_earth_masses, calculate_planet_orbit_eccentricity,
-    complete_orbit_with_period_and_eccentricity,
+    complete_orbit_with_dynamic_parameters,
 };
 
 impl IcyBodyDetails {
@@ -41,12 +41,12 @@ impl IcyBodyDetails {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
-        star_mass: f32,
+        star_mass: f64,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_luminosity: f32,
         star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f32,
+        primary_star_mass: f64,
         gas_giant_arrangement: GasGiantArrangement,
         next_id: &mut u32,
         populated_orbit_index: u32,
@@ -128,26 +128,6 @@ impl IcyBodyDetails {
                 mass = new_mass;
 
                 let body_type = CelestialBodyComposition::Icy;
-                let this_orbit = if is_moon {
-                    own_orbit.clone().unwrap_or_default()
-                } else {
-                    complete_orbit_with_period_and_eccentricity(
-                        coord,
-                        system_index,
-                        star_id,
-                        ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                        gas_giant_arrangement,
-                        body_id,
-                        &own_orbit,
-                        orbit_distance,
-                        body_type == CelestialBodyComposition::Gaseous,
-                        blackbody_temp,
-                        mass,
-                        false,
-                        &settings,
-                    )
-                };
-
                 let surface_gravity = calculate_surface_gravity(density, radius);
                 let mut world_type = get_world_type(
                     size,
@@ -181,8 +161,28 @@ impl IcyBodyDetails {
                     density,
                     radius,
                     blackbody_temp,
-                    settings,
+                    &settings,
                     is_moon,
+                );
+
+                let this_orbit = complete_orbit_with_dynamic_parameters(
+                    coord,
+                    system_index,
+                    star_id,
+                    star_age,
+                    ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
+                    gas_giant_arrangement,
+                    body_id,
+                    &own_orbit,
+                    orbit_distance,
+                    body_type == CelestialBodyComposition::Gaseous,
+                    blackbody_temp,
+                    mass,
+                    radius,
+                    size,
+                    &moons,
+                    is_moon,
+                    &settings,
                 );
 
                 to_return = WorldGenerator::bundle_world_first_pass(
@@ -211,7 +211,7 @@ impl IcyBodyDetails {
                 (min_density * 1000.0) as i32 - 1,
             ) as f32
                 / 1000.0);
-            let radius = calculate_radius(mass as f64, density as f64) as f32;
+            let radius = calculate_radius(mass, density as f64);
             let surface_gravity = calculate_surface_gravity(density, radius);
 
             moons = MoonGenerator::generate_giants_moons(
@@ -282,7 +282,7 @@ impl IcyBodyDetails {
         blackbody_temp: u32,
         is_moon: bool,
         special_traits: &mut Vec<TelluricSpecialTrait>,
-    ) -> (OrbitalPoint, f64, f64, CelestialBodySize, f32) {
+    ) -> (OrbitalPoint, f64, f64, CelestialBodySize, f64) {
         let mut to_return = OrbitalPoint::new(
             orbital_point_id,
             own_orbit.clone(),
@@ -292,7 +292,7 @@ impl IcyBodyDetails {
         let mut min_density = 0.0;
         let mut max_density = 5.0;
         let mut size = CelestialBodySize::Puny;
-        let mut mass = 0.0;
+        let mut mass: f64 = 0.0;
 
         if is_moon {
             min_density = 0.6;
@@ -400,13 +400,13 @@ impl IcyBodyDetails {
             // Ice giant
             min_density = 0.6;
             max_density = 1.3;
-            mass = rng.roll(1, 1400, 200 - 1) as f32 / 100.0;
+            mass = rng.roll(1, 1400, 200 - 1) as f64 / 100.0;
             size = CelestialBodySize::Giant;
         } else if Self::is_temperature_low_enough_to_retain_water(blackbody_temp) {
             // Ice supergiant
             min_density = 0.9;
             max_density = 1.6;
-            mass = (rng.roll(1, 1000, 200 - 1) as f32).powf(2.0) / 100.0;
+            mass = (rng.roll(1, 1000, 200 - 1) as f64).powf(2.0) / 100.0;
             size = CelestialBodySize::Supergiant;
         } else {
             // Ice planet

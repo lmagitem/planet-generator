@@ -9,7 +9,7 @@ use crate::system::contents::utils::{
     calculate_blackbody_temperature, calculate_hill_sphere_radius, calculate_surface_gravity,
 };
 use crate::system::orbital_point::generator::{
-    calculate_planet_orbit_eccentricity, complete_orbit_with_period_and_eccentricity,
+    calculate_planet_orbit_eccentricity, complete_orbit_with_dynamic_parameters,
 };
 
 impl TelluricBodyDetails {
@@ -27,11 +27,12 @@ impl TelluricBodyDetails {
             blackbody_temperature: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
-                0.0,
                 TelluricBodyComposition::Rocky,
                 CelestialBodyWorldType::Rock,
                 Vec::new(),
                 CelestialBodyCoreHeat::FrozenCore,
+                MagneticFieldStrength::None,
+                0.0,
             )),
         }
     }
@@ -45,12 +46,12 @@ impl TelluricBodyDetails {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
-        star_mass: f32,
+        star_mass: f64,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_luminosity: f32,
         star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f32,
+        primary_star_mass: f64,
         gas_giant_arrangement: GasGiantArrangement,
         next_id: &mut u32,
         populated_orbit_index: u32,
@@ -122,22 +123,6 @@ impl TelluricBodyDetails {
             size = new_size;
 
             let body_type = CelestialBodyComposition::Rocky;
-            let this_orbit = complete_orbit_with_period_and_eccentricity(
-                coord,
-                system_index,
-                star_id,
-                ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                gas_giant_arrangement,
-                body_id,
-                &own_orbit,
-                orbit_distance,
-                body_type == CelestialBodyComposition::Gaseous,
-                blackbody_temp,
-                mass,
-                false,
-                &settings,
-            );
-
             let surface_gravity = calculate_surface_gravity(density, radius);
             let world_type = get_world_type(
                 size,
@@ -171,8 +156,28 @@ impl TelluricBodyDetails {
                 density,
                 radius,
                 blackbody_temp,
-                settings,
+                &settings,
                 is_moon,
+            );
+
+            let this_orbit = complete_orbit_with_dynamic_parameters(
+                coord,
+                system_index,
+                star_id,
+                star_age,
+                ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
+                gas_giant_arrangement,
+                body_id,
+                &own_orbit,
+                orbit_distance,
+                body_type == CelestialBodyComposition::Gaseous,
+                blackbody_temp,
+                mass,
+                radius,
+                size,
+                &moons,
+                is_moon,
+                &settings,
             );
 
             to_return = WorldGenerator::bundle_world_first_pass(
@@ -305,11 +310,12 @@ impl TelluricBodyDetails {
             blackbody_temperature: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
-                0.0,
                 TelluricBodyComposition::Metallic,
                 CelestialBodyWorldType::Rock,
                 Vec::new(),
                 CelestialBodyCoreHeat::FrozenCore,
+                MagneticFieldStrength::None,
+                0.0,
             )),
         }
     }
@@ -323,12 +329,12 @@ impl TelluricBodyDetails {
         star_id: u32,
         star_name: Rc<str>,
         star_age: f32,
-        star_mass: f32,
+        star_mass: f64,
         star_type: &StarSpectralType,
         star_class: &StarLuminosityClass,
         star_luminosity: f32,
         star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f32,
+        primary_star_mass: f64,
         gas_giant_arrangement: GasGiantArrangement,
         next_id: &mut u32,
         populated_orbit_index: u32,
@@ -398,26 +404,6 @@ impl TelluricBodyDetails {
             size = new_size;
 
             let body_type = CelestialBodyComposition::Metallic;
-            let this_orbit = if is_moon {
-                own_orbit.clone().unwrap_or_default()
-            } else {
-                complete_orbit_with_period_and_eccentricity(
-                    coord,
-                    system_index,
-                    star_id,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                    gas_giant_arrangement,
-                    body_id,
-                    &own_orbit,
-                    orbit_distance,
-                    body_type == CelestialBodyComposition::Gaseous,
-                    blackbody_temp,
-                    mass,
-                    false,
-                    &settings,
-                )
-            };
-
             let surface_gravity = calculate_surface_gravity(density, radius);
             let world_type = get_world_type(
                 size,
@@ -451,8 +437,28 @@ impl TelluricBodyDetails {
                 density,
                 radius,
                 blackbody_temp,
-                settings,
+                &settings,
                 is_moon,
+            );
+
+            let this_orbit = complete_orbit_with_dynamic_parameters(
+                coord,
+                system_index,
+                star_id,
+                star_age,
+                ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
+                gas_giant_arrangement,
+                body_id,
+                &own_orbit,
+                orbit_distance,
+                body_type == CelestialBodyComposition::Gaseous,
+                blackbody_temp,
+                mass,
+                radius,
+                size,
+                &moons,
+                is_moon,
+                &settings,
             );
 
             to_return = WorldGenerator::bundle_world_first_pass(
