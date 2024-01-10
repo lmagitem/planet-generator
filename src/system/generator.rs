@@ -484,24 +484,26 @@ fn find_center_of_binary_pair(
 
     let most_massive_orbit = Orbit::new(
         next_id,
-        vec![most_massive_point.id],
+        Some(most_massive_point.id),
         ZoneType::ForbiddenZone,
         barycentre_distance_from_most_massive,
         0.0,
         0.0,
         barycentre_distance_from_most_massive,
+        0.0,
         0.0,
         0.0,
         0.0,
     );
     let less_massive_orbit = Orbit::new(
         next_id,
-        vec![less_massive_point.id],
+        Some(less_massive_point.id),
         ZoneType::ForbiddenZone,
         actual_distance - barycentre_distance_from_most_massive,
         0.0,
         0.0,
         actual_distance - barycentre_distance_from_most_massive,
+        0.0,
         0.0,
         0.0,
         0.0,
@@ -574,7 +576,7 @@ fn calculate_distance_from_system_center(
         if let Some(orbit) = orbital_point
             .orbits
             .iter_mut()
-            .find(|o| o.satellite_ids == orbit.satellite_ids)
+            .find(|o| o.id.unwrap_or(u32::MAX) == orbit.id.unwrap_or(u32::MAX))
         {
             orbit.average_distance_from_system_center += primary_orbit_distance;
         }

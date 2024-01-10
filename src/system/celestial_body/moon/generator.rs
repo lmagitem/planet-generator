@@ -266,7 +266,7 @@ impl MoonGenerator {
 
             let orbit = Some(Orbit {
                 primary_body_id: planet_id,
-                satellite_ids: vec![moon_id],
+                id: Some(moon_id),
                 ..Default::default()
             });
             let mut moon_distance;
@@ -477,6 +477,13 @@ impl MoonGenerator {
                         } else {
                             CelestialBody::default()
                         };
+                        let mut special_traits: Vec<TelluricSpecialTrait> =
+                            if let CelestialBodyDetails::Telluric(moon_details) = moon_clone.details
+                            {
+                                moon_details.special_traits
+                            } else {
+                                Vec::new()
+                            };
                         moon_stub.own_orbit = Some(complete_orbit_with_dynamic_parameters(
                             coord,
                             system_index,
@@ -492,11 +499,18 @@ impl MoonGenerator {
                             moon_clone.mass,
                             moon_clone.radius,
                             moon_clone.size,
+                            &mut special_traits,
                             &Vec::new(),
                             true,
                             &settings,
                         ));
 
+                        if let AstronomicalObject::TelluricBody(moon) = &mut moon_stub.object {
+                            if let CelestialBodyDetails::Telluric(moon_details) = &mut moon.details
+                            {
+                                moon_details.special_traits = special_traits.clone();
+                            }
+                        }
                         moon_stubs.push(moon_stub.clone());
                         found = true;
                     } else if attempt_count == max_attempts {
@@ -1031,7 +1045,7 @@ impl MoonGenerator {
                 ring_id,
                 Some(Orbit {
                     primary_body_id: planet_id,
-                    satellite_ids: vec![ring_id],
+                    id: Some(ring_id),
                     average_distance: ring_distance,
                     ..Default::default()
                 }),

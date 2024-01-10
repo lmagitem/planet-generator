@@ -180,6 +180,7 @@ impl IcyBodyDetails {
                     mass,
                     radius,
                     size,
+                    &mut special_traits,
                     &moons,
                     is_moon,
                     &settings,

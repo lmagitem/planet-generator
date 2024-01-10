@@ -40,6 +40,8 @@ pub enum TelluricSpecialTrait {
     NoPeculiarity,
     UnusualVolatileDensity(TelluricVolatileDensityDifference),
     UnusualRotation(TelluricRotationDifference),
+    RetrogradeRotation,
+    TideLocked(TideLockTarget),
     UnusualAxialTilt(TelluricAxialTiltDifference),
     UnusualCore(TelluricCoreDifference),
     SpecificGeologicActivity(TelluricGeologicActivity),
@@ -53,6 +55,8 @@ impl Display for TelluricSpecialTrait {
             TelluricSpecialTrait::NoPeculiarity => write!(f, "No Peculiarity"),
             TelluricSpecialTrait::UnusualVolatileDensity(s) => write!(f, "{}", s),
             TelluricSpecialTrait::UnusualRotation(s) => write!(f, "{}", s),
+            TelluricSpecialTrait::RetrogradeRotation => write!(f, "Retrograde Rotation"),
+            TelluricSpecialTrait::TideLocked(s) => write!(f, "Tide-Locked {}", s),
             TelluricSpecialTrait::UnusualAxialTilt(s) => write!(f, "{}", s),
             TelluricSpecialTrait::UnusualCore(s) => write!(f, "{}", s),
             TelluricSpecialTrait::SpecificGeologicActivity(s) => write!(f, "{}", s),
@@ -87,6 +91,8 @@ pub enum TelluricRotationDifference {
     Slow,
     #[default]
     Fast,
+    /// The world rotates three times for every two orbits around its main body.
+    Resonant,
 }
 
 impl Display for TelluricRotationDifference {
@@ -94,6 +100,27 @@ impl Display for TelluricRotationDifference {
         match self {
             TelluricRotationDifference::Slow => write!(f, "Slow Rotation"),
             TelluricRotationDifference::Fast => write!(f, "Fast Rotation"),
+            TelluricRotationDifference::Resonant => write!(f, "3:2 Spin-Orbit Resonance"),
+        }
+    }
+}
+
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum TideLockTarget {
+    /// The object is tide-locked to what it's orbiting
+    #[default]
+    Orbited,
+    /// The object is tide-locked to its primary satellite
+    Satellite,
+}
+
+impl Display for TideLockTarget {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TideLockTarget::Orbited => write!(f, "to orbited"),
+            TideLockTarget::Satellite => write!(f, "to main satellite"),
         }
     }
 }

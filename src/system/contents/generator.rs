@@ -261,7 +261,7 @@ fn get_orbits_with_gas_giants(
         .enumerate()
         .filter_map(|(index, orbit)| {
             if new_objects.iter().any(|object| {
-                object.id == *orbit.satellite_ids.first().unwrap_or(&0)
+                object.id == orbit.id.unwrap_or(u32::MAX)
                     && matches!(object.object, AstronomicalObject::GaseousBody(_))
             }) {
                 Some((index, orbit.average_distance))
@@ -431,12 +431,13 @@ fn place_orbit_if_possible(
             ZoneType::InnerZone | ZoneType::BioZone | ZoneType::OuterZone => {
                 let orbit = Orbit::new(
                     star_id,
-                    vec![],
+                    None,
                     zone.zone_type,
                     next_orbit,
                     0.0,
                     0.0,
                     next_orbit_from_center,
+                    0.0,
                     0.0,
                     0.0,
                     0.0,
@@ -484,7 +485,7 @@ fn place_body_stubs(
         .iter_mut()
         .enumerate()
         .for_each(|(possible_orbit_index, orbit)| {
-            if orbit.satellite_ids.is_empty() {
+            if orbit.id.is_none() {
                 let mut rng = SeededDiceRoller::new(
                     &galaxy.settings.seed,
                     &format!(
@@ -529,7 +530,7 @@ fn place_body_stubs(
                                 ZoneType::InnerZone | ZoneType::BioZone => {
                                     let body_id = *next_id;
                                     *next_id += 1;
-                                    orbit.satellite_ids.push(body_id);
+                                    orbit.id = Some(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: true,
@@ -582,7 +583,7 @@ fn place_body_stubs(
                                 ZoneType::OuterZone => {
                                     let body_id = *next_id;
                                     *next_id += 1;
-                                    orbit.satellite_ids.push(body_id);
+                                    orbit.id = Some(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: true,
@@ -638,7 +639,7 @@ fn place_body_stubs(
                                 ZoneType::InnerZone | ZoneType::BioZone => {
                                     let body_id = *next_id;
                                     *next_id += 1;
-                                    orbit.satellite_ids.push(body_id);
+                                    orbit.id = Some(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: true,
@@ -692,7 +693,7 @@ fn place_body_stubs(
                                     debug!("GasGiantArrangement::ConventionalGasGiant ZoneType::OuterZone");
                                     let body_id = *next_id;
                                     *next_id += 1;
-                                    orbit.satellite_ids.push(body_id);
+                                    orbit.id = Some(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: should_skip_gaseous_body_gen(
@@ -753,7 +754,7 @@ fn place_body_stubs(
                                 ZoneType::InnerZone | ZoneType::BioZone => {
                                     let body_id = *next_id;
                                     *next_id += 1;
-                                    orbit.satellite_ids.push(body_id);
+                                    orbit.id = Some(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: should_skip_gaseous_body_gen(
@@ -811,7 +812,7 @@ fn place_body_stubs(
                                 ZoneType::OuterZone => {
                                     let body_id = *next_id;
                                     *next_id += 1;
-                                    orbit.satellite_ids.push(body_id);
+                                    orbit.id = Some(body_id);
 
                                     let celestial_body_settings = CelestialBodySettings {
                                         do_not_generate_gaseous: should_skip_gaseous_body_gen(
@@ -874,11 +875,11 @@ fn place_body_stubs(
                     possible_orbit_index, next_id, orbit.average_distance
                 );
             }
-            if let Some(id) = orbit.satellite_ids.first() {
+            if let Some(id) = orbit.id {
                 orbit_contents.push((
                     possible_orbit_index,
                     orbit.average_distance,
-                    new_objects.iter().find(|o| o.id == *id).map(|o| o.id),
+                    new_objects.iter().find(|o| o.id == id).map(|o| o.id),
                 ));
             } else {
                 orbit_contents.push((possible_orbit_index, orbit.average_distance, None));
@@ -922,7 +923,7 @@ fn replace_stubs(
         .iter_mut()
         .enumerate()
         .for_each(|(orbit_index, orbit)| {
-            if !orbit.satellite_ids.is_empty() {
+            if orbit.id.is_some() {
                 let (
                     gas_giant_orbits_inwards_proximity,
                     gas_giant_orbits_outwards_proximity,
@@ -1618,12 +1619,13 @@ fn handle_proto_gas_giant_placement(
             // Create an Orbit
             let mut orbit = Orbit::new(
                 star_id,
-                vec![giant_id],
+                Some(giant_id),
                 zone.zone_type,
                 orbit_radius,
                 0.0,
                 0.0,
                 orbit_from_center,
+                0.0,
                 0.0,
                 0.0,
                 0.0,

@@ -90,6 +90,7 @@ mod tests {
     use super::internal::*;
     use super::prelude::*;
     use super::*;
+    use crate::system::star::get_star_color_code;
     use std::collections::HashSet;
 
     // #[test]
@@ -319,12 +320,19 @@ mod tests {
 
         sorted_objects.iter().for_each(|(o, depth)| {
             println!(
-                "{}{} ({} AU):\n{}{}",
+                "{}{} ({} AU) {}\n{}\x1b[37m{}\x1b[0m\n{}{}",
                 " ".repeat(*depth * 2),
                 format!("{:03}", o.id),
                 StringUtils::to_significant_decimals(
                     o.own_orbit.clone().unwrap_or_default().average_distance
                 ),
+                if let AstronomicalObject::Star(star) = o.object.clone() {
+                    format!("{}{}\x1b[0m", get_star_color_code(&star), star.name)
+                } else {
+                    String::new()
+                },
+                " ".repeat(*depth * 2 + 4),
+                o.own_orbit.clone().unwrap_or_default(),
                 " ".repeat(*depth * 2 + 4),
                 o.object
             );

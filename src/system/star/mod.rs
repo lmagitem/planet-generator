@@ -125,3 +125,25 @@ impl Star {
             * self.radius) as f64
     }
 }
+
+pub(crate) fn get_star_color_code(star: &Star) -> &'static str {
+    match star.spectral_type {
+        StarSpectralType::WR(_) | StarSpectralType::O(_) => "\x1b[34m", // Blue
+        StarSpectralType::B(_) => "\x1b[1;34m",                         // Bright Blue
+        StarSpectralType::A(_) => "\x1b[1;37m",                         // Bright White
+        StarSpectralType::F(_) => "\x1b[1;33m",                         // Bright Yellow
+        StarSpectralType::G(_) => "\x1b[33m",                           // Yellow
+        StarSpectralType::K(_) => "\x1b[1;31m", // Bright Red (as a stand-in for orange)
+        StarSpectralType::M(_) => "\x1b[31m",   // Red
+        StarSpectralType::L(_) | StarSpectralType::T(_) | StarSpectralType::Y(_) => "\x1b[31m", // Red
+        StarSpectralType::DA
+        | StarSpectralType::DB
+        | StarSpectralType::DC
+        | StarSpectralType::DO
+        | StarSpectralType::DZ
+        | StarSpectralType::DQ
+        | StarSpectralType::DX => "\x1b[1;37m", // Bright White
+        StarSpectralType::XNS => "\x1b[1;34m", // Bright Blue
+        _ => "",
+    }
+}

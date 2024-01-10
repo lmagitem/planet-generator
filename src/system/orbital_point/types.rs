@@ -6,35 +6,37 @@ use std::fmt;
 pub struct Orbit {
     /// The id of the primary body at the center of this orbit.
     pub primary_body_id: u32,
-    /// The ids of the objects in this orbit.
-    pub satellite_ids: Vec<u32>,
+    /// The id of the object in this orbit.
+    pub id: Option<u32>,
     /// The zone type this orbit is in. Forbidden means planets cannot form there naturally.
     pub zone: ZoneType,
-    /// The average distance from the primary body to the objects in this orbit.
+    /// The average distance from the primary body to the object in this orbit.
     pub average_distance: f64,
-    /// The minimum possible distance from the primary body to the objects in this orbit.
+    /// The minimum possible distance from the primary body to the object in this orbit.
     pub min_separation: f64,
-    /// The maximum possible distance from the primary body to the objects in this orbit.
+    /// The maximum possible distance from the primary body to the object in this orbit.
     pub max_separation: f64,
-    /// The average distance from the barycentre of the solar system to the objects in this orbit.
+    /// The average distance from the barycentre of the solar system to the object in this orbit.
     pub average_distance_from_system_center: f64,
     /// A measure of the orbit's deviation from a perfect circle, ranging from 0 (circular) to
     /// values close to 1 (highly elongated).
     pub eccentricity: f32,
-    /// The tilt angle (in degrees) between the orbital plane and a reference plane. A value of 0°
-    /// indicates an orbit in the reference plane, while 90° is perpendicular. Values over 90°
+    /// Indicates an orbit in the reference plane, while 90° is perpendicular. Values over 90°
     /// suggest a retrograde orbit.
     pub inclination: f32,
-    /// The time it takes in terran days for anything on this orbit to make a complete journey
+    /// The time it takes in terran days for the object in this orbit to make a complete journey
     /// around what it orbits.
     pub orbital_period: f32,
+    /// The time it takes in terran days for the object in this orbit to make a complete rotation
+    /// around itself.
+    pub rotation: f32,
 }
 
 impl Orbit {
     /// Creates a new [Orbit].
     pub fn new(
         primary_body_id: u32,
-        satellite_ids: Vec<u32>,
+        id: Option<u32>,
         zone: ZoneType,
         average_distance: f64,
         min_separation: f64,
@@ -43,10 +45,11 @@ impl Orbit {
         eccentricity: f32,
         inclination: f32,
         orbital_period: f32,
+        rotation: f32,
     ) -> Self {
         Self {
             primary_body_id,
-            satellite_ids,
+            id,
             zone,
             average_distance,
             min_separation,
@@ -55,7 +58,27 @@ impl Orbit {
             eccentricity,
             inclination,
             orbital_period,
+            rotation,
         }
+    }
+}
+
+impl Display for Orbit {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{} around {} - {} AU ({} AU), ecc: {}, min sep: {} AU, max sep: {} AU, incl: {}, period: {} day⊕, rotation: {} day⊕",
+            if self.id.is_some() { format!("{:03}", self.id.unwrap()) } else { String::from("EMPTY") },
+            format!("{:03}", self.primary_body_id),
+            StringUtils::to_significant_decimals(self.average_distance),
+            StringUtils::to_significant_decimals(self.average_distance_from_system_center),
+            StringUtils::to_significant_decimals(self.eccentricity as f64),
+            StringUtils::to_significant_decimals(self.min_separation),
+            StringUtils::to_significant_decimals(self.max_separation),
+            StringUtils::to_significant_decimals(self.inclination as f64),
+            StringUtils::to_significant_decimals(self.orbital_period as f64),
+            StringUtils::to_significant_decimals(self.rotation as f64)
+        )
     }
 }
 

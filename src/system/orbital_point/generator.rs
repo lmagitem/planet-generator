@@ -56,6 +56,7 @@ pub fn complete_orbit_with_dynamic_parameters(
     mass: f64,
     radius: f64,
     size: CelestialBodySize,
+    special_traits: &mut Vec<TelluricSpecialTrait>,
     moons: &Vec<OrbitalPoint>,
     is_moon: bool,
     settings: &GenerationSettings,
@@ -83,7 +84,6 @@ pub fn complete_orbit_with_dynamic_parameters(
     this_orbit.min_separation = min_separation;
     this_orbit.max_separation = max_separation;
 
-    // TODO: - Tidal Braking
     let tidal_braking = if is_moon {
         calculate_moon_tidal_braking(
             radius,
@@ -114,11 +114,209 @@ pub fn complete_orbit_with_dynamic_parameters(
             moons_masses_and_radii,
         )
     };
+    this_orbit.rotation = generate_rotation_period(
+        coord,
+        system_index,
+        star_id,
+        orbital_point_id,
+        &mut this_orbit,
+        size,
+        special_traits,
+        eccentricity,
+        tidal_braking,
+        moons,
+        is_moon,
+        settings,
+    );
 
-    // TODO: - Rotation Period
     // TODO: - Local Calendar
     // TODO: - Axial Tilt
     this_orbit
+}
+
+fn generate_rotation_period(
+    coord: SpaceCoordinates,
+    system_index: u16,
+    star_id: u32,
+    orbital_point_id: u32,
+    mut this_orbit: &mut Orbit,
+    size: CelestialBodySize,
+    special_traits: &mut Vec<TelluricSpecialTrait>,
+    eccentricity: f64,
+    tidal_braking: u32,
+    moons: &Vec<OrbitalPoint>,
+    is_moon: bool,
+    settings: &GenerationSettings,
+) -> f32 {
+    let mut rng = SeededDiceRoller::new(
+        &settings.seed,
+        &format!(
+            "sys_{}_{}_str_{}_bdy{}_rot",
+            coord, system_index, star_id, orbital_point_id
+        ),
+    );
+
+    let mut rotation = 0.0;
+    if tidal_braking >= 50 {
+        tide_lock_given_body(
+            special_traits,
+            moons,
+            this_orbit.orbital_period,
+            eccentricity,
+            &mut rng,
+            &mut rotation,
+        );
+    } else {
+        let modifier = if size == CelestialBodySize::Giant || size == CelestialBodySize::Large {
+            6
+        } else if size == CelestialBodySize::Standard {
+            10
+        } else if size == CelestialBodySize::Small {
+            14
+        } else if size == CelestialBodySize::Tiny {
+            18
+        } else if size == CelestialBodySize::Puny {
+            22
+        } else {
+            0
+        };
+
+        let mut unusually_slow_rotation = false;
+        let mut roll = rng.roll(3, 500, 297) as f32 / 100.0;
+
+        roll = if special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+            TelluricRotationDifference::Fast,
+        )) {
+            special_traits.retain(|t| {
+                *t != TelluricSpecialTrait::UnusualRotation(TelluricRotationDifference::Fast)
+            });
+            roll / 2.0
+        } else {
+            roll
+        };
+        if roll >= 16.0
+            || special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+                TelluricRotationDifference::Slow,
+            ))
+        {
+            special_traits.retain(|t| {
+                *t != TelluricSpecialTrait::UnusualRotation(TelluricRotationDifference::Slow)
+            });
+            unusually_slow_rotation = true
+        }
+        roll += modifier as f32 + tidal_braking as f32;
+        if roll >= 36.0 {
+            unusually_slow_rotation = true
+        }
+
+        rotation = roll / 24.0;
+
+        if unusually_slow_rotation {
+            let slow_roll = rng.roll(2, 6, 0);
+
+            if slow_roll == 7 {
+                rotation = rng.roll(1, 6, 0) as f32 * 2.0
+            } else if slow_roll == 8 {
+                rotation = rng.roll(1, 6, 0) as f32 * 5.0
+            } else if slow_roll == 9 {
+                rotation = rng.roll(1, 6, 0) as f32 * 10.0
+            } else if slow_roll == 10 {
+                rotation = rng.roll(1, 6, 0) as f32 * 20.0
+            } else if slow_roll == 11 {
+                rotation = rng.roll(1, 6, 0) as f32 * 50.0
+            } else if slow_roll == 12 {
+                rotation = rng.roll(1, 6, 0) as f32 * 100.0
+            }
+            if slow_roll > 6 {
+                rotation += rng.roll(1, 101, -1) as f32 - 50.0;
+            }
+        }
+
+        if rotation >= this_orbit.orbital_period {
+            tide_lock_given_body(
+                special_traits,
+                moons,
+                this_orbit.orbital_period,
+                eccentricity,
+                &mut rng,
+                &mut rotation,
+            );
+        }
+    }
+
+    let retrograde_roll = rng.roll(3, 6, 0);
+    rotation = if !is_moon && retrograde_roll >= 13 || retrograde_roll >= 17 {
+        special_traits.push(TelluricSpecialTrait::RetrogradeRotation);
+        -rotation
+    } else {
+        rotation
+    };
+
+    if special_traits.is_empty() {
+        special_traits.push(TelluricSpecialTrait::NoPeculiarity);
+    } else if special_traits.len() > 1 {
+        special_traits.retain(|t| *t != TelluricSpecialTrait::NoPeculiarity);
+    }
+
+    rotation
+}
+
+/// Tide-lock the given body, to its closest major moon if it's a planet that has one, to the body it orbits instead if not..
+fn tide_lock_given_body(
+    special_traits: &mut Vec<TelluricSpecialTrait>,
+    moons: &Vec<OrbitalPoint>,
+    orbital_period: f32,
+    eccentricity: f64,
+    rng: &mut SeededDiceRoller,
+    rotation: &mut f32,
+) {
+    let closest_major_moon = moons
+        .iter()
+        .filter(|moon_point| {
+            if let AstronomicalObject::TelluricBody(moon) = moon_point.object.clone() {
+                moon.size != CelestialBodySize::Puny
+            } else {
+                false
+            }
+        })
+        .min_by(|a, b| {
+            a.own_orbit
+                .clone()
+                .unwrap_or_default()
+                .average_distance
+                .partial_cmp(&b.own_orbit.clone().unwrap_or_default().average_distance)
+                .expect("Should have been able to compare two distances.")
+        });
+    let moon_period;
+
+    let mut to_add = if let Some(major_moon) = closest_major_moon {
+        moon_period = major_moon
+            .own_orbit
+            .clone()
+            .unwrap_or_default()
+            .orbital_period;
+        TelluricSpecialTrait::TideLocked(TideLockTarget::Satellite)
+    } else {
+        moon_period = 0.0;
+        TelluricSpecialTrait::TideLocked(TideLockTarget::Orbited)
+    };
+
+    if eccentricity >= 0.1 {
+        if rng.roll(3, 6, 0) >= 16 {
+            to_add = TelluricSpecialTrait::UnusualRotation(TelluricRotationDifference::Resonant);
+            *rotation = 2.0 / 3.0 * orbital_period;
+        }
+    }
+
+    if to_add == TelluricSpecialTrait::TideLocked(TideLockTarget::Satellite) {
+        *rotation = moon_period;
+    } else if to_add == TelluricSpecialTrait::TideLocked(TideLockTarget::Orbited) {
+        *rotation = orbital_period;
+    }
+
+    if !special_traits.contains(&to_add) {
+        special_traits.push(to_add);
+    }
 }
 
 fn calculate_planet_tidal_braking(
