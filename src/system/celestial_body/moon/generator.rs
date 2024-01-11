@@ -5,10 +5,10 @@ use crate::system::contents::generator::{
     generate_body_from_type, generate_inner_body_type, generate_outer_body_type,
 };
 use crate::system::contents::utils::{calculate_hill_sphere_radius, calculate_roche_limit};
-use crate::system::orbital_point::generator::complete_orbit_with_dynamic_parameters;
+use crate::system::orbital_point::generator::{
+    complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
+};
 use crate::system::orbital_point::utils::sort_orbital_points_by_average_distance;
-use std::fmt::format;
-use std::rc::Rc;
 
 impl MoonGenerator {
     pub(crate) fn generate_planets_moons(
@@ -34,6 +34,7 @@ impl MoonGenerator {
         planet_mass: f64,
         planet_density: f32,
         planet_radius: f64,
+        planet_orbital_period: f32,
         blackbody_temperature: u32,
         settings: &GenerationSettings,
         is_moon: bool,
@@ -81,6 +82,7 @@ impl MoonGenerator {
             planet_mass,
             planet_density,
             planet_radius,
+            planet_orbital_period,
             blackbody_temperature,
             &settings,
             &mut result,
@@ -116,6 +118,7 @@ impl MoonGenerator {
         planet_mass: f64,
         planet_density: f32,
         planet_radius: f64,
+        planet_orbital_period: f32,
         blackbody_temperature: u32,
         settings: GenerationSettings,
         is_moon: bool,
@@ -186,6 +189,7 @@ impl MoonGenerator {
             planet_mass,
             planet_density,
             planet_radius,
+            planet_orbital_period,
             blackbody_temperature,
             &settings,
             &mut result,
@@ -221,6 +225,7 @@ impl MoonGenerator {
         planet_mass: f64,
         planet_density: f32,
         planet_radius: f64,
+        planet_orbital_period: f32,
         blackbody_temperature: u32,
         settings: &GenerationSettings,
         result: &mut Vec<OrbitalPoint>,
@@ -484,15 +489,31 @@ impl MoonGenerator {
                             } else {
                                 Vec::new()
                             };
-                        moon_stub.own_orbit = Some(complete_orbit_with_dynamic_parameters(
+                        moon_stub.own_orbit = Some(complete_orbit_with_rotation_and_axis(
                             coord,
                             system_index,
                             star_id,
                             star_age,
-                            planet_mass as f64,
-                            GasGiantArrangement::NoGasGiant,
+                            ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                            Some(planet_orbital_period),
+                            gas_giant_arrangement,
                             moon_id,
-                            &orbit,
+                            &Some(complete_orbit_with_orbital_period(
+                                coord,
+                                system_index,
+                                star_id,
+                                ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                                gas_giant_arrangement,
+                                moon_id,
+                                &moon_stub.own_orbit,
+                                moon_orbit_distance,
+                                false,
+                                blackbody_temperature,
+                                moon_clone.mass,
+                                moon_clone.size,
+                                true,
+                                &settings,
+                            )),
                             moon_orbit_distance,
                             false,
                             blackbody_temperature,

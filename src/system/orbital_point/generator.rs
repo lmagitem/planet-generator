@@ -1,4 +1,5 @@
 use crate::internal::*;
+use crate::prelude::TelluricRotationDifference::Retrograde;
 use crate::prelude::*;
 
 /// Calculates the orbital period between two bodies.
@@ -41,11 +42,10 @@ pub fn calculate_orbital_period_from_earth_masses(
     )
 }
 
-pub fn complete_orbit_with_dynamic_parameters(
+pub fn complete_orbit_with_orbital_period(
     coord: SpaceCoordinates,
     system_index: u16,
     star_id: u32,
-    star_age: f32,
     orbited_object_mass: f64,
     gas_giant_arrangement: GasGiantArrangement,
     orbital_point_id: u32,
@@ -54,19 +54,14 @@ pub fn complete_orbit_with_dynamic_parameters(
     is_gas_giant: bool,
     blackbody_temp: u32,
     mass: f64,
-    radius: f64,
     size: CelestialBodySize,
-    special_traits: &mut Vec<TelluricSpecialTrait>,
-    moons: &Vec<OrbitalPoint>,
     is_moon: bool,
     settings: &GenerationSettings,
 ) -> Orbit {
     let mut this_orbit = own_orbit.clone().unwrap_or_default();
-    this_orbit.orbital_period = calculate_orbital_period_from_earth_masses(
-        orbit_distance,
-        orbited_object_mass,
-        mass as f64,
-    ) as f32;
+    this_orbit.orbital_period =
+        calculate_orbital_period_from_earth_masses(orbit_distance, orbited_object_mass, mass)
+            as f32;
     let (eccentricity, min_separation, max_separation) = calculate_planet_orbit_eccentricity(
         &coord,
         system_index,
@@ -84,6 +79,32 @@ pub fn complete_orbit_with_dynamic_parameters(
     this_orbit.min_separation = min_separation;
     this_orbit.max_separation = max_separation;
 
+    this_orbit
+}
+
+pub fn complete_orbit_with_rotation_and_axis(
+    coord: SpaceCoordinates,
+    system_index: u16,
+    star_id: u32,
+    star_age: f32,
+    orbited_object_mass: f64,
+    orbited_object_orbital_period: Option<f32>,
+    gas_giant_arrangement: GasGiantArrangement,
+    orbital_point_id: u32,
+    own_orbit: &Option<Orbit>,
+    orbit_distance: f64,
+    is_gas_giant: bool,
+    blackbody_temp: u32,
+    mass: f64,
+    radius: f64,
+    size: CelestialBodySize,
+    special_traits: &mut Vec<TelluricSpecialTrait>,
+    moons: &Vec<OrbitalPoint>,
+    is_moon: bool,
+    settings: &GenerationSettings,
+) -> Orbit {
+    let mut this_orbit = own_orbit.clone().unwrap_or_default();
+    let eccentricity = this_orbit.eccentricity;
     let tidal_braking = if is_moon {
         calculate_moon_tidal_braking(
             radius,
@@ -114,6 +135,7 @@ pub fn complete_orbit_with_dynamic_parameters(
             moons_masses_and_radii,
         )
     };
+    // TODO: Fix the bug that makes almost everything go tide-locked
     this_orbit.rotation = generate_rotation_period(
         coord,
         system_index,
@@ -121,17 +143,39 @@ pub fn complete_orbit_with_dynamic_parameters(
         orbital_point_id,
         &mut this_orbit,
         size,
+        is_gas_giant,
         special_traits,
-        eccentricity,
+        eccentricity as f64,
         tidal_braking,
         moons,
         is_moon,
         settings,
     );
+    this_orbit.day_length =
+        calculate_day_length(orbited_object_orbital_period, is_moon, &mut this_orbit);
 
-    // TODO: - Local Calendar
     // TODO: - Axial Tilt
+
     this_orbit
+}
+
+fn calculate_day_length(
+    orbited_object_orbital_period: Option<f32>,
+    is_moon: bool,
+    this_orbit: &mut Orbit,
+) -> f32 {
+    let sidereal_period: f32 = if is_moon {
+        orbited_object_orbital_period
+            .expect("The parent's orbital period should have been provided.")
+    } else {
+        this_orbit.orbital_period
+    };
+    let day_length = if sidereal_period == this_orbit.rotation {
+        f32::INFINITY
+    } else {
+        (sidereal_period * this_orbit.rotation) / (sidereal_period - this_orbit.rotation)
+    };
+    day_length
 }
 
 fn generate_rotation_period(
@@ -141,6 +185,7 @@ fn generate_rotation_period(
     orbital_point_id: u32,
     mut this_orbit: &mut Orbit,
     size: CelestialBodySize,
+    is_gas_giant: bool,
     special_traits: &mut Vec<TelluricSpecialTrait>,
     eccentricity: f64,
     tidal_braking: u32,
@@ -162,6 +207,7 @@ fn generate_rotation_period(
             special_traits,
             moons,
             this_orbit.orbital_period,
+            is_gas_giant,
             eccentricity,
             &mut rng,
             &mut rotation,
@@ -237,6 +283,7 @@ fn generate_rotation_period(
                 special_traits,
                 moons,
                 this_orbit.orbital_period,
+                is_gas_giant,
                 eccentricity,
                 &mut rng,
                 &mut rotation,
@@ -246,7 +293,7 @@ fn generate_rotation_period(
 
     let retrograde_roll = rng.roll(3, 6, 0);
     rotation = if !is_moon && retrograde_roll >= 13 || retrograde_roll >= 17 {
-        special_traits.push(TelluricSpecialTrait::RetrogradeRotation);
+        special_traits.push(TelluricSpecialTrait::UnusualRotation(Retrograde));
         -rotation
     } else {
         rotation
@@ -266,27 +313,32 @@ fn tide_lock_given_body(
     special_traits: &mut Vec<TelluricSpecialTrait>,
     moons: &Vec<OrbitalPoint>,
     orbital_period: f32,
+    is_gas_giant: bool,
     eccentricity: f64,
     rng: &mut SeededDiceRoller,
     rotation: &mut f32,
 ) {
-    let closest_major_moon = moons
-        .iter()
-        .filter(|moon_point| {
-            if let AstronomicalObject::TelluricBody(moon) = moon_point.object.clone() {
-                moon.size != CelestialBodySize::Puny
-            } else {
-                false
-            }
-        })
-        .min_by(|a, b| {
-            a.own_orbit
-                .clone()
-                .unwrap_or_default()
-                .average_distance
-                .partial_cmp(&b.own_orbit.clone().unwrap_or_default().average_distance)
-                .expect("Should have been able to compare two distances.")
-        });
+    let closest_major_moon = if is_gas_giant {
+        None
+    } else {
+        moons
+            .iter()
+            .filter(|moon_point| {
+                if let AstronomicalObject::TelluricBody(moon) = moon_point.object.clone() {
+                    moon.size != CelestialBodySize::Puny
+                } else {
+                    false
+                }
+            })
+            .min_by(|a, b| {
+                a.own_orbit
+                    .clone()
+                    .unwrap_or_default()
+                    .average_distance
+                    .partial_cmp(&b.own_orbit.clone().unwrap_or_default().average_distance)
+                    .expect("Should have been able to compare two distances.")
+            })
+    };
     let moon_period;
 
     let mut to_add = if let Some(major_moon) = closest_major_moon {

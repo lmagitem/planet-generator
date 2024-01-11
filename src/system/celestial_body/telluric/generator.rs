@@ -1,15 +1,11 @@
 use crate::internal::*;
-use crate::prelude::TelluricSpecialTrait::*;
 use crate::prelude::*;
-use crate::system::celestial_body::generator::*;
-use crate::system::contents::generator::{
-    generate_body_from_type, generate_inner_body_type, generate_outer_body_type,
+use crate::system::celestial_body::generator::{
+    generate_acceptable_telluric_parameters, get_world_type,
 };
-use crate::system::contents::utils::{
-    calculate_blackbody_temperature, calculate_hill_sphere_radius, calculate_surface_gravity,
-};
+use crate::system::contents::utils::{calculate_blackbody_temperature, calculate_surface_gravity};
 use crate::system::orbital_point::generator::{
-    calculate_planet_orbit_eccentricity, complete_orbit_with_dynamic_parameters,
+    complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
 
 impl TelluricBodyDetails {
@@ -132,6 +128,27 @@ impl TelluricBodyDetails {
                 &mut rng,
             );
 
+            let this_orbit = if !is_moon {
+                complete_orbit_with_orbital_period(
+                    coord,
+                    system_index,
+                    star_id,
+                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                    gas_giant_arrangement,
+                    body_id,
+                    &own_orbit,
+                    orbit_distance,
+                    body_type == CelestialBodyComposition::Gaseous,
+                    blackbody_temp,
+                    mass,
+                    size,
+                    is_moon,
+                    &settings,
+                )
+            } else {
+                own_orbit.clone().unwrap_or_default()
+            };
+
             moons = MoonGenerator::generate_planets_moons(
                 system_traits,
                 system_index,
@@ -155,31 +172,37 @@ impl TelluricBodyDetails {
                 mass,
                 density,
                 radius,
+                this_orbit.orbital_period,
                 blackbody_temp,
                 &settings,
                 is_moon,
             );
 
-            let this_orbit = complete_orbit_with_dynamic_parameters(
-                coord,
-                system_index,
-                star_id,
-                star_age,
-                ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                gas_giant_arrangement,
-                body_id,
-                &own_orbit,
-                orbit_distance,
-                body_type == CelestialBodyComposition::Gaseous,
-                blackbody_temp,
-                mass,
-                radius,
-                size,
-                &mut special_traits,
-                &moons,
-                is_moon,
-                &settings,
-            );
+            let this_orbit = if !is_moon {
+                complete_orbit_with_rotation_and_axis(
+                    coord,
+                    system_index,
+                    star_id,
+                    star_age,
+                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                    None,
+                    gas_giant_arrangement,
+                    body_id,
+                    &own_orbit,
+                    orbit_distance,
+                    body_type == CelestialBodyComposition::Gaseous,
+                    blackbody_temp,
+                    mass,
+                    radius,
+                    size,
+                    &mut special_traits,
+                    &moons,
+                    is_moon,
+                    &settings,
+                )
+            } else {
+                this_orbit
+            };
 
             to_return = WorldGenerator::bundle_world_first_pass(
                 star_name,
@@ -264,7 +287,9 @@ impl TelluricBodyDetails {
             min_density = 3.0;
             max_density = 4.5;
             size = CelestialBodySize::Tiny;
-            special_traits.push(UnusualCore(TelluricCoreDifference::Coreless));
+            special_traits.push(TelluricSpecialTrait::UnusualCore(
+                TelluricCoreDifference::Coreless,
+            ));
         } else if rolled_size <= 235 {
             // Rock dwarf
             min_density = 3.3;
@@ -275,13 +300,17 @@ impl TelluricBodyDetails {
             min_density = 3.0;
             max_density = 4.5;
             size = CelestialBodySize::Small;
-            special_traits.push(UnusualCore(TelluricCoreDifference::Coreless));
+            special_traits.push(TelluricSpecialTrait::UnusualCore(
+                TelluricCoreDifference::Coreless,
+            ));
         } else if rolled_size <= 240 {
             // Coreless rock planet
             min_density = 3.0;
             max_density = 4.5;
             size = CelestialBodySize::Standard;
-            special_traits.push(UnusualCore(TelluricCoreDifference::Coreless));
+            special_traits.push(TelluricSpecialTrait::UnusualCore(
+                TelluricCoreDifference::Coreless,
+            ));
         } else if rolled_size <= 318 {
             // Rock planet
             min_density = 4.4;
@@ -414,6 +443,27 @@ impl TelluricBodyDetails {
                 &mut rng,
             );
 
+            let this_orbit = if !is_moon {
+                complete_orbit_with_orbital_period(
+                    coord,
+                    system_index,
+                    star_id,
+                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                    gas_giant_arrangement,
+                    body_id,
+                    &own_orbit,
+                    orbit_distance,
+                    body_type == CelestialBodyComposition::Gaseous,
+                    blackbody_temp,
+                    mass,
+                    size,
+                    is_moon,
+                    &settings,
+                )
+            } else {
+                own_orbit.clone().unwrap_or_default()
+            };
+
             moons = MoonGenerator::generate_planets_moons(
                 system_traits,
                 system_index,
@@ -437,31 +487,37 @@ impl TelluricBodyDetails {
                 mass,
                 density,
                 radius,
+                this_orbit.orbital_period,
                 blackbody_temp,
                 &settings,
                 is_moon,
             );
 
-            let this_orbit = complete_orbit_with_dynamic_parameters(
-                coord,
-                system_index,
-                star_id,
-                star_age,
-                ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                gas_giant_arrangement,
-                body_id,
-                &own_orbit,
-                orbit_distance,
-                body_type == CelestialBodyComposition::Gaseous,
-                blackbody_temp,
-                mass,
-                radius,
-                size,
-                &mut special_traits,
-                &moons,
-                is_moon,
-                &settings,
-            );
+            let this_orbit = if !is_moon {
+                complete_orbit_with_rotation_and_axis(
+                    coord,
+                    system_index,
+                    star_id,
+                    star_age,
+                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                    None,
+                    gas_giant_arrangement,
+                    body_id,
+                    &own_orbit,
+                    orbit_distance,
+                    body_type == CelestialBodyComposition::Gaseous,
+                    blackbody_temp,
+                    mass,
+                    radius,
+                    size,
+                    &mut special_traits,
+                    &moons,
+                    is_moon,
+                    &settings,
+                )
+            } else {
+                this_orbit
+            };
 
             to_return = WorldGenerator::bundle_world_first_pass(
                 star_name,
@@ -764,7 +820,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualVolatileDensity(_)))
                 {
-                    special_traits.push(UnusualVolatileDensity(
+                    special_traits.push(TelluricSpecialTrait::UnusualVolatileDensity(
                         TelluricVolatileDensityDifference::Poor,
                     ));
                 } else if current_roll <= 29
@@ -772,7 +828,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualVolatileDensity(_)))
                 {
-                    special_traits.push(UnusualVolatileDensity(
+                    special_traits.push(TelluricSpecialTrait::UnusualVolatileDensity(
                         TelluricVolatileDensityDifference::Rich,
                     ));
                 } else if current_roll <= 32
@@ -780,43 +836,55 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Slow));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Slow,
+                    ));
                 } else if current_roll <= 37
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Fast));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Fast,
+                    ));
                 } else if current_roll <= 40
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Minimal));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Minimal,
+                    ));
                 } else if current_roll <= 49
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Extreme));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Extreme,
+                    ));
                 } else if current_roll <= 53
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualCore(_)))
                 {
-                    special_traits.push(UnusualCore(TelluricCoreDifference::Smaller));
+                    special_traits.push(TelluricSpecialTrait::UnusualCore(
+                        TelluricCoreDifference::Smaller,
+                    ));
                 } else if current_roll <= 55
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualCore(_)))
                 {
-                    special_traits.push(UnusualCore(TelluricCoreDifference::Larger));
+                    special_traits.push(TelluricSpecialTrait::UnusualCore(
+                        TelluricCoreDifference::Larger,
+                    ));
                 } else if current_roll <= 59
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyDead,
                     ));
                 } else if current_roll <= 69
@@ -824,7 +892,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyExtinct,
                     ));
                 } else if current_roll <= 74
@@ -832,7 +900,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyActive,
                     ));
                 } else if current_roll <= 79
@@ -841,7 +909,7 @@ pub(crate) fn generate_peculiarities(
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualMagneticField(_)))
                 {
                     let magnetic_field = generate_magnetic_field_difference(&mut rng);
-                    special_traits.push(UnusualMagneticField(magnetic_field));
+                    special_traits.push(TelluricSpecialTrait::UnusualMagneticField(magnetic_field));
                 } else if current_roll <= 84 {
                     // Less dense
                     *min_density += -1.0;
@@ -874,7 +942,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualVolatileDensity(_)))
                 {
-                    special_traits.push(UnusualVolatileDensity(
+                    special_traits.push(TelluricSpecialTrait::UnusualVolatileDensity(
                         TelluricVolatileDensityDifference::Poor,
                     ));
                 } else if current_roll <= 14
@@ -882,7 +950,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualVolatileDensity(_)))
                 {
-                    special_traits.push(UnusualVolatileDensity(
+                    special_traits.push(TelluricSpecialTrait::UnusualVolatileDensity(
                         TelluricVolatileDensityDifference::Rich,
                     ));
                 } else if current_roll <= 19
@@ -890,43 +958,55 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Slow));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Slow,
+                    ));
                 } else if current_roll <= 24
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Fast));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Fast,
+                    ));
                 } else if current_roll <= 29
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Minimal));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Minimal,
+                    ));
                 } else if current_roll <= 34
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Extreme));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Extreme,
+                    ));
                 } else if current_roll <= 39
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualCore(_)))
                 {
-                    special_traits.push(UnusualCore(TelluricCoreDifference::Smaller));
+                    special_traits.push(TelluricSpecialTrait::UnusualCore(
+                        TelluricCoreDifference::Smaller,
+                    ));
                 } else if current_roll <= 42
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualCore(_)))
                 {
-                    special_traits.push(UnusualCore(TelluricCoreDifference::Larger));
+                    special_traits.push(TelluricSpecialTrait::UnusualCore(
+                        TelluricCoreDifference::Larger,
+                    ));
                 } else if current_roll <= 44
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyDead,
                     ));
                 } else if current_roll <= 49
@@ -934,7 +1014,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyExtinct,
                     ));
                 } else if current_roll <= 64
@@ -942,7 +1022,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyActive,
                     ));
                 } else if current_roll <= 76
@@ -951,7 +1031,7 @@ pub(crate) fn generate_peculiarities(
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualMagneticField(_)))
                 {
                     let magnetic_field = generate_magnetic_field_difference(&mut rng);
-                    special_traits.push(UnusualMagneticField(magnetic_field));
+                    special_traits.push(TelluricSpecialTrait::UnusualMagneticField(magnetic_field));
                 } else if current_roll <= 81 {
                     // Less dense
                     *min_density += -1.0;
@@ -984,7 +1064,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualVolatileDensity(_)))
                 {
-                    special_traits.push(UnusualVolatileDensity(
+                    special_traits.push(TelluricSpecialTrait::UnusualVolatileDensity(
                         TelluricVolatileDensityDifference::Poor,
                     ));
                 } else if current_roll <= 14
@@ -992,7 +1072,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualVolatileDensity(_)))
                 {
-                    special_traits.push(UnusualVolatileDensity(
+                    special_traits.push(TelluricSpecialTrait::UnusualVolatileDensity(
                         TelluricVolatileDensityDifference::Rich,
                     ));
                 } else if current_roll <= 24
@@ -1000,43 +1080,55 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Slow));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Slow,
+                    ));
                 } else if current_roll <= 29
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Fast));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Fast,
+                    ));
                 } else if current_roll <= 39
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Minimal));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Minimal,
+                    ));
                 } else if current_roll <= 44
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Extreme));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Extreme,
+                    ));
                 } else if current_roll <= 49
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualCore(_)))
                 {
-                    special_traits.push(UnusualCore(TelluricCoreDifference::Smaller));
+                    special_traits.push(TelluricSpecialTrait::UnusualCore(
+                        TelluricCoreDifference::Smaller,
+                    ));
                 } else if current_roll <= 54
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualCore(_)))
                 {
-                    special_traits.push(UnusualCore(TelluricCoreDifference::Larger));
+                    special_traits.push(TelluricSpecialTrait::UnusualCore(
+                        TelluricCoreDifference::Larger,
+                    ));
                 } else if current_roll <= 59
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyDead,
                     ));
                 } else if current_roll <= 67
@@ -1044,7 +1136,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyExtinct,
                     ));
                 } else if current_roll <= 69
@@ -1052,7 +1144,7 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::SpecificGeologicActivity(_)))
                 {
-                    special_traits.push(SpecificGeologicActivity(
+                    special_traits.push(TelluricSpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyActive,
                     ));
                 } else if current_roll <= 74
@@ -1061,7 +1153,7 @@ pub(crate) fn generate_peculiarities(
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualMagneticField(_)))
                 {
                     let magnetic_field = generate_magnetic_field_difference(&mut rng);
-                    special_traits.push(UnusualMagneticField(magnetic_field));
+                    special_traits.push(TelluricSpecialTrait::UnusualMagneticField(magnetic_field));
                 } else if current_roll <= 79 {
                     // Less dense
                     *min_density += -1.0;
@@ -1094,32 +1186,40 @@ pub(crate) fn generate_peculiarities(
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Slow));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Slow,
+                    ));
                 } else if current_roll <= 19
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualRotation(_)))
                 {
-                    special_traits.push(UnusualRotation(TelluricRotationDifference::Fast));
+                    special_traits.push(TelluricSpecialTrait::UnusualRotation(
+                        TelluricRotationDifference::Fast,
+                    ));
                 } else if current_roll <= 29
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Minimal));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Minimal,
+                    ));
                 } else if current_roll <= 34
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualAxialTilt(_)))
                 {
-                    special_traits.push(UnusualAxialTilt(TelluricAxialTiltDifference::Extreme));
+                    special_traits.push(TelluricSpecialTrait::UnusualAxialTilt(
+                        TelluricAxialTiltDifference::Extreme,
+                    ));
                 } else if current_roll <= 44
                     && !special_traits
                         .iter()
                         .any(|x| matches!(x, TelluricSpecialTrait::UnusualMagneticField(_)))
                 {
                     let magnetic_field = generate_magnetic_field_difference(&mut rng);
-                    special_traits.push(UnusualMagneticField(magnetic_field));
+                    special_traits.push(TelluricSpecialTrait::UnusualMagneticField(magnetic_field));
                 } else if current_roll <= 59 {
                     // Less dense
                     *min_density += -1.0;

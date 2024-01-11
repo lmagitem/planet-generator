@@ -494,6 +494,7 @@ fn find_center_of_binary_pair(
         0.0,
         0.0,
         0.0,
+        f32::INFINITY,
     );
     let less_massive_orbit = Orbit::new(
         next_id,
@@ -507,6 +508,7 @@ fn find_center_of_binary_pair(
         0.0,
         0.0,
         0.0,
+        f32::INFINITY,
     );
 
     center.orbits.push(most_massive_orbit.clone());

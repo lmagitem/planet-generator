@@ -30,6 +30,8 @@ pub struct Orbit {
     /// The time it takes in terran days for the object in this orbit to make a complete rotation
     /// around itself.
     pub rotation: f32,
+    /// The time it takes in terran days between two sunrises on the object in this orbit.
+    pub day_length: f32,
 }
 
 impl Orbit {
@@ -46,6 +48,7 @@ impl Orbit {
         inclination: f32,
         orbital_period: f32,
         rotation: f32,
+        day_length: f32,
     ) -> Self {
         Self {
             primary_body_id,
@@ -59,6 +62,7 @@ impl Orbit {
             inclination,
             orbital_period,
             rotation,
+            day_length,
         }
     }
 }
@@ -67,7 +71,7 @@ impl Display for Orbit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} around {} - {} AU ({} AU), ecc: {}, min sep: {} AU, max sep: {} AU, incl: {}, period: {} day⊕, rotation: {} day⊕",
+            "{} around {} - {} AU ({} AU), ecc: {}, min sep: {} AU, max sep: {} AU, incl: {}, period: {} day⊕, rota°: {} day⊕, day: {} day⊕",
             if self.id.is_some() { format!("{:03}", self.id.unwrap()) } else { String::from("EMPTY") },
             format!("{:03}", self.primary_body_id),
             StringUtils::to_significant_decimals(self.average_distance),
@@ -77,7 +81,8 @@ impl Display for Orbit {
             StringUtils::to_significant_decimals(self.max_separation),
             StringUtils::to_significant_decimals(self.inclination as f64),
             StringUtils::to_significant_decimals(self.orbital_period as f64),
-            StringUtils::to_significant_decimals(self.rotation as f64)
+            StringUtils::to_significant_decimals(self.rotation as f64),
+            StringUtils::to_significant_decimals(self.day_length as f64)
         )
     }
 }

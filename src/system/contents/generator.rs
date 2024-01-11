@@ -441,6 +441,7 @@ fn place_orbit_if_possible(
                     0.0,
                     0.0,
                     0.0,
+                    f32::INFINITY,
                 );
                 orbits.push(orbit);
             }
@@ -1629,6 +1630,7 @@ fn handle_proto_gas_giant_placement(
                 0.0,
                 0.0,
                 0.0,
+                f32::INFINITY,
             );
 
             // Generate Gas Giant Settings

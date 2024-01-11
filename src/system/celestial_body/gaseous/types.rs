@@ -20,6 +20,8 @@ pub enum GasGiantSpecialTrait {
     NoPeculiarity,
     /// This Gas Giant was the first to arise from its star proto-planetary disk.
     ProtoGiant,
+    UnusualRotation(TelluricRotationDifference),
+    TideLocked(TideLockTarget),
 }
 
 impl Display for GasGiantSpecialTrait {
@@ -27,6 +29,8 @@ impl Display for GasGiantSpecialTrait {
         match self {
             GasGiantSpecialTrait::NoPeculiarity => write!(f, "No Peculiarity"),
             GasGiantSpecialTrait::ProtoGiant => write!(f, "Proto-Giant"),
+            GasGiantSpecialTrait::UnusualRotation(s) => write!(f, "{}", s),
+            GasGiantSpecialTrait::TideLocked(s) => write!(f, "Tide-Locked {}", s),
         }
     }
 }

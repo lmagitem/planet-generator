@@ -5,6 +5,9 @@ use crate::system::celestial_body::gaseous::constants::MASS_TO_DENSITY_DATASET;
 use crate::system::contents::utils::{
     calculate_blackbody_temperature, calculate_radius, calculate_surface_gravity,
 };
+use crate::system::orbital_point::generator::{
+    complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
+};
 
 impl GaseousBodyDetails {
     /// Returns the generated gas giant and its list of moons.
@@ -39,7 +42,8 @@ impl GaseousBodyDetails {
         );
         let mut moons: Vec<OrbitalPoint> = Vec::new();
         let mut object = AstronomicalObject::Void;
-        let special_traits: Vec<GasGiantSpecialTrait>;
+        let mut this_orbit = orbit.clone();
+        let mut special_traits: Vec<GasGiantSpecialTrait>;
         let is_proto_giant = if let Some(traits) = settings
             .clone()
             .celestial_body
@@ -125,6 +129,23 @@ impl GaseousBodyDetails {
             let surface_gravity = calculate_surface_gravity(density, radius);
             // TODO: Atmospheric composition
 
+            this_orbit = complete_orbit_with_orbital_period(
+                coord,
+                system_index,
+                star_id,
+                ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                gas_giant_arrangement,
+                body_id,
+                &Some(orbit),
+                orbit_distance,
+                true,
+                blackbody_temp,
+                mass,
+                size,
+                false,
+                &settings,
+            );
+
             moons = MoonGenerator::generate_giants_moons(
                 system_traits,
                 system_index,
@@ -148,10 +169,58 @@ impl GaseousBodyDetails {
                 mass,
                 density,
                 radius,
+                this_orbit.orbital_period,
                 blackbody_temp,
-                settings,
+                settings.clone(),
                 false,
             );
+
+            let mut telluric_special_traits = Vec::new();
+            this_orbit = complete_orbit_with_rotation_and_axis(
+                coord,
+                system_index,
+                star_id,
+                star_age,
+                ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                None,
+                gas_giant_arrangement,
+                body_id,
+                &Some(this_orbit),
+                orbit_distance,
+                true,
+                blackbody_temp,
+                mass,
+                radius,
+                size,
+                &mut telluric_special_traits,
+                &moons,
+                false,
+                &settings,
+            );
+            if telluric_special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+                TelluricRotationDifference::Resonant,
+            )) {
+                special_traits.push(GasGiantSpecialTrait::UnusualRotation(
+                    TelluricRotationDifference::Resonant,
+                ))
+            }
+            if telluric_special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+                TelluricRotationDifference::Retrograde,
+            )) {
+                special_traits.push(GasGiantSpecialTrait::UnusualRotation(
+                    TelluricRotationDifference::Retrograde,
+                ))
+            }
+            if telluric_special_traits
+                .contains(&TelluricSpecialTrait::TideLocked(TideLockTarget::Orbited))
+            {
+                special_traits.push(GasGiantSpecialTrait::TideLocked(TideLockTarget::Orbited))
+            }
+            if telluric_special_traits
+                .contains(&TelluricSpecialTrait::TideLocked(TideLockTarget::Satellite))
+            {
+                special_traits.push(GasGiantSpecialTrait::TideLocked(TideLockTarget::Satellite))
+            }
 
             object = AstronomicalObject::GaseousBody(CelestialBody::new(
                 None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
@@ -175,7 +244,7 @@ impl GaseousBodyDetails {
         (
             OrbitalPoint::new(
                 body_id,
-                Some(orbit.clone()),
+                Some(this_orbit),
                 object,
                 moons
                     .clone()

@@ -40,7 +40,6 @@ pub enum TelluricSpecialTrait {
     NoPeculiarity,
     UnusualVolatileDensity(TelluricVolatileDensityDifference),
     UnusualRotation(TelluricRotationDifference),
-    RetrogradeRotation,
     TideLocked(TideLockTarget),
     UnusualAxialTilt(TelluricAxialTiltDifference),
     UnusualCore(TelluricCoreDifference),
@@ -55,7 +54,6 @@ impl Display for TelluricSpecialTrait {
             TelluricSpecialTrait::NoPeculiarity => write!(f, "No Peculiarity"),
             TelluricSpecialTrait::UnusualVolatileDensity(s) => write!(f, "{}", s),
             TelluricSpecialTrait::UnusualRotation(s) => write!(f, "{}", s),
-            TelluricSpecialTrait::RetrogradeRotation => write!(f, "Retrograde Rotation"),
             TelluricSpecialTrait::TideLocked(s) => write!(f, "Tide-Locked {}", s),
             TelluricSpecialTrait::UnusualAxialTilt(s) => write!(f, "{}", s),
             TelluricSpecialTrait::UnusualCore(s) => write!(f, "{}", s),
@@ -91,6 +89,7 @@ pub enum TelluricRotationDifference {
     Slow,
     #[default]
     Fast,
+    Retrograde,
     /// The world rotates three times for every two orbits around its main body.
     Resonant,
 }
@@ -100,6 +99,7 @@ impl Display for TelluricRotationDifference {
         match self {
             TelluricRotationDifference::Slow => write!(f, "Slow Rotation"),
             TelluricRotationDifference::Fast => write!(f, "Fast Rotation"),
+            TelluricRotationDifference::Retrograde => write!(f, "Retrograde Rotation"),
             TelluricRotationDifference::Resonant => write!(f, "3:2 Spin-Orbit Resonance"),
         }
     }

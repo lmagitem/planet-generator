@@ -1,16 +1,14 @@
 use crate::internal::*;
-use crate::prelude::TelluricSpecialTrait::UnusualCore;
 use crate::prelude::*;
 use crate::system::celestial_body::generator::{
-    downsize_world_by, generate_acceptable_telluric_parameters, get_size_constraint, get_world_type,
+    generate_acceptable_telluric_parameters, get_world_type,
 };
 use crate::system::celestial_body::telluric::generator::generate_peculiarities;
 use crate::system::contents::utils::{
     calculate_blackbody_temperature, calculate_radius, calculate_surface_gravity,
 };
 use crate::system::orbital_point::generator::{
-    calculate_orbital_period_from_earth_masses, calculate_planet_orbit_eccentricity,
-    complete_orbit_with_dynamic_parameters,
+    complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
 
 impl IcyBodyDetails {
@@ -137,6 +135,27 @@ impl IcyBodyDetails {
                     &mut rng,
                 );
 
+                let this_orbit = if !is_moon {
+                    complete_orbit_with_orbital_period(
+                        coord,
+                        system_index,
+                        star_id,
+                        ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                        gas_giant_arrangement,
+                        body_id,
+                        &own_orbit,
+                        orbit_distance,
+                        body_type == CelestialBodyComposition::Gaseous,
+                        blackbody_temp,
+                        mass,
+                        size,
+                        is_moon,
+                        &settings,
+                    )
+                } else {
+                    own_orbit.clone().unwrap_or_default()
+                };
+
                 moons = MoonGenerator::generate_planets_moons(
                     system_traits,
                     system_index,
@@ -160,31 +179,37 @@ impl IcyBodyDetails {
                     mass,
                     density,
                     radius,
+                    this_orbit.orbital_period,
                     blackbody_temp,
                     &settings,
                     is_moon,
                 );
 
-                let this_orbit = complete_orbit_with_dynamic_parameters(
-                    coord,
-                    system_index,
-                    star_id,
-                    star_age,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass as f64),
-                    gas_giant_arrangement,
-                    body_id,
-                    &own_orbit,
-                    orbit_distance,
-                    body_type == CelestialBodyComposition::Gaseous,
-                    blackbody_temp,
-                    mass,
-                    radius,
-                    size,
-                    &mut special_traits,
-                    &moons,
-                    is_moon,
-                    &settings,
-                );
+                let this_orbit = if !is_moon {
+                    complete_orbit_with_rotation_and_axis(
+                        coord,
+                        system_index,
+                        star_id,
+                        star_age,
+                        ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                        None,
+                        gas_giant_arrangement,
+                        body_id,
+                        &own_orbit,
+                        orbit_distance,
+                        body_type == CelestialBodyComposition::Gaseous,
+                        blackbody_temp,
+                        mass,
+                        radius,
+                        size,
+                        &mut special_traits,
+                        &moons,
+                        is_moon,
+                        &settings,
+                    )
+                } else {
+                    this_orbit
+                };
 
                 to_return = WorldGenerator::bundle_world_first_pass(
                     star_name,
@@ -215,6 +240,23 @@ impl IcyBodyDetails {
             let radius = calculate_radius(mass, density as f64);
             let surface_gravity = calculate_surface_gravity(density, radius);
 
+            let this_orbit = complete_orbit_with_orbital_period(
+                coord,
+                system_index,
+                star_id,
+                ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                gas_giant_arrangement,
+                body_id,
+                &own_orbit,
+                orbit_distance,
+                true,
+                blackbody_temp,
+                mass,
+                size,
+                false,
+                &settings,
+            );
+
             moons = MoonGenerator::generate_giants_moons(
                 system_traits,
                 system_index,
@@ -238,14 +280,37 @@ impl IcyBodyDetails {
                 mass,
                 density,
                 radius,
+                this_orbit.orbital_period,
                 blackbody_temp,
-                settings,
+                settings.clone(),
                 false,
+            );
+
+            let this_orbit = complete_orbit_with_rotation_and_axis(
+                coord,
+                system_index,
+                star_id,
+                star_age,
+                ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                None,
+                gas_giant_arrangement,
+                body_id,
+                &Some(this_orbit),
+                orbit_distance,
+                true,
+                blackbody_temp,
+                mass,
+                radius,
+                size,
+                &mut special_traits,
+                &moons,
+                false,
+                &settings,
             );
 
             to_return = OrbitalPoint::new(
                 body_id,
-                own_orbit.clone(),
+                Some(this_orbit),
                 AstronomicalObject::IcyBody(CelestialBody::new(
                     None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
                     body_id,
@@ -360,7 +425,9 @@ impl IcyBodyDetails {
             min_density = 1.0;
             max_density = 1.83;
             size = CelestialBodySize::Tiny;
-            special_traits.push(UnusualCore(TelluricCoreDifference::Coreless));
+            special_traits.push(TelluricSpecialTrait::UnusualCore(
+                TelluricCoreDifference::Coreless,
+            ));
         } else if rolled_size <= 135 {
             // Ice dwarf
             min_density = 1.63;
@@ -371,7 +438,9 @@ impl IcyBodyDetails {
             min_density = 1.0;
             max_density = 1.5;
             size = CelestialBodySize::Small;
-            special_traits.push(UnusualCore(TelluricCoreDifference::Coreless));
+            special_traits.push(TelluricSpecialTrait::UnusualCore(
+                TelluricCoreDifference::Coreless,
+            ));
         } else if rolled_size <= 170 {
             // Ice dwarf
             min_density = 1.5;
@@ -382,7 +451,9 @@ impl IcyBodyDetails {
             min_density = 1.0;
             max_density = 1.5;
             size = CelestialBodySize::Standard;
-            special_traits.push(UnusualCore(TelluricCoreDifference::Coreless));
+            special_traits.push(TelluricSpecialTrait::UnusualCore(
+                TelluricCoreDifference::Coreless,
+            ));
         } else if rolled_size <= 255 {
             // Ice planet
             min_density = 1.5;
