@@ -20,6 +20,11 @@ impl ConversionUtils {
         au * 23454.706481336
     }
 
+    /// Converts a value from Astronomical units to Earth diameters.
+    pub fn astronomical_units_to_earth_diameters(au: f64) -> f64 {
+        au * 11727.3532407
+    }
+
     /// Converts a temperature from Kelvin to Celsius.
     pub fn kelvin_to_celsius(temperature: u32) -> i32 {
         (temperature as f32 - 273.15) as i32

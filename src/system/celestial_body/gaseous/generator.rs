@@ -82,6 +82,7 @@ impl GaseousBodyDetails {
                 0.0,
                 0.0,
                 blackbody_temp,
+                0,
                 CelestialBodySize::Large,
                 CelestialBodyDetails::Cloud(CelestialBodyComposition::Gaseous),
             ));
@@ -236,6 +237,7 @@ impl GaseousBodyDetails {
                 density,
                 surface_gravity,
                 blackbody_temp,
+                0,
                 size,
                 CelestialBodyDetails::Gaseous(GaseousBodyDetails::new(special_traits)),
             ));

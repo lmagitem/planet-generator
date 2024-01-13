@@ -37,6 +37,7 @@ impl WorldGenerator {
                 density,
                 gravity,
                 blackbody_temperature,
+                tidal_heating: 0,
                 size,
                 details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                     body_type,
@@ -190,6 +191,7 @@ impl WorldGenerator {
                 density,
                 gravity,
                 blackbody_temperature,
+                tidal_heating,
                 size,
                 CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                     if body_type == TelluricBodyComposition::Icy && blackbody_temperature >= 170 {

@@ -23,6 +23,7 @@ impl IcyBodyDetails {
             density: 0.0,
             gravity: 0.0,
             blackbody_temperature: 0,
+            tidal_heating: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Icy(IcyBodyDetails {
                 world_type: CelestialBodyWorldType::Ice,
@@ -195,7 +196,7 @@ impl IcyBodyDetails {
                         None,
                         gas_giant_arrangement,
                         body_id,
-                        &own_orbit,
+                        &Some(this_orbit),
                         orbit_distance,
                         body_type == CelestialBodyComposition::Gaseous,
                         blackbody_temp,
@@ -325,6 +326,7 @@ impl IcyBodyDetails {
                     density,
                     surface_gravity,
                     blackbody_temp,
+                    0,
                     size,
                     CelestialBodyDetails::Icy(IcyBodyDetails::new(
                         CelestialBodyWorldType::VolatilesGiant,

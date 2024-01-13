@@ -21,6 +21,7 @@ impl TelluricBodyDetails {
             density: 0.0,
             gravity: 0.0,
             blackbody_temperature: 0,
+            tidal_heating: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                 TelluricBodyComposition::Rocky,
@@ -188,7 +189,7 @@ impl TelluricBodyDetails {
                     None,
                     gas_giant_arrangement,
                     body_id,
-                    &own_orbit,
+                    &Some(this_orbit),
                     orbit_distance,
                     body_type == CelestialBodyComposition::Gaseous,
                     blackbody_temp,
@@ -338,6 +339,7 @@ impl TelluricBodyDetails {
             density: 0.0,
             gravity: 0.0,
             blackbody_temperature: 0,
+            tidal_heating: 0,
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Telluric(TelluricBodyDetails::new(
                 TelluricBodyComposition::Metallic,
@@ -503,7 +505,7 @@ impl TelluricBodyDetails {
                     None,
                     gas_giant_arrangement,
                     body_id,
-                    &own_orbit,
+                    &Some(this_orbit),
                     orbit_distance,
                     body_type == CelestialBodyComposition::Gaseous,
                     blackbody_temp,

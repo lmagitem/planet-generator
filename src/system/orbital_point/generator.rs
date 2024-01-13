@@ -121,7 +121,12 @@ pub fn complete_orbit_with_rotation_and_axis(
                 | AstronomicalObject::IcyBody(moon)
                 | AstronomicalObject::GaseousBody(moon) = o.object.clone()
                 {
-                    return (moon.mass, moon.radius);
+                    return (
+                        moon.mass,
+                        ConversionUtils::astronomical_units_to_earth_diameters(
+                            o.own_orbit.clone().unwrap_or_default().average_distance,
+                        ),
+                    );
                 }
                 (0.0, 0.0)
             })
@@ -135,7 +140,6 @@ pub fn complete_orbit_with_rotation_and_axis(
             moons_masses_and_radii,
         )
     };
-    // TODO: Fix the bug that makes almost everything go tide-locked
     this_orbit.rotation = generate_rotation_period(
         coord,
         system_index,
@@ -152,17 +156,82 @@ pub fn complete_orbit_with_rotation_and_axis(
         settings,
     );
     this_orbit.day_length =
-        calculate_day_length(orbited_object_orbital_period, is_moon, &mut this_orbit);
-
-    // TODO: - Axial Tilt
+        calculate_day_length(orbited_object_orbital_period, is_moon, &this_orbit);
+    this_orbit.axial_tilt = generate_axial_tilt(
+        coord,
+        system_index,
+        star_id,
+        orbital_point_id,
+        special_traits,
+        settings,
+    );
+    // TODO: Inclination
 
     this_orbit
+}
+
+fn generate_axial_tilt(
+    coord: SpaceCoordinates,
+    system_index: u16,
+    star_id: u32,
+    orbital_point_id: u32,
+    special_traits: &mut Vec<TelluricSpecialTrait>,
+    settings: &GenerationSettings,
+) -> u16 {
+    let mut rng = SeededDiceRoller::new(
+        &settings.seed,
+        &format!(
+            "sys_{}_{}_str_{}_bdy{}_axt",
+            coord, system_index, star_id, orbital_point_id
+        ),
+    );
+
+    let modifier = if special_traits.contains(&TelluricSpecialTrait::UnusualAxialTilt(
+        TelluricAxialTiltDifference::Minimal,
+    )) {
+        -10
+    } else if special_traits.contains(&TelluricSpecialTrait::UnusualAxialTilt(
+        TelluricAxialTiltDifference::Extreme,
+    )) {
+        18
+    } else {
+        0
+    };
+    let roll = rng.roll(3, 6, modifier);
+
+    let axial_tilt: u16;
+    if roll <= 6 {
+        axial_tilt = rng.roll(2, 6, -2) as u16;
+    } else if roll <= 9 {
+        axial_tilt = 10 + rng.roll(2, 6, -2) as u16;
+    } else if roll <= 12 {
+        axial_tilt = 20 + rng.roll(2, 6, -2) as u16;
+    } else if roll <= 14 {
+        axial_tilt = 30 + rng.roll(2, 6, -2) as u16;
+    } else if roll <= 16 {
+        axial_tilt = 40 + rng.roll(2, 6, -2) as u16;
+    } else {
+        axial_tilt = {
+            let second_roll = rng.roll(1, 6, 0);
+            if second_roll <= 2 {
+                50 + rng.roll(2, 6, -2) as u16
+            } else if second_roll <= 4 {
+                60 + rng.roll(2, 6, -2) as u16
+            } else if second_roll <= 5 {
+                70 + rng.roll(2, 6, -2) as u16
+            } else {
+                80 + rng.roll(2, 6, -2) as u16
+            }
+        };
+    }
+
+    axial_tilt
 }
 
 fn calculate_day_length(
     orbited_object_orbital_period: Option<f32>,
     is_moon: bool,
-    this_orbit: &mut Orbit,
+    this_orbit: &Orbit,
 ) -> f32 {
     let sidereal_period: f32 = if is_moon {
         orbited_object_orbital_period
@@ -377,33 +446,34 @@ fn calculate_planet_tidal_braking(
     orbit_distance: f64,
     system_age_in_billion_years: f64,
     planet_mass_in_earth_masses: f64,
-    moons_masses_and_radii: Vec<(f64, f64)>,
+    moons_masses_and_orbit: Vec<(f64, f64)>,
 ) -> u32 {
     let star_mass_in_solar_masses =
         ConversionUtils::earth_mass_to_solar_mass(star_mass_in_earth_masses);
 
     // Tidal Force by Star
-    let tidal_force_star =
-        0.46 * star_mass_in_solar_masses * planet_radius_in_earth_radii / orbit_distance.powi(3);
+    let tidal_force_star = 0.3 * (star_mass_in_solar_masses * planet_radius_in_earth_radii.powi(4))
+        / (planet_mass_in_earth_masses * orbit_distance.powi(3));
 
     // Tidal Force by Moons
-    let tidal_force_moons: f64 = moons_masses_and_radii
+    let tidal_force_moons_squared: f64 = moons_masses_and_orbit
         .iter()
-        .map(|(moon_mass, moon_orbit_radius_in_earth_radii)| {
+        .map(|(moon_mass, moon_orbit_radius_in_earth_diameter)| {
             if MathUtils::does_f64_equal_zero(*moon_mass)
-                || MathUtils::does_f64_equal_zero(*moon_orbit_radius_in_earth_radii)
+                || MathUtils::does_f64_equal_zero(*moon_orbit_radius_in_earth_diameter)
             {
                 return 0.0;
             }
-            let moon_orbit_radius_in_earth_diameter = moon_orbit_radius_in_earth_radii / 2.0;
-            17.8e6 * moon_mass * planet_radius_in_earth_radii
-                / moon_orbit_radius_in_earth_diameter.powi(3)
+            (1_550_000.0 * (moon_mass * planet_radius_in_earth_radii.powi(4))
+                / (planet_mass_in_earth_masses * moon_orbit_radius_in_earth_diameter.powi(3)))
+            .powi(2)
         })
         .sum();
 
     // Total Tidal Effect
-    let total_tidal_effect = ((tidal_force_star + tidal_force_moons) * system_age_in_billion_years)
-        / planet_mass_in_earth_masses;
+    let total_tidal_effect = (0.383 * system_age_in_billion_years * planet_mass_in_earth_masses
+        / planet_radius_in_earth_radii.powi(5))
+        * (tidal_force_star.powi(2) + tidal_force_moons_squared);
 
     total_tidal_effect.round() as u32
 }
@@ -420,14 +490,16 @@ fn calculate_moon_tidal_braking(
             * 2.0;
 
     // Tidal Force by Planet on Moon
-    let tidal_force_planet = 17.8e6 * planet_mass_in_earth_masses * moon_radius_in_earth_radii
-        / moon_orbit_radius_in_earth_diameters.powi(3);
+    let tidal_force_planet = 1_550_000.0
+        * (planet_mass_in_earth_masses * moon_radius_in_earth_radii.powi(4))
+        / (moon_mass_in_earth_masses * moon_orbit_radius_in_earth_diameters.powi(3));
 
     // Total Tidal Effect on Moon
-    let total_tidal_effect_moon =
-        (tidal_force_planet * system_age_in_billion_years) / moon_mass_in_earth_masses;
+    let total_tidal_effect = (0.383 * system_age_in_billion_years * moon_mass_in_earth_masses
+        / moon_radius_in_earth_radii.powi(5))
+        * (tidal_force_planet.powi(2));
 
-    total_tidal_effect_moon.round() as u32
+    total_tidal_effect.round() as u32
 }
 
 pub fn calculate_planet_orbit_eccentricity(
@@ -489,8 +561,16 @@ pub fn calculate_planet_orbit_eccentricity(
     }) + (rng.roll(1, 11, -6) as f64 * 0.01))
         .max(0.0)
         .min(0.8);
-    let min_separation = (1.0 - eccentricity) * orbit_distance;
-    let max_separation = (1.0 + eccentricity) * orbit_distance;
+    let min_separation = if eccentricity < 0.001 {
+        orbit_distance
+    } else {
+        (1.0 - eccentricity) * orbit_distance
+    };
+    let max_separation = if eccentricity < 0.001 {
+        orbit_distance
+    } else {
+        (1.0 + eccentricity) * orbit_distance
+    };
     (eccentricity, min_separation, max_separation)
 }
 
@@ -533,5 +613,26 @@ mod tests {
             (period - 15.94).abs() < 0.1,
             "The calculated period for Titan is incorrect"
         );
+    }
+
+    #[test]
+    fn test_calculate_planet_tidal_braking_earth_moon() {
+        let planet_radius_in_earth_radii = 1.0; // Earth
+        let star_mass_in_earth_masses = 333000.0; // Sun
+        let orbit_distance = 1.0; // 1 AU
+        let system_age_in_billion_years = 4.5;
+        let planet_mass_in_earth_masses = 1.0; // Earth
+        let moons_masses_and_radii = vec![(0.0123, 30.17)]; // Moon
+
+        let tidal_braking = calculate_planet_tidal_braking(
+            planet_radius_in_earth_radii,
+            star_mass_in_earth_masses,
+            orbit_distance,
+            system_age_in_billion_years,
+            planet_mass_in_earth_masses,
+            moons_masses_and_radii,
+        );
+
+        assert_eq!(tidal_braking, 1);
     }
 }

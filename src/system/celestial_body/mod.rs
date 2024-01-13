@@ -33,6 +33,8 @@ pub struct CelestialBody {
     pub size: CelestialBodySize,
     /// Specific body details.
     pub details: CelestialBodyDetails,
+    /// A measure of the tidal friction caused on this body by the resonance of its orbit with its neighbors orbits.
+    pub tidal_heating: u32,
 }
 
 impl CelestialBody {
@@ -46,6 +48,7 @@ impl CelestialBody {
         density: f32,
         gravity: f32,
         blackbody_temperature: u32,
+        tidal_heating: u32,
         size: CelestialBodySize,
         details: CelestialBodyDetails,
     ) -> Self {
@@ -59,6 +62,7 @@ impl CelestialBody {
             density,
             gravity,
             blackbody_temperature,
+            tidal_heating,
             size,
             details,
         }

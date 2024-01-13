@@ -24,6 +24,9 @@ pub struct Orbit {
     /// Indicates an orbit in the reference plane, while 90° is perpendicular. Values over 90°
     /// suggest a retrograde orbit.
     pub inclination: f32,
+    /// The axial tilt in degrees, indicating the angle between the object's rotational axis and
+    /// its orbital plane, affecting seasonal variations.
+    pub axial_tilt: u16,
     /// The time it takes in terran days for the object in this orbit to make a complete journey
     /// around what it orbits.
     pub orbital_period: f32,
@@ -46,6 +49,7 @@ impl Orbit {
         average_distance_from_system_center: f64,
         eccentricity: f32,
         inclination: f32,
+        axial_tilt: u16,
         orbital_period: f32,
         rotation: f32,
         day_length: f32,
@@ -60,6 +64,7 @@ impl Orbit {
             average_distance_from_system_center,
             eccentricity,
             inclination,
+            axial_tilt,
             orbital_period,
             rotation,
             day_length,
@@ -71,7 +76,7 @@ impl Display for Orbit {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "{} around {} - {} AU ({} AU), ecc: {}, min sep: {} AU, max sep: {} AU, incl: {}, period: {} day⊕, rota°: {} day⊕, day: {} day⊕",
+            "{} around {} - {} AU ({} AU), ecc: {}, min sep: {} AU, max sep: {} AU, incl: {}, tilt: {}°, period: {} day⊕, rota°: {} day⊕, day: {} day⊕",
             if self.id.is_some() { format!("{:03}", self.id.unwrap()) } else { String::from("EMPTY") },
             format!("{:03}", self.primary_body_id),
             StringUtils::to_significant_decimals(self.average_distance),
@@ -80,6 +85,7 @@ impl Display for Orbit {
             StringUtils::to_significant_decimals(self.min_separation),
             StringUtils::to_significant_decimals(self.max_separation),
             StringUtils::to_significant_decimals(self.inclination as f64),
+            self.axial_tilt,
             StringUtils::to_significant_decimals(self.orbital_period as f64),
             StringUtils::to_significant_decimals(self.rotation as f64),
             StringUtils::to_significant_decimals(self.day_length as f64)
@@ -133,7 +139,7 @@ impl Display for AstronomicalObject {
                     ConversionUtils::kelvin_to_celsius( star.temperature),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), atm: {} atm, core: {}, traits: [{}]",
+                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm, core: {}, traits: [{}]",
                     body.name,
                     body.size,
                     match &body.details {
@@ -148,6 +154,7 @@ impl Display for AstronomicalObject {
                     StringUtils::to_significant_decimals(body.gravity as f64),
                     body.blackbody_temperature,
                     ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
+                    body.tidal_heating,
                     match &body.details {
                         CelestialBodyDetails::Telluric(details) =>
                             StringUtils::to_significant_decimals(details.atmospheric_pressure as f64),
@@ -165,7 +172,7 @@ impl Display for AstronomicalObject {
                     },
                 ),
                 AstronomicalObject::IcyBody(body) => format!(
-                    "[{}], Ice {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C)",
+                    "[{}], Ice {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}",
                     body.name,
                     body.size,
                     StringUtils::to_significant_decimals(body.mass as f64),
@@ -174,10 +181,11 @@ impl Display for AstronomicalObject {
                     StringUtils::to_significant_decimals(body.density as f64),
                     StringUtils::to_significant_decimals(body.gravity as f64),
                     body.blackbody_temperature,
+                    body.tidal_heating,
                    ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
                 ),
                 AstronomicalObject::GaseousBody(body) => format!(
-                    "[{}], Gas {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), traits: [{}]",
+                    "[{}], Gas {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C) tidal: {}, traits: [{}]",
                     body.name,
                     body.size,
                     StringUtils::to_significant_decimals(body.mass as f64),
@@ -187,6 +195,7 @@ impl Display for AstronomicalObject {
                     StringUtils::to_significant_decimals(body.gravity as f64),
                     body.blackbody_temperature,
                    ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
+                    body.tidal_heating,
                     match &body.details {
                         CelestialBodyDetails::Gaseous(details) =>
                             details.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
