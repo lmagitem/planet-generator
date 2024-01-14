@@ -1,4 +1,6 @@
+use crate::internal::types::MoonDistance;
 use crate::internal::*;
+use crate::prelude::types::*;
 use crate::prelude::TelluricRotationDifference::Retrograde;
 use crate::prelude::*;
 
@@ -90,6 +92,7 @@ pub fn complete_orbit_with_rotation_and_axis(
     orbited_object_mass: f64,
     orbited_object_orbital_period: Option<f32>,
     gas_giant_arrangement: GasGiantArrangement,
+    system_traits: &Vec<SystemPeculiarity>,
     orbital_point_id: u32,
     own_orbit: &Option<Orbit>,
     orbit_distance: f64,
@@ -98,9 +101,10 @@ pub fn complete_orbit_with_rotation_and_axis(
     mass: f64,
     radius: f64,
     size: CelestialBodySize,
-    special_traits: &mut Vec<TelluricSpecialTrait>,
+    special_traits: &mut Vec<CelestialBodySpecialTrait>,
     moons: &Vec<OrbitalPoint>,
     is_moon: bool,
+    moon_distance: MoonDistance,
     settings: &GenerationSettings,
 ) -> Orbit {
     let mut this_orbit = own_orbit.clone().unwrap_or_default();
@@ -165,9 +169,154 @@ pub fn complete_orbit_with_rotation_and_axis(
         special_traits,
         settings,
     );
-    // TODO: Inclination
+    this_orbit.inclination = generate_inclination(
+        &coord,
+        &system_index,
+        &star_id,
+        gas_giant_arrangement,
+        system_traits,
+        &orbital_point_id,
+        size,
+        is_moon,
+        moon_distance,
+        special_traits,
+        &settings,
+    );
 
     this_orbit
+}
+
+fn generate_inclination(
+    coord: &SpaceCoordinates,
+    system_index: &u16,
+    star_id: &u32,
+    gas_giant_arrangement: GasGiantArrangement,
+    system_traits: &Vec<SystemPeculiarity>,
+    orbital_point_id: &u32,
+    size: CelestialBodySize,
+    is_moon: bool,
+    moon_distance: MoonDistance,
+    special_traits: &mut Vec<CelestialBodySpecialTrait>,
+    settings: &&GenerationSettings,
+) -> f32 {
+    let mut rng = SeededDiceRoller::new(
+        &settings.seed,
+        &format!(
+            "sys_{}_{}_str_{}_bdy{}_incl",
+            coord, system_index, star_id, orbital_point_id
+        ),
+    );
+
+    let mut modifier = if size == CelestialBodySize::Hypergiant
+        || size == CelestialBodySize::Supergiant
+        || size == CelestialBodySize::Giant
+    {
+        0
+    } else if size == CelestialBodySize::Large {
+        1
+    } else if size == CelestialBodySize::Standard {
+        2
+    } else if size == CelestialBodySize::Small {
+        3
+    } else if size == CelestialBodySize::Tiny {
+        5
+    } else {
+        8
+    };
+    modifier += if is_moon {
+        match moon_distance {
+            MoonDistance::Any | MoonDistance::Ring => 0,
+            MoonDistance::BeforeMajor
+            | MoonDistance::Close
+            | MoonDistance::MajorPlanetClose
+            | MoonDistance::MajorGiantClose => -6,
+            MoonDistance::Medium | MoonDistance::MediumOrFar => 3,
+            MoonDistance::Far => 12,
+        }
+    } else {
+        0
+    };
+    modifier += if !is_moon {
+        match gas_giant_arrangement {
+            GasGiantArrangement::ConventionalGasGiant => -3,
+            GasGiantArrangement::NoGasGiant | GasGiantArrangement::EpistellarGasGiant => 0,
+            GasGiantArrangement::EccentricGasGiant => 6,
+        }
+    } else {
+        0
+    };
+    let mut retrograde_modifier = if is_moon { 5 } else { 0 };
+    retrograde_modifier = if size == CelestialBodySize::Hypergiant
+        || size == CelestialBodySize::Supergiant
+        || size == CelestialBodySize::Giant
+    {
+        0
+    } else if size == CelestialBodySize::Large {
+        1
+    } else if size == CelestialBodySize::Standard {
+        2
+    } else if size == CelestialBodySize::Small {
+        3
+    } else if size == CelestialBodySize::Tiny {
+        5
+    } else {
+        7
+    };
+
+    if system_traits.len() > 0 {
+        system_traits.iter().for_each(|t| {
+            if discriminant(t)
+                == discriminant(&SystemPeculiarity::Cataclysm(CataclysmSeverity::Major))
+            {
+                let to_apply = match t {
+                    SystemPeculiarity::Cataclysm(CataclysmSeverity::Minor) => 6,
+                    SystemPeculiarity::Cataclysm(CataclysmSeverity::Major) => 8,
+                    SystemPeculiarity::Cataclysm(CataclysmSeverity::Extreme) => 10,
+                    SystemPeculiarity::Cataclysm(CataclysmSeverity::Ultimate) => 12,
+                    _ => 0,
+                };
+                modifier += to_apply;
+                retrograde_modifier += to_apply;
+            }
+        });
+    };
+    let roll = rng.roll(3, 6, modifier);
+
+    let mut inclination: f32;
+    if roll <= 8 {
+        inclination = rng.roll(1, 150, -1) as f32 / 100.0;
+    } else if roll <= 11 {
+        inclination = rng.roll(1, 500 - 100, 100 - 1) as f32 / 100.0;
+    } else if roll <= 13 {
+        inclination = rng.roll(1, 1000 - 350, 350 - 1) as f32 / 100.0;
+    } else if roll <= 15 {
+        inclination = rng.roll(1, 2500 - 800, 800 - 1) as f32 / 100.0;
+    } else if roll <= 17 {
+        inclination = rng.roll(1, 5000 - 1500, 1500 - 1) as f32 / 100.0;
+    } else {
+        inclination = {
+            let second_roll = rng.roll(1, 6, 0);
+            if second_roll <= 2 {
+                rng.roll(1, 5000 - 2500, 2500 - 1) as f32 / 100.0
+            } else if second_roll <= 4 {
+                rng.roll(1, 6000 - 2500, 2500 - 1) as f32 / 100.0
+            } else if second_roll <= 5 {
+                rng.roll(1, 7000 - 2500, 2500 - 1) as f32 / 100.0
+            } else {
+                rng.roll(1, 9000 - 2500, 2500 - 1) as f32 / 100.0
+            }
+        };
+    }
+    if rng.roll(1, 100, retrograde_modifier) >= 100 {
+        inclination = 180.0 - inclination;
+
+        special_traits.push(CelestialBodySpecialTrait::RetrogradeOrbit);
+        if special_traits.len() > 1 {
+            special_traits.retain(|t| *t != CelestialBodySpecialTrait::NoPeculiarity);
+        }
+    }
+
+    inclination
 }
 
 fn generate_axial_tilt(
@@ -175,9 +324,9 @@ fn generate_axial_tilt(
     system_index: u16,
     star_id: u32,
     orbital_point_id: u32,
-    special_traits: &mut Vec<TelluricSpecialTrait>,
+    special_traits: &mut Vec<CelestialBodySpecialTrait>,
     settings: &GenerationSettings,
-) -> u16 {
+) -> f32 {
     let mut rng = SeededDiceRoller::new(
         &settings.seed,
         &format!(
@@ -186,11 +335,11 @@ fn generate_axial_tilt(
         ),
     );
 
-    let modifier = if special_traits.contains(&TelluricSpecialTrait::UnusualAxialTilt(
+    let mut modifier = if special_traits.contains(&CelestialBodySpecialTrait::UnusualAxialTilt(
         TelluricAxialTiltDifference::Minimal,
     )) {
         -10
-    } else if special_traits.contains(&TelluricSpecialTrait::UnusualAxialTilt(
+    } else if special_traits.contains(&CelestialBodySpecialTrait::UnusualAxialTilt(
         TelluricAxialTiltDifference::Extreme,
     )) {
         18
@@ -199,30 +348,34 @@ fn generate_axial_tilt(
     };
     let roll = rng.roll(3, 6, modifier);
 
-    let axial_tilt: u16;
+    let mut axial_tilt: f32;
     if roll <= 6 {
-        axial_tilt = rng.roll(2, 6, -2) as u16;
+        axial_tilt = rng.roll(2, 6, -2) as f32;
     } else if roll <= 9 {
-        axial_tilt = 10 + rng.roll(2, 6, -2) as u16;
+        axial_tilt = 10.0 + rng.roll(2, 6, -2) as f32;
     } else if roll <= 12 {
-        axial_tilt = 20 + rng.roll(2, 6, -2) as u16;
+        axial_tilt = 20.0 + rng.roll(2, 6, -2) as f32;
     } else if roll <= 14 {
-        axial_tilt = 30 + rng.roll(2, 6, -2) as u16;
+        axial_tilt = 30.0 + rng.roll(2, 6, -2) as f32;
     } else if roll <= 16 {
-        axial_tilt = 40 + rng.roll(2, 6, -2) as u16;
+        axial_tilt = 40.0 + rng.roll(2, 6, -2) as f32;
     } else {
         axial_tilt = {
             let second_roll = rng.roll(1, 6, 0);
             if second_roll <= 2 {
-                50 + rng.roll(2, 6, -2) as u16
+                50.0 + rng.roll(2, 6, -2) as f32
             } else if second_roll <= 4 {
-                60 + rng.roll(2, 6, -2) as u16
+                60.0 + rng.roll(2, 6, -2) as f32
             } else if second_roll <= 5 {
-                70 + rng.roll(2, 6, -2) as u16
+                70.0 + rng.roll(2, 6, -2) as f32
             } else {
-                80 + rng.roll(2, 6, -2) as u16
+                80.0 + rng.roll(2, 6, -2) as f32
             }
         };
+    }
+    axial_tilt += rng.roll(1, 101, -51) as f32 / 100.0;
+    if axial_tilt < 0.0 {
+        axial_tilt = 0.0;
     }
 
     axial_tilt
@@ -255,7 +408,7 @@ fn generate_rotation_period(
     mut this_orbit: &mut Orbit,
     size: CelestialBodySize,
     is_gas_giant: bool,
-    special_traits: &mut Vec<TelluricSpecialTrait>,
+    special_traits: &mut Vec<CelestialBodySpecialTrait>,
     eccentricity: f64,
     tidal_braking: u32,
     moons: &Vec<OrbitalPoint>,
@@ -299,23 +452,23 @@ fn generate_rotation_period(
         let mut unusually_slow_rotation = false;
         let mut roll = rng.roll(3, 500, 297) as f32 / 100.0;
 
-        roll = if special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+        roll = if special_traits.contains(&CelestialBodySpecialTrait::UnusualRotation(
             TelluricRotationDifference::Fast,
         )) {
             special_traits.retain(|t| {
-                *t != TelluricSpecialTrait::UnusualRotation(TelluricRotationDifference::Fast)
+                *t != CelestialBodySpecialTrait::UnusualRotation(TelluricRotationDifference::Fast)
             });
             roll / 2.0
         } else {
             roll
         };
         if roll >= 16.0
-            || special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+            || special_traits.contains(&CelestialBodySpecialTrait::UnusualRotation(
                 TelluricRotationDifference::Slow,
             ))
         {
             special_traits.retain(|t| {
-                *t != TelluricSpecialTrait::UnusualRotation(TelluricRotationDifference::Slow)
+                *t != CelestialBodySpecialTrait::UnusualRotation(TelluricRotationDifference::Slow)
             });
             unusually_slow_rotation = true
         }
@@ -362,16 +515,16 @@ fn generate_rotation_period(
 
     let retrograde_roll = rng.roll(3, 6, 0);
     rotation = if !is_moon && retrograde_roll >= 13 || retrograde_roll >= 17 {
-        special_traits.push(TelluricSpecialTrait::UnusualRotation(Retrograde));
+        special_traits.push(CelestialBodySpecialTrait::UnusualRotation(Retrograde));
         -rotation
     } else {
         rotation
     };
 
     if special_traits.is_empty() {
-        special_traits.push(TelluricSpecialTrait::NoPeculiarity);
+        special_traits.push(CelestialBodySpecialTrait::NoPeculiarity);
     } else if special_traits.len() > 1 {
-        special_traits.retain(|t| *t != TelluricSpecialTrait::NoPeculiarity);
+        special_traits.retain(|t| *t != CelestialBodySpecialTrait::NoPeculiarity);
     }
 
     rotation
@@ -379,7 +532,7 @@ fn generate_rotation_period(
 
 /// Tide-lock the given body, to its closest major moon if it's a planet that has one, to the body it orbits instead if not..
 fn tide_lock_given_body(
-    special_traits: &mut Vec<TelluricSpecialTrait>,
+    special_traits: &mut Vec<CelestialBodySpecialTrait>,
     moons: &Vec<OrbitalPoint>,
     orbital_period: f32,
     is_gas_giant: bool,
@@ -416,22 +569,23 @@ fn tide_lock_given_body(
             .clone()
             .unwrap_or_default()
             .orbital_period;
-        TelluricSpecialTrait::TideLocked(TideLockTarget::Satellite)
+        CelestialBodySpecialTrait::TideLocked(TideLockTarget::Satellite)
     } else {
         moon_period = 0.0;
-        TelluricSpecialTrait::TideLocked(TideLockTarget::Orbited)
+        CelestialBodySpecialTrait::TideLocked(TideLockTarget::Orbited)
     };
 
     if eccentricity >= 0.1 {
         if rng.roll(3, 6, 0) >= 16 {
-            to_add = TelluricSpecialTrait::UnusualRotation(TelluricRotationDifference::Resonant);
+            to_add =
+                CelestialBodySpecialTrait::UnusualRotation(TelluricRotationDifference::Resonant);
             *rotation = 2.0 / 3.0 * orbital_period;
         }
     }
 
-    if to_add == TelluricSpecialTrait::TideLocked(TideLockTarget::Satellite) {
+    if to_add == CelestialBodySpecialTrait::TideLocked(TideLockTarget::Satellite) {
         *rotation = moon_period;
-    } else if to_add == TelluricSpecialTrait::TideLocked(TideLockTarget::Orbited) {
+    } else if to_add == CelestialBodySpecialTrait::TideLocked(TideLockTarget::Orbited) {
         *rotation = orbital_period;
     }
 

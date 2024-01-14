@@ -15,7 +15,7 @@ impl WorldGenerator {
         gravity: f32,
         body_type: TelluricBodyComposition,
         world_type: CelestialBodyWorldType,
-        special_traits: Vec<TelluricSpecialTrait>,
+        special_traits: Vec<CelestialBodySpecialTrait>,
         moons: &Vec<OrbitalPoint>,
         is_moon: bool,
     ) -> OrbitalPoint {
@@ -220,7 +220,7 @@ impl WorldGenerator {
         size: CelestialBodySize,
         density: f32,
         body_type: TelluricBodyComposition,
-        special_traits: &Vec<TelluricSpecialTrait>,
+        special_traits: &Vec<CelestialBodySpecialTrait>,
         tidal_heating: u32,
         settings: &GenerationSettings,
         distance_from_star: f64,
@@ -252,21 +252,21 @@ impl WorldGenerator {
             core_heat_modifier += if special_traits.iter().any(|x| {
                 matches!(
                     x,
-                    TelluricSpecialTrait::UnusualCore(TelluricCoreDifference::Coreless)
+                    CelestialBodySpecialTrait::UnusualCore(TelluricCoreDifference::Coreless)
                 )
             }) {
                 -100
             } else if special_traits.iter().any(|x| {
                 matches!(
                     x,
-                    TelluricSpecialTrait::UnusualCore(TelluricCoreDifference::Smaller)
+                    CelestialBodySpecialTrait::UnusualCore(TelluricCoreDifference::Smaller)
                 )
             }) {
                 -2
             } else if special_traits.iter().any(|x| {
                 matches!(
                     x,
-                    TelluricSpecialTrait::UnusualCore(TelluricCoreDifference::Smaller)
+                    CelestialBodySpecialTrait::UnusualCore(TelluricCoreDifference::Smaller)
                 )
             }) {
                 2
@@ -276,9 +276,9 @@ impl WorldGenerator {
             core_heat_modifier += if special_traits.iter().any(|x| {
                 matches!(
                     x,
-                    TelluricSpecialTrait::SpecificGeologicActivity(
+                    CelestialBodySpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyExtinct
-                    ) | TelluricSpecialTrait::SpecificGeologicActivity(
+                    ) | CelestialBodySpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyDead
                     )
                 )
@@ -287,7 +287,7 @@ impl WorldGenerator {
             } else if special_traits.iter().any(|x| {
                 matches!(
                     x,
-                    TelluricSpecialTrait::SpecificGeologicActivity(
+                    CelestialBodySpecialTrait::SpecificGeologicActivity(
                         TelluricGeologicActivity::GeologicallyActive
                     )
                 )

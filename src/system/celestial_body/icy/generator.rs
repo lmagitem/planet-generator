@@ -1,3 +1,4 @@
+use crate::internal::types::MoonDistance;
 use crate::internal::*;
 use crate::prelude::*;
 use crate::system::celestial_body::generator::{
@@ -27,6 +28,7 @@ impl IcyBodyDetails {
             size: CelestialBodySize::Puny,
             details: CelestialBodyDetails::Icy(IcyBodyDetails {
                 world_type: CelestialBodyWorldType::Ice,
+                special_traits: Vec::new(),
             }),
         }
     }
@@ -195,6 +197,7 @@ impl IcyBodyDetails {
                         ConversionUtils::solar_mass_to_earth_mass(star_mass),
                         None,
                         gas_giant_arrangement,
+                        system_traits,
                         body_id,
                         &Some(this_orbit),
                         orbit_distance,
@@ -206,6 +209,7 @@ impl IcyBodyDetails {
                         &mut special_traits,
                         &moons,
                         is_moon,
+                        MoonDistance::Any,
                         &settings,
                     )
                 } else {
@@ -295,6 +299,7 @@ impl IcyBodyDetails {
                 ConversionUtils::solar_mass_to_earth_mass(star_mass),
                 None,
                 gas_giant_arrangement,
+                system_traits,
                 body_id,
                 &Some(this_orbit),
                 orbit_distance,
@@ -306,6 +311,7 @@ impl IcyBodyDetails {
                 &mut special_traits,
                 &moons,
                 false,
+                MoonDistance::Any,
                 &settings,
             );
 
@@ -330,6 +336,7 @@ impl IcyBodyDetails {
                     size,
                     CelestialBodyDetails::Icy(IcyBodyDetails::new(
                         CelestialBodyWorldType::VolatilesGiant,
+                        vec![CelestialBodySpecialTrait::NoPeculiarity],
                     )),
                 )),
                 orbits.clone(),
@@ -349,7 +356,7 @@ impl IcyBodyDetails {
         rolled_size: i64,
         blackbody_temp: u32,
         is_moon: bool,
-        special_traits: &mut Vec<TelluricSpecialTrait>,
+        special_traits: &mut Vec<CelestialBodySpecialTrait>,
     ) -> (OrbitalPoint, f64, f64, CelestialBodySize, f64) {
         let mut to_return = OrbitalPoint::new(
             orbital_point_id,
@@ -427,7 +434,7 @@ impl IcyBodyDetails {
             min_density = 1.0;
             max_density = 1.83;
             size = CelestialBodySize::Tiny;
-            special_traits.push(TelluricSpecialTrait::UnusualCore(
+            special_traits.push(CelestialBodySpecialTrait::UnusualCore(
                 TelluricCoreDifference::Coreless,
             ));
         } else if rolled_size <= 135 {
@@ -440,7 +447,7 @@ impl IcyBodyDetails {
             min_density = 1.0;
             max_density = 1.5;
             size = CelestialBodySize::Small;
-            special_traits.push(TelluricSpecialTrait::UnusualCore(
+            special_traits.push(CelestialBodySpecialTrait::UnusualCore(
                 TelluricCoreDifference::Coreless,
             ));
         } else if rolled_size <= 170 {
@@ -453,7 +460,7 @@ impl IcyBodyDetails {
             min_density = 1.0;
             max_density = 1.5;
             size = CelestialBodySize::Standard;
-            special_traits.push(TelluricSpecialTrait::UnusualCore(
+            special_traits.push(CelestialBodySpecialTrait::UnusualCore(
                 TelluricCoreDifference::Coreless,
             ));
         } else if rolled_size <= 255 {

@@ -5,6 +5,7 @@ pub mod generator;
 pub mod icy;
 pub mod moon;
 pub mod telluric;
+pub mod traits;
 pub mod types;
 pub mod world;
 

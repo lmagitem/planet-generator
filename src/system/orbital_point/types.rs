@@ -26,7 +26,7 @@ pub struct Orbit {
     pub inclination: f32,
     /// The axial tilt in degrees, indicating the angle between the object's rotational axis and
     /// its orbital plane, affecting seasonal variations.
-    pub axial_tilt: u16,
+    pub axial_tilt: f32,
     /// The time it takes in terran days for the object in this orbit to make a complete journey
     /// around what it orbits.
     pub orbital_period: f32,
@@ -49,7 +49,7 @@ impl Orbit {
         average_distance_from_system_center: f64,
         eccentricity: f32,
         inclination: f32,
-        axial_tilt: u16,
+        axial_tilt: f32,
         orbital_period: f32,
         rotation: f32,
         day_length: f32,
@@ -124,7 +124,7 @@ impl Display for AstronomicalObject {
             match self {
                 AstronomicalObject::Void => "Empty space".to_string(),
                 AstronomicalObject::Star(star) => format!(
-                    "[{}], a {} {}{} Star of age: {} BY, mass: {} M☉, radius: {} R☉ ({} km of diameter), temperature: {} K ({}° C)",
+                    "[{}], a {} {}{} Star of age: {} BY, mass: {} M☉, radius: {} R☉ ({} km of diameter), temperature: {} K ({}° C), traits: [{}]",
                     star.name,
                     star.population,
                     star.spectral_type,
@@ -137,6 +137,7 @@ impl Display for AstronomicalObject {
                     StringUtils::to_significant_decimals((star.radius * 696340.0 * 2.0) as f64),
                     star.temperature,
                     ConversionUtils::kelvin_to_celsius( star.temperature),
+                    &star.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
                     "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm, core: {}, traits: [{}]",
@@ -172,7 +173,7 @@ impl Display for AstronomicalObject {
                     },
                 ),
                 AstronomicalObject::IcyBody(body) => format!(
-                    "[{}], Ice {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}",
+                    "[{}], Ice {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, traits: [{}]",
                     body.name,
                     body.size,
                     StringUtils::to_significant_decimals(body.mass as f64),
@@ -183,6 +184,11 @@ impl Display for AstronomicalObject {
                     body.blackbody_temperature,
                     body.tidal_heating,
                    ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
+                    match &body.details {
+                        CelestialBodyDetails::Icy(details) =>
+                            details.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
                 ),
                 AstronomicalObject::GaseousBody(body) => format!(
                     "[{}], Gas {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C) tidal: {}, traits: [{}]",

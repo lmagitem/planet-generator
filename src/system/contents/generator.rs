@@ -439,7 +439,7 @@ fn place_orbit_if_possible(
                     next_orbit_from_center,
                     0.0,
                     0.0,
-                    0,
+                    0.0,
                     0.0,
                     0.0,
                     f32::INFINITY,
@@ -1629,7 +1629,7 @@ fn handle_proto_gas_giant_placement(
                 orbit_from_center,
                 0.0,
                 0.0,
-                0,
+                0.0,
                 0.0,
                 0.0,
                 f32::INFINITY,
@@ -1642,8 +1642,8 @@ fn handle_proto_gas_giant_placement(
             let mut fixed_special_traits = gaseous_body_settings
                 .fixed_special_traits
                 .unwrap_or_else(Vec::new);
-            if !fixed_special_traits.contains(&GasGiantSpecialTrait::ProtoGiant) {
-                fixed_special_traits.push(GasGiantSpecialTrait::ProtoGiant);
+            if !fixed_special_traits.contains(&CelestialBodySpecialTrait::ProtoGiant) {
+                fixed_special_traits.push(CelestialBodySpecialTrait::ProtoGiant);
             }
             let gaseous_body_settings = GaseousBodySettings {
                 fixed_special_traits: Some(fixed_special_traits),

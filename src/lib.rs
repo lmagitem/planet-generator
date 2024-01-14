@@ -32,6 +32,8 @@ pub mod prelude {
     pub use crate::system::celestial_body::icy::IcyBodyDetails;
     pub use crate::system::celestial_body::telluric::types::*;
     pub use crate::system::celestial_body::telluric::TelluricBodyDetails;
+    pub use crate::system::celestial_body::traits::types::*;
+    pub use crate::system::celestial_body::traits::*;
     pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::world::types::*;
     pub use crate::system::celestial_body::world::WorldGenerator;
@@ -299,7 +301,17 @@ mod tests {
     }
 
     fn print_system_bodies(i: usize, system: StarSystem) {
-        println!("\n>>>>> {} - {}", i, system.name);
+        println!(
+            "\n>>>>> {} - {}, traits: [{}]",
+            i,
+            system.name,
+            &system
+                .special_traits
+                .iter()
+                .map(|&x| x.to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
 
         let mut sorted_objects = Vec::new();
         let mut visited = HashSet::new();
@@ -320,20 +332,20 @@ mod tests {
 
         sorted_objects.iter().for_each(|(o, depth)| {
             println!(
-                "{}{} ({} AU) {}\n{}\x1b[37m{}\x1b[0m\n{}{}",
+                "{}{} ({} AU)\n{}\x1b[37m{}\x1b[0m\n{}{}{}\x1b[0m",
                 " ".repeat(*depth * 2),
                 format!("{:03}", o.id),
                 StringUtils::to_significant_decimals(
                     o.own_orbit.clone().unwrap_or_default().average_distance
                 ),
-                if let AstronomicalObject::Star(star) = o.object.clone() {
-                    format!("{}{}\x1b[0m", get_star_color_code(&star), star.name)
-                } else {
-                    String::new()
-                },
                 " ".repeat(*depth * 2 + 4),
                 o.own_orbit.clone().unwrap_or_default(),
                 " ".repeat(*depth * 2 + 4),
+                if let AstronomicalObject::Star(star) = o.object.clone() {
+                    format!("{}", get_star_color_code(&star))
+                } else {
+                    String::new()
+                },
                 o.object
             );
         });

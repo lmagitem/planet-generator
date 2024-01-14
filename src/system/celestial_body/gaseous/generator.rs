@@ -1,5 +1,6 @@
 use crate::internal::types::MoonDistance;
 use crate::internal::*;
+use crate::prelude::types::{TelluricRotationDifference, TideLockTarget};
 use crate::prelude::*;
 use crate::system::celestial_body::gaseous::constants::MASS_TO_DENSITY_DATASET;
 use crate::system::contents::utils::{
@@ -43,7 +44,7 @@ impl GaseousBodyDetails {
         let mut moons: Vec<OrbitalPoint> = Vec::new();
         let mut object = AstronomicalObject::Void;
         let mut this_orbit = orbit.clone();
-        let mut special_traits: Vec<GasGiantSpecialTrait>;
+        let mut special_traits: Vec<CelestialBodySpecialTrait>;
         let is_proto_giant = if let Some(traits) = settings
             .clone()
             .celestial_body
@@ -53,7 +54,7 @@ impl GaseousBodyDetails {
             special_traits = traits.clone();
             traits
                 .iter()
-                .find(|o| discriminant(*o) == discriminant(&GasGiantSpecialTrait::ProtoGiant))
+                .find(|o| discriminant(*o) == discriminant(&CelestialBodySpecialTrait::ProtoGiant))
                 .is_some()
         } else {
             special_traits = Vec::new();
@@ -185,6 +186,7 @@ impl GaseousBodyDetails {
                 ConversionUtils::solar_mass_to_earth_mass(star_mass),
                 None,
                 gas_giant_arrangement,
+                system_traits,
                 body_id,
                 &Some(this_orbit),
                 orbit_distance,
@@ -196,31 +198,36 @@ impl GaseousBodyDetails {
                 &mut telluric_special_traits,
                 &moons,
                 false,
+                MoonDistance::Any,
                 &settings,
             );
-            if telluric_special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+            if telluric_special_traits.contains(&CelestialBodySpecialTrait::UnusualRotation(
                 TelluricRotationDifference::Resonant,
             )) {
-                special_traits.push(GasGiantSpecialTrait::UnusualRotation(
+                special_traits.push(CelestialBodySpecialTrait::UnusualRotation(
                     TelluricRotationDifference::Resonant,
                 ))
             }
-            if telluric_special_traits.contains(&TelluricSpecialTrait::UnusualRotation(
+            if telluric_special_traits.contains(&CelestialBodySpecialTrait::UnusualRotation(
                 TelluricRotationDifference::Retrograde,
             )) {
-                special_traits.push(GasGiantSpecialTrait::UnusualRotation(
+                special_traits.push(CelestialBodySpecialTrait::UnusualRotation(
                     TelluricRotationDifference::Retrograde,
                 ))
             }
-            if telluric_special_traits
-                .contains(&TelluricSpecialTrait::TideLocked(TideLockTarget::Orbited))
-            {
-                special_traits.push(GasGiantSpecialTrait::TideLocked(TideLockTarget::Orbited))
+            if telluric_special_traits.contains(&CelestialBodySpecialTrait::TideLocked(
+                TideLockTarget::Orbited,
+            )) {
+                special_traits.push(CelestialBodySpecialTrait::TideLocked(
+                    TideLockTarget::Orbited,
+                ))
             }
-            if telluric_special_traits
-                .contains(&TelluricSpecialTrait::TideLocked(TideLockTarget::Satellite))
-            {
-                special_traits.push(GasGiantSpecialTrait::TideLocked(TideLockTarget::Satellite))
+            if telluric_special_traits.contains(&CelestialBodySpecialTrait::TideLocked(
+                TideLockTarget::Satellite,
+            )) {
+                special_traits.push(CelestialBodySpecialTrait::TideLocked(
+                    TideLockTarget::Satellite,
+                ))
             }
 
             object = AstronomicalObject::GaseousBody(CelestialBody::new(

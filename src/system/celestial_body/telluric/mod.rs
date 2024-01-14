@@ -10,7 +10,7 @@ pub struct TelluricBodyDetails {
     /// The type of this world.
     pub world_type: CelestialBodyWorldType,
     /// What are the pecularities of this telluric body.
-    pub special_traits: Vec<TelluricSpecialTrait>,
+    pub special_traits: Vec<CelestialBodySpecialTrait>,
     /// The degree of heat this body's core still has.
     pub core_heat: CelestialBodyCoreHeat,
     /// The strength of this object's magnetic field.
@@ -37,7 +37,7 @@ impl TelluricBodyDetails {
     pub fn new(
         body_type: TelluricBodyComposition,
         world_type: CelestialBodyWorldType,
-        special_traits: Vec<TelluricSpecialTrait>,
+        special_traits: Vec<CelestialBodySpecialTrait>,
         core_heat: CelestialBodyCoreHeat,
         magnetic_field: MagneticFieldStrength,
         atmospheric_pressure: f32,

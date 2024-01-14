@@ -59,6 +59,7 @@ impl StarSystem {
             all_objects.push(center);
         }
 
+        // TODO: Generate dynamic parameters for star orbits
         update_existing_orbits(&mut all_objects);
         generate_star_zones(&mut all_objects);
         generate_stars_systems(
@@ -492,7 +493,7 @@ fn find_center_of_binary_pair(
         barycentre_distance_from_most_massive,
         0.0,
         0.0,
-        0,
+        0.0,
         0.0,
         0.0,
         f32::INFINITY,
@@ -507,7 +508,7 @@ fn find_center_of_binary_pair(
         actual_distance - barycentre_distance_from_most_massive,
         0.0,
         0.0,
-        0,
+        0.0,
         0.0,
         0.0,
         f32::INFINITY,

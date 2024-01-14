@@ -482,7 +482,7 @@ impl MoonGenerator {
                         } else {
                             CelestialBody::default()
                         };
-                        let mut special_traits: Vec<TelluricSpecialTrait> =
+                        let mut special_traits: Vec<CelestialBodySpecialTrait> =
                             if let CelestialBodyDetails::Telluric(moon_details) = moon_clone.details
                             {
                                 moon_details.special_traits
@@ -497,6 +497,7 @@ impl MoonGenerator {
                             ConversionUtils::solar_mass_to_earth_mass(star_mass),
                             Some(planet_orbital_period),
                             gas_giant_arrangement,
+                            system_traits,
                             moon_id,
                             &Some(complete_orbit_with_orbital_period(
                                 coord,
@@ -523,6 +524,7 @@ impl MoonGenerator {
                             &mut special_traits,
                             &Vec::new(),
                             true,
+                            moon_distance,
                             &settings,
                         ));
 
