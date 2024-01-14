@@ -47,8 +47,9 @@ This is the current roadmap of the library:
   - [x] Filling orbits
   - [ ] Orbit eccentricity and inclination
 - [x] Planet generation
+  - [x] Orbit parameters
   - [x] Moons
-  - [ ] Exotic planets
+  - [ ] World parameters and climate
   - [ ] Resources
     - [ ] Accessibility
     - [ ] Rarity
@@ -56,6 +57,7 @@ This is the current roadmap of the library:
   - [ ] Life presence
   - [ ] Points of interest
   - [ ] Map generation
+  - [ ] Exotic planets
 - [ ] Species generation
   - [ ] Add species using the given settings
   - [ ] Spawn species using conditions found in specific systems
