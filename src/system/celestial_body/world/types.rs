@@ -117,12 +117,12 @@ pub enum MagneticFieldStrength {
 impl std::fmt::Display for MagneticFieldStrength {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            MagneticFieldStrength::None => write!(f, "None"),
-            MagneticFieldStrength::Weak => write!(f, "Weak"),
-            MagneticFieldStrength::Moderate => write!(f, "Moderate"),
-            MagneticFieldStrength::Strong => write!(f, "Strong"),
-            MagneticFieldStrength::VeryStrong => write!(f, "Very Strong"),
-            MagneticFieldStrength::Extreme => write!(f, "Extreme"),
+            MagneticFieldStrength::None => write!(f, "No Magnetic Field"),
+            MagneticFieldStrength::Weak => write!(f, "Weak Magnetic Field"),
+            MagneticFieldStrength::Moderate => write!(f, "Moderate Magnetic Field"),
+            MagneticFieldStrength::Strong => write!(f, "Strong Magnetic Field"),
+            MagneticFieldStrength::VeryStrong => write!(f, "Very Strong Magnetic Field"),
+            MagneticFieldStrength::Extreme => write!(f, "Extreme Magnetic Field"),
         }
     }
 }

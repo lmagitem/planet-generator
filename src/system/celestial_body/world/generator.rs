@@ -85,7 +85,7 @@ impl WorldGenerator {
             radius,
             density,
             gravity,
-            blackbody_temperature,
+            mut blackbody_temperature,
             size,
             details,
             ..
@@ -100,37 +100,51 @@ impl WorldGenerator {
             panic!("At this point, details should be telluric.")
         };
 
-        // Core heat
         let core_heat: CelestialBodyCoreHeat = Self::generate_core_heat(
-            &coord,
-            &system_index,
-            &star_id,
+            coord,
+            system_index,
+            star_id,
             star_age,
-            &orbital_point_id,
+            orbital_point_id,
             &own_orbit,
             size,
             density,
             body_type,
             &special_traits,
             tidal_heating,
+            orbit.clone().unwrap_or_default().rotation,
             &settings,
             distance_from_star,
         );
 
-        // TODO: Magnetic field
-        let magnetic_field = MagneticFieldStrength::None;
+        let magnetic_field = Self::generate_magnetic_field(
+            coord,
+            system_index,
+            star_id,
+            orbital_point_id,
+            orbit,
+            density,
+            size,
+            core_heat,
+            &special_traits,
+            &settings,
+        );
+
         // TODO: Volcanism
+        let volcanism = {};
+
         // TODO: Tectonics
+        let tectonics = {};
 
         let atmospheric_pressure = generate_atmosphere(
-            &coord,
-            &system_index,
-            &star_id,
+            coord,
+            system_index,
+            star_id,
             star_age,
             star_type,
             star_class,
             star_traits,
-            &orbital_point_id,
+            orbital_point_id,
             &own_orbit,
             size,
             mass,
@@ -139,9 +153,12 @@ impl WorldGenerator {
             is_moon,
             &settings,
         );
+
         // TODO: Atmospheric composition
+        let atmospheric_composition = {};
 
         // TODO: Blackbody correction and definitive blackbody temperature
+        blackbody_temperature = { blackbody_temperature };
 
         // TODO: Hydrographics
         let mut rng = SeededDiceRoller::new(
@@ -178,6 +195,7 @@ impl WorldGenerator {
         };
 
         // TODO: Climate
+        let climate = {};
 
         OrbitalPoint::new(
             orbital_point_id,
@@ -210,18 +228,117 @@ impl WorldGenerator {
         )
     }
 
+    fn generate_magnetic_field(
+        coord: SpaceCoordinates,
+        system_index: u16,
+        star_id: u32,
+        orbital_point_id: u32,
+        orbit: Option<Orbit>,
+        density: f32,
+        size: CelestialBodySize,
+        core_heat: CelestialBodyCoreHeat,
+        special_traits: &Vec<CelestialBodySpecialTrait>,
+        settings: &GenerationSettings,
+    ) -> MagneticFieldStrength {
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_bdy{}_mag",
+                coord, system_index, star_id, orbital_point_id
+            ),
+        );
+
+        let mut modifier = if size == CelestialBodySize::Puny {
+            -12
+        } else if size == CelestialBodySize::Tiny {
+            -6
+        } else if size == CelestialBodySize::Small {
+            -3
+        } else if size == CelestialBodySize::Standard {
+            0
+        } else if size == CelestialBodySize::Large {
+            3
+        } else {
+            18
+        };
+        modifier += if special_traits.contains(&CelestialBodySpecialTrait::UnusualMagneticField(
+            TelluricMagneticFieldDifference::MuchStronger,
+        )) {
+            12
+        } else if special_traits.contains(&CelestialBodySpecialTrait::UnusualMagneticField(
+            TelluricMagneticFieldDifference::Stronger,
+        )) {
+            6
+        } else if special_traits.contains(&CelestialBodySpecialTrait::UnusualMagneticField(
+            TelluricMagneticFieldDifference::Weaker,
+        )) {
+            -6
+        } else if special_traits.contains(&CelestialBodySpecialTrait::UnusualMagneticField(
+            TelluricMagneticFieldDifference::MuchWeaker,
+        )) {
+            -12
+        } else {
+            0
+        };
+        modifier += {
+            let rotation_speed = orbit.clone().unwrap_or_default().rotation;
+            if rotation_speed <= 0.3 {
+                5
+            } else if rotation_speed <= 0.7 {
+                3
+            } else if rotation_speed <= 1.1 {
+                1
+            } else {
+                0
+            }
+        };
+        modifier += if density >= 10.0 {
+            5
+        } else if density >= 7.0 {
+            3
+        } else if density >= 5.0 {
+            1
+        } else {
+            0
+        };
+        modifier += if core_heat == CelestialBodyCoreHeat::IntenseCore {
+            9
+        } else if core_heat == CelestialBodyCoreHeat::ActiveCore {
+            3
+        } else if core_heat == CelestialBodyCoreHeat::WarmCore {
+            0
+        } else {
+            -6
+        };
+        let roll = rng.roll(3, 6, modifier);
+
+        let mut magnetic_field;
+        if roll <= 2 {
+            magnetic_field = MagneticFieldStrength::None;
+        } else if roll <= 8 {
+            magnetic_field = MagneticFieldStrength::Weak;
+        } else if roll <= 16 {
+            magnetic_field = MagneticFieldStrength::Moderate;
+        } else {
+            magnetic_field = MagneticFieldStrength::Strong;
+        }
+
+        magnetic_field
+    }
+
     fn generate_core_heat(
-        coord: &SpaceCoordinates,
-        system_index: &u16,
-        star_id: &u32,
+        coord: SpaceCoordinates,
+        system_index: u16,
+        star_id: u32,
         star_age: f32,
-        orbital_point_id: &u32,
+        orbital_point_id: u32,
         own_orbit: &Orbit,
         size: CelestialBodySize,
         density: f32,
         body_type: TelluricBodyComposition,
         special_traits: &Vec<CelestialBodySpecialTrait>,
         tidal_heating: u32,
+        rotation_speed: f32,
         settings: &GenerationSettings,
         distance_from_star: f64,
     ) -> CelestialBodyCoreHeat {
@@ -348,6 +465,15 @@ impl WorldGenerator {
             } else {
                 -2
             };
+            core_heat_modifier += if rotation_speed <= 0.3 {
+                5
+            } else if rotation_speed <= 0.7 {
+                3
+            } else if rotation_speed <= 1.1 {
+                1
+            } else {
+                0
+            };
             core_heat_modifier += if own_orbit.eccentricity > 0.3 {
                 2
             } else if own_orbit.eccentricity >= 0.1 {
@@ -355,7 +481,7 @@ impl WorldGenerator {
             } else {
                 0
             };
-            core_heat_modifier += tidal_heating as i32;
+            core_heat_modifier += (tidal_heating / 5) as i32;
             rng.get_result(&CopyableRollToProcess::new(
                 vec![
                     CopyableWeightedResult::new(CelestialBodyCoreHeat::FrozenCore, 1),
@@ -371,14 +497,14 @@ impl WorldGenerator {
 }
 
 fn generate_atmosphere(
-    coord: &SpaceCoordinates,
-    system_index: &u16,
-    star_id: &u32,
+    coord: SpaceCoordinates,
+    system_index: u16,
+    star_id: u32,
     star_age: f32,
     star_type: &StarSpectralType,
     star_class: &StarLuminosityClass,
     star_traits: &Vec<StarPeculiarity>,
-    orbital_point_id: &u32,
+    orbital_point_id: u32,
     own_orbit: &Orbit,
     size: CelestialBodySize,
     mass: f64,

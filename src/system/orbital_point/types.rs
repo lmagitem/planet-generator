@@ -140,7 +140,7 @@ impl Display for AstronomicalObject {
                     &star.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm, core: {}, traits: [{}]",
+                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm, {}, {}, traits: [{}]",
                     body.name,
                     body.size,
                     match &body.details {
@@ -164,6 +164,11 @@ impl Display for AstronomicalObject {
                     match &body.details {
                         CelestialBodyDetails::Telluric(details) =>
                             format!("{}", details.core_heat),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            format!("{}", details.magnetic_field),
                         _ => "WRONG-TYPE".to_string(),
                     },
                     match &body.details {
