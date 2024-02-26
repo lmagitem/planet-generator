@@ -9,7 +9,7 @@ license = "MIT"
 seeded_dice_roller = "1.0.2"
 log = "0.4.20"
 simple_logger = "4.3.3"
-serde = { version = "1.0.195", features = ["derive", "rc"] }
+serde = { version = "1.0.197", features = ["derive", "rc"] }
 smart-default = "0.7.1"
 ordered-float = "4.2.0"
 lazy_static = "1.4.0"
