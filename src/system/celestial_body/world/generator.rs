@@ -197,11 +197,45 @@ impl WorldGenerator {
         // TODO: Atmospheric composition
         let atmospheric_composition = {};
 
-        // TODO: Blackbody correction and definitive blackbody temperature
-        blackbody_temperature = { blackbody_temperature };
+        blackbody_temperature = Self::adjust_blackbody_temperature(
+            &coord,
+            &system_index,
+            &star_id,
+            &orbital_point_id,
+            &settings,
+            blackbody_temperature,
+            size,
+            world_type,
+            hydrosphere,
+            atmospheric_pressure,
+        );
 
         // TODO: Climate
-        let climate = {};
+        let climate = {
+            if blackbody_temperature < 244 {
+                // Frozen
+            } else if blackbody_temperature < 255 {
+                // Very cold
+            } else if blackbody_temperature < 266 {
+                // Cold
+            } else if blackbody_temperature < 278 {
+                // Chilly
+            } else if blackbody_temperature < 289 {
+                // Cool
+            } else if blackbody_temperature < 300 {
+                // Earth-like
+            } else if blackbody_temperature < 311 {
+                // Warm
+            } else if blackbody_temperature < 322 {
+                // Tropical
+            } else if blackbody_temperature < 333 {
+                // Hot
+            } else if blackbody_temperature < 344 {
+                // Very hot
+            } else {
+                // Infernal
+            }
+        };
 
         OrbitalPoint::new(
             orbital_point_id,
@@ -237,6 +271,74 @@ impl WorldGenerator {
         )
     }
 
+    fn adjust_blackbody_temperature(
+        coord: &SpaceCoordinates,
+        system_index: &u16,
+        star_id: &u32,
+        orbital_point_id: &u32,
+        settings: &GenerationSettings,
+        blackbody_temperature: u32,
+        size: CelestialBodySize,
+        world_type: CelestialBodyWorldType,
+        hydrosphere: f32,
+        atmospheric_pressure: f32,
+    ) -> u32 {
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_bdy{}_temp",
+                coord, system_index, star_id, orbital_point_id
+            ),
+        );
+
+        let absorption_factor = match world_type {
+            CelestialBodyWorldType::Ice | CelestialBodyWorldType::DirtySnowball => {
+                if size == CelestialBodySize::Standard || size == CelestialBodySize::Large {
+                    0.86
+                } else if size == CelestialBodySize::Small {
+                    0.93
+                } else {
+                    0.86
+                }
+            }
+            CelestialBodyWorldType::Ammonia => 0.84,
+            CelestialBodyWorldType::Sulfur => 0.77,
+            CelestialBodyWorldType::Hadean => 0.67,
+            CelestialBodyWorldType::Rock => {
+                if size == CelestialBodySize::Standard || size == CelestialBodySize::Large {
+                    0.95
+                } else if size == CelestialBodySize::Small {
+                    0.96
+                } else {
+                    0.97
+                }
+            }
+            CelestialBodyWorldType::Ocean | CelestialBodyWorldType::Terrestrial => {
+                if hydrosphere <= 20.0 {
+                    0.95
+                } else if hydrosphere <= 50.0 {
+                    0.92
+                } else if hydrosphere <= 90.0 {
+                    0.88
+                } else {
+                    0.84
+                }
+            }
+            CelestialBodyWorldType::Greenhouse => 0.77,
+            CelestialBodyWorldType::Chthonian => 0.97,
+            _ => 0.97,
+        };
+        let greenhouse_factor = if atmospheric_pressure <= 1.0 {
+            0.16 * atmospheric_pressure
+        } else if atmospheric_pressure < 92.0 {
+            0.16 + atmospheric_pressure * 0.0202
+        } else {
+            0.16 + 92.0 * 0.0202 + (0.001 * (atmospheric_pressure - 92.0))
+        };
+        (blackbody_temperature as f32 * (absorption_factor * (1.0 + greenhouse_factor))).max(0.0)
+            as u32
+    }
+
     fn generate_volcanism(
         coord: &SpaceCoordinates,
         system_index: &u16,
@@ -265,11 +367,11 @@ impl WorldGenerator {
             (((gravity / star_age) * 20.0) as i32) - 16
         };
         modifier += if core_heat == CelestialBodyCoreHeat::IntenseCore {
-            30
+            15
         } else if core_heat == CelestialBodyCoreHeat::ActiveCore {
-            20
-        } else if core_heat == CelestialBodyCoreHeat::WarmCore {
             10
+        } else if core_heat == CelestialBodyCoreHeat::WarmCore {
+            5
         } else {
             0
         };

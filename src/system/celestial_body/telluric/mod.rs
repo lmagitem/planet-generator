@@ -21,9 +21,9 @@ pub struct TelluricBodyDetails {
     /// Percentage of this world that is covered by some kind of liquid.
     pub hydrosphere: f32,
     // pub cryosphere: f32,
-    ///
+    /// TODO
     pub volcanism: f32,
-    ///
+    /// TODO
     pub tectonic_activity: f32,
     // pub land_area_percentage: f32,
     // pub humidity: f32,
@@ -61,30 +61,30 @@ impl TelluricBodyDetails {
         }
     }
 
-    ///
+    /// TODO
     pub fn get_volcanism_level(self) -> VolcanicActivity {
         if self.volcanism <= 0.01 {
             VolcanicActivity::None
-        } else if self.volcanism <= 4.0 {
+        } else if self.volcanism <= 6.0 {
             VolcanicActivity::Light
-        } else if self.volcanism <= 19.0 {
+        } else if self.volcanism <= 25.0 {
             VolcanicActivity::Moderate
-        } else if self.volcanism <= 54.0 {
+        } else if self.volcanism <= 55.0 {
             VolcanicActivity::Heavy
         } else {
             VolcanicActivity::Extreme
         }
     }
 
-    ///
+    /// TODO
     pub fn get_tectonics_level(self) -> TectonicActivity {
         if self.tectonic_activity <= 0.01 {
             TectonicActivity::None
         } else if self.tectonic_activity <= 16.0 {
             TectonicActivity::Light
-        } else if self.tectonic_activity <= 32.0 {
+        } else if self.tectonic_activity <= 35.0 {
             TectonicActivity::Moderate
-        } else if self.tectonic_activity <= 48.0 {
+        } else if self.tectonic_activity <= 55.0 {
             TectonicActivity::Heavy
         } else {
             TectonicActivity::Extreme
