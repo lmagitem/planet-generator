@@ -9,6 +9,8 @@ use crate::system::orbital_point::generator::{
     complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
 use crate::system::orbital_point::utils::sort_orbital_points_by_average_distance;
+use std::iter::Filter;
+use std::slice::Iter;
 
 impl MoonGenerator {
     pub(crate) fn generate_planets_moons(
@@ -1080,4 +1082,16 @@ impl MoonGenerator {
             ));
         }
     }
+}
+
+pub(crate) fn get_major_moons(
+    moons: &Vec<OrbitalPoint>,
+) -> Filter<Iter<OrbitalPoint>, fn(&&OrbitalPoint) -> bool> {
+    moons.iter().filter(|moon_point| {
+        if let AstronomicalObject::TelluricBody(moon) = moon_point.object.clone() {
+            moon.size != CelestialBodySize::Puny
+        } else {
+            false
+        }
+    })
 }

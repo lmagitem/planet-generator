@@ -1,8 +1,11 @@
+use crate::internal::generator::get_major_moons;
 use crate::internal::types::MoonDistance;
 use crate::internal::*;
 use crate::prelude::types::*;
 use crate::prelude::TelluricRotationDifference::Retrograde;
 use crate::prelude::*;
+use std::iter::Filter;
+use std::slice::Iter;
 
 /// Calculates the orbital period between two bodies.
 ///
@@ -543,23 +546,14 @@ fn tide_lock_given_body(
     let closest_major_moon = if is_gas_giant {
         None
     } else {
-        moons
-            .iter()
-            .filter(|moon_point| {
-                if let AstronomicalObject::TelluricBody(moon) = moon_point.object.clone() {
-                    moon.size != CelestialBodySize::Puny
-                } else {
-                    false
-                }
-            })
-            .min_by(|a, b| {
-                a.own_orbit
-                    .clone()
-                    .unwrap_or_default()
-                    .average_distance
-                    .partial_cmp(&b.own_orbit.clone().unwrap_or_default().average_distance)
-                    .expect("Should have been able to compare two distances.")
-            })
+        get_major_moons(moons).min_by(|a, b| {
+            a.own_orbit
+                .clone()
+                .unwrap_or_default()
+                .average_distance
+                .partial_cmp(&b.own_orbit.clone().unwrap_or_default().average_distance)
+                .expect("Should have been able to compare two distances.")
+        })
     };
     let moon_period;
 

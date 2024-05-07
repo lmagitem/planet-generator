@@ -140,7 +140,7 @@ impl Display for AstronomicalObject {
                     &star.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm, {}, {}, traits: [{}]",
+                    "[{}], {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm, {}, {}, hydro: {}%, volcanism: {}, tectonics: {}, traits: [{}]",
                     body.name,
                     body.size,
                     match &body.details {
@@ -169,6 +169,21 @@ impl Display for AstronomicalObject {
                     match &body.details {
                         CelestialBodyDetails::Telluric(details) =>
                             format!("{}", details.magnetic_field),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            StringUtils::to_significant_decimals(details.hydrosphere as f64),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            format!("{}% ({})", StringUtils::to_significant_decimals(details.volcanism as f64), details.clone().get_volcanism_level()),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            format!("{}% ({})", StringUtils::to_significant_decimals(details.tectonic_activity as f64), details.clone().get_tectonics_level()),
                         _ => "WRONG-TYPE".to_string(),
                     },
                     match &body.details {

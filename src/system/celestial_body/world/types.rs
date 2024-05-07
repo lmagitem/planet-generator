@@ -126,3 +126,72 @@ impl std::fmt::Display for MagneticFieldStrength {
         }
     }
 }
+
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum VolcanicActivity {
+    /// No volcanic activity. Geologically dead world with potentially solid core. Trace elements
+    /// and useful minerals are absent or very rare. Examples: Mercury, Mars, the Moon.
+    #[default]
+    None,
+    /// Light volcanic activity. Quiet world with a hot core and sporadic volcanism. Trace elements
+    /// are uncommon. New volcanoes appear over thousands or millions of years.
+    Light,
+    /// Moderate volcanic activity. Active regions with occasional eruptions. Trace elements are
+    /// well-circulated. New volcanoes appear over decades or centuries. Example: Earth.
+    Moderate,
+    /// Heavy volcanic activity. Frequent and widespread volcanism. Magma can emerge through
+    /// large crustal wounds. Trace elements are abundant. New volcanoes appear every few years.
+    Heavy,
+    /// Extreme volcanic activity. Dominant and continuous volcanism making the surface highly
+    /// unstable. Atmosphere likely non-breathable with high sulfur compounds or pollutants.
+    /// Example: Io.
+    Extreme,
+}
+
+impl std::fmt::Display for VolcanicActivity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            VolcanicActivity::None => write!(f, "No Volcanic Activity"),
+            VolcanicActivity::Light => write!(f, "Light Volcanic Activity"),
+            VolcanicActivity::Moderate => write!(f, "Moderate Volcanic Activity"),
+            VolcanicActivity::Heavy => write!(f, "Heavy Volcanic Activity"),
+            VolcanicActivity::Extreme => write!(f, "Extreme Volcanic Activity"),
+        }
+    }
+}
+
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum TectonicActivity {
+    /// No tectonic activity. Tectonically dead world with a thick, immobile crust. Weak and rare
+    /// crustal quakes. Massive shield volcanoes if any volcanic activity. No mountain-building.
+    #[default]
+    None,
+    /// Light tectonic activity. Limited movement of a few crustal plates. Powerful but uncommon
+    /// quakes. Shield volcanoes and some smaller volcanic chains. Infrequent mountain-building.
+    Light,
+    /// Moderate tectonic activity. Freely moving number of plates. Common and powerful quakes,
+    /// including mid-plate regions. Few shield volcanoes, mostly smaller chain volcanoes. Regular mountain-building cycles.
+    Moderate,
+    /// Heavy tectonic activity. Many crustal plates with frequent movement. Very powerful quakes
+    /// almost anywhere. Small chain or arc volcanoes. Constant mountain-building with young, high ranges.
+    Heavy,
+    /// Extreme tectonic activity. Fragmented, unstable crust. Powerful quakes at any time and place.
+    /// Chaotic landforms, including numerous young, high mountains. Highly dynamic geological environment.
+    Extreme,
+}
+
+impl std::fmt::Display for TectonicActivity {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TectonicActivity::None => write!(f, "No Tectonic Activity"),
+            TectonicActivity::Light => write!(f, "Light Tectonic Activity"),
+            TectonicActivity::Moderate => write!(f, "Moderate Tectonic Activity"),
+            TectonicActivity::Heavy => write!(f, "Heavy Tectonic Activity"),
+            TectonicActivity::Extreme => write!(f, "Extreme Tectonic Activity"),
+        }
+    }
+}

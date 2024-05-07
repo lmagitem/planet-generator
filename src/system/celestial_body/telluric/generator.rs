@@ -31,6 +31,9 @@ impl TelluricBodyDetails {
                 CelestialBodyCoreHeat::FrozenCore,
                 MagneticFieldStrength::None,
                 0.0,
+                0.0,
+                0.0,
+                0.0,
             )),
         }
     }
@@ -350,6 +353,9 @@ impl TelluricBodyDetails {
                 Vec::new(),
                 CelestialBodyCoreHeat::FrozenCore,
                 MagneticFieldStrength::None,
+                0.0,
+                0.0,
+                0.0,
                 0.0,
             )),
         }

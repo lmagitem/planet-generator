@@ -15,13 +15,16 @@ pub struct TelluricBodyDetails {
     pub core_heat: CelestialBodyCoreHeat,
     /// The strength of this object's magnetic field.
     pub magnetic_field: MagneticFieldStrength,
-    /// This body's atmospheric pressure, in atm, with 1 atm being equal to the average sea-level air pressure on Earth..
+    /// This body's atmospheric pressure, in atm, with 1 atm being equal to the average sea-level air pressure on Earth.
     pub atmospheric_pressure: f32,
     // pub atmospheric_density: AtmosphericDensityType,
-    // pub hydrosphere: f32,
+    /// Percentage of this world that is covered by some kind of liquid.
+    pub hydrosphere: f32,
     // pub cryosphere: f32,
-    // pub volcanism: f32,
-    // pub tectonic_activity: f32,
+    ///
+    pub volcanism: f32,
+    ///
+    pub tectonic_activity: f32,
     // pub land_area_percentage: f32,
     // pub humidity: f32,
     // pub average_temperature: f32,
@@ -41,6 +44,9 @@ impl TelluricBodyDetails {
         core_heat: CelestialBodyCoreHeat,
         magnetic_field: MagneticFieldStrength,
         atmospheric_pressure: f32,
+        hydrosphere: f32,
+        volcanism: f32,
+        tectonic_activity: f32,
     ) -> Self {
         Self {
             body_type,
@@ -49,6 +55,39 @@ impl TelluricBodyDetails {
             core_heat,
             magnetic_field,
             atmospheric_pressure,
+            hydrosphere,
+            volcanism,
+            tectonic_activity,
+        }
+    }
+
+    ///
+    pub fn get_volcanism_level(self) -> VolcanicActivity {
+        if self.volcanism <= 0.01 {
+            VolcanicActivity::None
+        } else if self.volcanism <= 4.0 {
+            VolcanicActivity::Light
+        } else if self.volcanism <= 19.0 {
+            VolcanicActivity::Moderate
+        } else if self.volcanism <= 54.0 {
+            VolcanicActivity::Heavy
+        } else {
+            VolcanicActivity::Extreme
+        }
+    }
+
+    ///
+    pub fn get_tectonics_level(self) -> TectonicActivity {
+        if self.tectonic_activity <= 0.01 {
+            TectonicActivity::None
+        } else if self.tectonic_activity <= 16.0 {
+            TectonicActivity::Light
+        } else if self.tectonic_activity <= 32.0 {
+            TectonicActivity::Moderate
+        } else if self.tectonic_activity <= 48.0 {
+            TectonicActivity::Heavy
+        } else {
+            TectonicActivity::Extreme
         }
     }
 }

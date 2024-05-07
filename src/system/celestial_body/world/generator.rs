@@ -1,3 +1,4 @@
+use crate::internal::generator::get_major_moons;
 use crate::internal::*;
 use crate::prelude::*;
 impl WorldGenerator {
@@ -45,6 +46,9 @@ impl WorldGenerator {
                     special_traits,
                     CelestialBodyCoreHeat::ActiveCore,
                     MagneticFieldStrength::None,
+                    0.0,
+                    0.0,
+                    0.0,
                     0.0,
                 )),
             }),
@@ -97,7 +101,7 @@ impl WorldGenerator {
             ..
         }) = details
         else {
-            panic!("At this point, details should be telluric.")
+            panic!("At this point, the CelestialBodyDetails should be telluric.")
         };
 
         let core_heat: CelestialBodyCoreHeat = Self::generate_core_heat(
@@ -130,11 +134,47 @@ impl WorldGenerator {
             &settings,
         );
 
-        // TODO: Volcanism
-        let volcanism = {};
+        let hydrosphere = Self::generate_hydrosphere(
+            &coord,
+            &system_index,
+            &star_id,
+            &orbital_point_id,
+            &settings,
+            size,
+            world_type,
+            &special_traits,
+            tidal_heating,
+            magnetic_field,
+        );
 
-        // TODO: Tectonics
-        let tectonics = {};
+        let volcanism = Self::generate_volcanism(
+            &coord,
+            &system_index,
+            &star_id,
+            star_age,
+            &orbital_point_id,
+            moons,
+            tidal_heating,
+            &settings,
+            gravity,
+            size,
+            &special_traits,
+            core_heat,
+        );
+
+        let tectonics = Self::generate_tectonic_activity(
+            &coord,
+            &system_index,
+            &star_id,
+            &orbital_point_id,
+            moons,
+            &settings,
+            size,
+            &special_traits,
+            core_heat,
+            hydrosphere,
+            volcanism,
+        );
 
         let atmospheric_pressure = generate_atmosphere(
             coord,
@@ -159,40 +199,6 @@ impl WorldGenerator {
 
         // TODO: Blackbody correction and definitive blackbody temperature
         blackbody_temperature = { blackbody_temperature };
-
-        // TODO: Hydrographics
-        let mut rng = SeededDiceRoller::new(
-            &settings.seed,
-            &format!(
-                "sys_{}_{}_str_{}_bdy{}_hydr",
-                coord, system_index, star_id, orbital_point_id
-            ),
-        );
-        let hydrosphere = match world_type {
-            CelestialBodyWorldType::Rock
-            | CelestialBodyWorldType::Chthonian
-            | CelestialBodyWorldType::Sulfur
-            | CelestialBodyWorldType::Hadean => 0.0,
-            CelestialBodyWorldType::Ice => {
-                if size == CelestialBodySize::Small {
-                    rng.roll(1, 6000, 2499) as f32 / 100.0
-                } else if size == CelestialBodySize::Standard || size == CelestialBodySize::Large {
-                    rng.roll(2, 6000, -10000).max(0) as f32 / 100.0
-                } else {
-                    0.0
-                }
-            }
-            CelestialBodyWorldType::Hadean => {
-                if size == CelestialBodySize::Standard || size == CelestialBodySize::Small {
-                    0.0
-                } else {
-                    -1.0
-                }
-            }
-            CelestialBodyWorldType::Chthonian => 0.0,
-            CelestialBodyWorldType::Greenhouse => rng.gen_range(1.5..300.0),
-            _ => 0.0,
-        };
 
         // TODO: Climate
         let climate = {};
@@ -222,10 +228,260 @@ impl WorldGenerator {
                     core_heat,
                     magnetic_field,
                     atmospheric_pressure,
+                    hydrosphere,
+                    volcanism,
+                    tectonics,
                 )),
             )),
             orbits.clone(),
         )
+    }
+
+    fn generate_volcanism(
+        coord: &SpaceCoordinates,
+        system_index: &u16,
+        star_id: &u32,
+        star_age: f32,
+        orbital_point_id: &u32,
+        moons: &Vec<OrbitalPoint>,
+        tidal_heating: u32,
+        settings: &GenerationSettings,
+        gravity: f32,
+        size: CelestialBodySize,
+        special_traits: &Vec<CelestialBodySpecialTrait>,
+        core_heat: CelestialBodyCoreHeat,
+    ) -> f32 {
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_bdy{}_vol",
+                coord, system_index, star_id, orbital_point_id
+            ),
+        );
+
+        let mut modifier = if size == CelestialBodySize::Puny {
+            -500
+        } else {
+            (((gravity / star_age) * 20.0) as i32) - 16
+        };
+        modifier += if core_heat == CelestialBodyCoreHeat::IntenseCore {
+            30
+        } else if core_heat == CelestialBodyCoreHeat::ActiveCore {
+            20
+        } else if core_heat == CelestialBodyCoreHeat::WarmCore {
+            10
+        } else {
+            0
+        };
+        modifier +=
+            if special_traits.contains(&CelestialBodySpecialTrait::SpecificGeologicActivity(
+                TelluricGeologicActivity::GeologicallyDead,
+            )) || special_traits.contains(&CelestialBodySpecialTrait::SpecificGeologicActivity(
+                TelluricGeologicActivity::GeologicallyExtinct,
+            )) {
+                -500
+            } else if special_traits.contains(&CelestialBodySpecialTrait::SpecificGeologicActivity(
+                TelluricGeologicActivity::GeologicallyActive,
+            )) {
+                20
+            } else {
+                0
+            };
+        modifier += (tidal_heating * 4) as i32;
+        modifier += (get_major_moons(moons).count() * 5) as i32;
+
+        let mut roll = (rng.roll(3, 6, modifier) as f32).max(0.0).min(100.0);
+        if roll > 0.01 {
+            roll = (roll + (rng.roll(1, 201, -101) as f32) / 100.0)
+                .max(0.0)
+                .min(100.0);
+        }
+
+        roll
+    }
+
+    fn generate_tectonic_activity(
+        coord: &SpaceCoordinates,
+        system_index: &u16,
+        star_id: &u32,
+        orbital_point_id: &u32,
+        moons: &Vec<OrbitalPoint>,
+        settings: &GenerationSettings,
+        size: CelestialBodySize,
+        special_traits: &Vec<CelestialBodySpecialTrait>,
+        core_heat: CelestialBodyCoreHeat,
+        hydrosphere: f32,
+        volcanism: f32,
+    ) -> f32 {
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_bdy{}_tct",
+                coord, system_index, star_id, orbital_point_id
+            ),
+        );
+
+        let mut modifier = if size == CelestialBodySize::Puny {
+            -500
+        } else if size == CelestialBodySize::Tiny && core_heat != CelestialBodyCoreHeat::FrozenCore
+        {
+            -26
+        } else if size == CelestialBodySize::Small && core_heat != CelestialBodyCoreHeat::FrozenCore
+        {
+            -18
+        } else {
+            -6
+        };
+        modifier +=
+            if special_traits.contains(&CelestialBodySpecialTrait::SpecificGeologicActivity(
+                TelluricGeologicActivity::GeologicallyDead,
+            )) || special_traits.contains(&CelestialBodySpecialTrait::SpecificGeologicActivity(
+                TelluricGeologicActivity::GeologicallyExtinct,
+            )) {
+                -500
+            } else if special_traits.contains(&CelestialBodySpecialTrait::SpecificGeologicActivity(
+                TelluricGeologicActivity::GeologicallyActive,
+            )) {
+                5
+            } else {
+                0
+            };
+        modifier += if volcanism < 0.01 {
+            -8
+        } else if volcanism <= 4.0 {
+            -4
+        } else if volcanism > 19.0 && volcanism <= 54.0 {
+            4
+        } else {
+            8
+        };
+        modifier += if hydrosphere <= 0.0 {
+            -4
+        } else if hydrosphere < 50.0 {
+            -2
+        } else {
+            0
+        };
+        modifier += if get_major_moons(moons).count() > 1 {
+            4
+        } else if get_major_moons(moons).count() > 0 {
+            2
+        } else {
+            0
+        };
+
+        let mut roll = (rng.roll(3, 6, modifier) as f32 * 4.0).max(0.0).min(100.0);
+        if roll > 0.01 {
+            roll = (roll + (rng.roll(1, 801, -401) as f32) / 100.0)
+                .max(0.0)
+                .min(100.0);
+        }
+
+        roll
+    }
+
+    fn generate_hydrosphere(
+        coord: &SpaceCoordinates,
+        system_index: &u16,
+        star_id: &u32,
+        orbital_point_id: &u32,
+        settings: &GenerationSettings,
+        size: CelestialBodySize,
+        world_type: CelestialBodyWorldType,
+        special_traits: &Vec<CelestialBodySpecialTrait>,
+        tidal_heating: u32,
+        magnetic_field: MagneticFieldStrength,
+    ) -> f32 {
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_bdy{}_hydr",
+                coord, system_index, star_id, orbital_point_id
+            ),
+        );
+
+        let mut hydrosphere = {
+            let mut modifier = match magnetic_field {
+                MagneticFieldStrength::None => -3000,
+                MagneticFieldStrength::Weak => -1500,
+                MagneticFieldStrength::Moderate => 0,
+                MagneticFieldStrength::Strong => 1000,
+                MagneticFieldStrength::VeryStrong => 2000,
+                MagneticFieldStrength::Extreme => 3000,
+            };
+            modifier += if special_traits.contains(
+                &CelestialBodySpecialTrait::UnusualVolatileDensity(
+                    TelluricVolatileDensityDifference::Poor,
+                ),
+            ) {
+                -2000
+            } else if special_traits.contains(&CelestialBodySpecialTrait::UnusualVolatileDensity(
+                TelluricVolatileDensityDifference::Rich,
+            )) {
+                2000
+            } else {
+                0
+            };
+            modifier += if tidal_heating < 1 {
+                -1000
+            } else if tidal_heating < 3 {
+                0
+            } else if tidal_heating < 5 {
+                1000
+            } else {
+                2000
+            };
+            match world_type {
+                CelestialBodyWorldType::Ice => {
+                    if size == CelestialBodySize::Small {
+                        (rng.roll(1, 6000, 2499 + modifier) as f32 / 100.0)
+                            .min(85.0)
+                            .max(0.0)
+                    } else if size == CelestialBodySize::Standard
+                        || size == CelestialBodySize::Large
+                    {
+                        (rng.roll(2, 6000, -10000 + modifier) as f32 / 100.0)
+                            .min(20.0)
+                            .max(0.0)
+                    } else {
+                        0.0
+                    }
+                }
+                CelestialBodyWorldType::Greenhouse => {
+                    if size == CelestialBodySize::Standard || size == CelestialBodySize::Large {
+                        (rng.roll(2, 6000, -7000 + modifier) as f32 / 100.0)
+                            .min(50.0)
+                            .max(0.0)
+                    } else {
+                        0.0
+                    }
+                }
+                CelestialBodyWorldType::Ammonia => {
+                    if size == CelestialBodySize::Standard || size == CelestialBodySize::Large {
+                        (rng.roll(2, 5001, 1998 + modifier) as f32 / 100.0)
+                            .min(100.0)
+                            .max(20.0)
+                    } else {
+                        0.0
+                    }
+                }
+                CelestialBodyWorldType::Ocean => (rng.roll(1, 3000, 6999 + modifier) as f32
+                    / 100.0)
+                    .min(100.0)
+                    .max(70.0),
+                CelestialBodyWorldType::Terrestrial => (rng.roll(3, 2903, 997 + modifier) as f32
+                    / 100.0)
+                    .min(90.0)
+                    .max(9.8),
+                _ => 0.0,
+            }
+        };
+
+        if hydrosphere > 0.01 {
+            hydrosphere += (rng.roll(1, 1001, -501) as f32 / 100.0);
+        }
+
+        hydrosphere.min(100.0).max(0.0)
     }
 
     fn generate_magnetic_field(
@@ -482,11 +738,12 @@ impl WorldGenerator {
                 0
             };
             core_heat_modifier += (tidal_heating / 5) as i32;
+            // TODO: Lower the results, not enough active cores in systems as old as ours
             rng.get_result(&CopyableRollToProcess::new(
                 vec![
                     CopyableWeightedResult::new(CelestialBodyCoreHeat::FrozenCore, 1),
                     CopyableWeightedResult::new(CelestialBodyCoreHeat::WarmCore, 4),
-                    CopyableWeightedResult::new(CelestialBodyCoreHeat::ActiveCore, 4),
+                    CopyableWeightedResult::new(CelestialBodyCoreHeat::ActiveCore, 6),
                     CopyableWeightedResult::new(CelestialBodyCoreHeat::IntenseCore, 1),
                 ],
                 RollMethod::PreparedRoll(PreparedRoll::new(2, 6, core_heat_modifier)),
