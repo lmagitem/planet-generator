@@ -21,9 +21,9 @@ pub struct TelluricBodyDetails {
     /// Percentage of this world that is covered by some kind of liquid.
     pub hydrosphere: f32,
     // pub cryosphere: f32,
-    /// TODO
+    /// An indication of the levels of volcanism in this world, from 0 to 100 (check `get_volcanism_level` to know what the numbers correspond to).
     pub volcanism: f32,
-    /// TODO
+    /// An indication of the levels of tectonic activity in this world, from 0 to 100 (check `get_tectonics_level` to know what the numbers correspond to).
     pub tectonic_activity: f32,
     // pub land_area_percentage: f32,
     // pub humidity: f32,
@@ -61,7 +61,7 @@ impl TelluricBodyDetails {
         }
     }
 
-    /// TODO
+    /// Returns an enum value giving a human-comprehensible value to this planet's volcanism levels.
     pub fn get_volcanism_level(self) -> VolcanicActivity {
         if self.volcanism <= 0.01 {
             VolcanicActivity::None
@@ -76,7 +76,7 @@ impl TelluricBodyDetails {
         }
     }
 
-    /// TODO
+    /// Returns an enum value giving a human-comprehensible value to this planet's tectonic activity levels.
     pub fn get_tectonics_level(self) -> TectonicActivity {
         if self.tectonic_activity <= 0.01 {
             TectonicActivity::None
