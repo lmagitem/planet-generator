@@ -153,7 +153,7 @@ impl MoonGenerator {
                 star_id,
                 star_name.clone(),
                 star_mass,
-                *&parent_orbit.average_distance,
+                parent_orbit.clone(),
                 coord,
                 next_id,
                 populated_orbit_index,
@@ -942,7 +942,7 @@ impl MoonGenerator {
         star_id: u32,
         star_name: Rc<str>,
         star_mass: f64,
-        orbit_distance_from_star: f64,
+        parent_orbit: Orbit,
         coord: SpaceCoordinates,
         next_id: &mut u32,
         mut populated_orbit_index: u32,
@@ -1001,7 +1001,7 @@ impl MoonGenerator {
                 ),
             ),
             star_mass as f64,
-            orbit_distance_from_star,
+            *&parent_orbit.average_distance,
             planet_mass as f64,
             planet_density as f64,
             planet_radius as f64,
@@ -1073,7 +1073,9 @@ impl MoonGenerator {
                     primary_body_id: planet_id,
                     id: Some(ring_id),
                     average_distance: ring_distance,
-                    ..Default::default()
+                    average_distance_from_system_center: parent_orbit.average_distance_from_system_center,
+                    eccentricity: 0.0,
+                    ..parent_orbit
                 }),
                 match ring_composition {
                     CelestialRingComposition::Ice => AstronomicalObject::IcyDisk(rings),
