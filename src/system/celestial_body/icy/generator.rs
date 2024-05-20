@@ -148,6 +148,10 @@ impl IcyBodyDetails {
                         body_id,
                         &own_orbit,
                         orbit_distance,
+                        own_orbit
+                            .clone()
+                            .unwrap_or_default()
+                            .average_distance_from_system_center,
                         body_type == CelestialBodyComposition::Gaseous,
                         blackbody_temp,
                         mass,
@@ -171,7 +175,7 @@ impl IcyBodyDetails {
                     star_class,
                     star_traits,
                     primary_star_mass,
-                    orbit_distance,
+                    own_orbit.clone().unwrap(),
                     coord,
                     &seed.clone(),
                     next_id,
@@ -254,6 +258,10 @@ impl IcyBodyDetails {
                 body_id,
                 &own_orbit,
                 orbit_distance,
+                own_orbit
+                    .clone()
+                    .unwrap_or_default()
+                    .average_distance_from_system_center,
                 true,
                 blackbody_temp,
                 mass,
@@ -274,7 +282,7 @@ impl IcyBodyDetails {
                 star_class,
                 star_traits,
                 primary_star_mass,
-                orbit_distance,
+                this_orbit.clone(),
                 coord,
                 &seed.clone(),
                 next_id,

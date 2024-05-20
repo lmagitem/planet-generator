@@ -550,35 +550,41 @@ fn calculate_distance_from_system_center(
     all_objects: &mut [OrbitalPoint],
     calculated_ids: &mut HashSet<u32>,
 ) {
+    // Check if the distance for this orbital point has already been calculated
     if !calculated_ids.insert(orbital_point_id) {
         return;
     }
 
-    let (orbit_option, mut orbital_point) = {
-        let orbital_point = all_objects
-            .iter_mut()
-            .find(|op| op.id == orbital_point_id)
-            .expect("OrbitalPoint not found");
+    // Find the orbital point in the list of all objects
+    let orbital_point_index = all_objects
+        .iter()
+        .position(|op| op.id == orbital_point_id)
+        .expect("OrbitalPoint not found");
 
+    let (orbit_option, orbital_point) = {
+        let orbital_point = &all_objects[orbital_point_index];
         (orbital_point.own_orbit.clone(), orbital_point.clone())
     };
 
+    // Calculate the distance for the primary orbit if it exists
     if let Some(orbit) = orbit_option {
         calculate_distance_from_system_center(orbit.primary_body_id, all_objects, calculated_ids);
 
         let primary_orbit_distance = get_primary_orbit_distance(&orbit, all_objects);
 
-        if let Some(own_orbit) = &mut orbital_point.own_orbit {
+        // Update the distance from the system center
+        if let Some(own_orbit) = &mut all_objects[orbital_point_index].own_orbit {
             own_orbit.average_distance_from_system_center += primary_orbit_distance;
         }
     }
 
+    // Calculate the distances for any orbits around this orbital point
     for orbit in orbital_point.orbits.clone() {
         calculate_distance_from_system_center(orbit.primary_body_id, all_objects, calculated_ids);
 
         let primary_orbit_distance = get_primary_orbit_distance(&orbit, all_objects);
 
-        if let Some(orbit) = orbital_point
+        if let Some(orbit) = all_objects[orbital_point_index]
             .orbits
             .iter_mut()
             .find(|o| o.id.unwrap_or(u32::MAX) == orbit.id.unwrap_or(u32::MAX))

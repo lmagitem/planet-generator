@@ -78,6 +78,10 @@ impl OrbitalHarmonicsUtils {
         let potential_ratios = (1..=7).flat_map(|x| (1..=7).map(move |y| (x, y)));
 
         for (num, denom) in potential_ratios {
+            if num == denom {
+                continue;
+            }
+
             let target_ratio = num as f64 / denom as f64;
 
             if (ratio - target_ratio).abs() <= tolerance {

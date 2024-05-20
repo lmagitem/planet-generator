@@ -56,6 +56,7 @@ pub fn complete_orbit_with_orbital_period(
     orbital_point_id: u32,
     own_orbit: &Option<Orbit>,
     orbit_distance: f64,
+    orbited_distance_from_center: f64,
     is_gas_giant: bool,
     blackbody_temp: u32,
     mass: f64,
@@ -64,6 +65,8 @@ pub fn complete_orbit_with_orbital_period(
     settings: &GenerationSettings,
 ) -> Orbit {
     let mut this_orbit = own_orbit.clone().unwrap_or_default();
+    this_orbit.average_distance = orbit_distance;
+    this_orbit.average_distance_from_system_center = orbit_distance + orbited_distance_from_center;
     this_orbit.orbital_period =
         calculate_orbital_period_from_earth_masses(orbit_distance, orbited_object_mass, mass)
             as f32;

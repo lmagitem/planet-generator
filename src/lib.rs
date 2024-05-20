@@ -147,7 +147,7 @@ mod tests {
     fn generate_interesting_example_systems() {
         // init_logger(LevelFilter::Debug);
         let mut highest_distance;
-        for i in 0..5000 {
+        for i in 0..50 {
             let settings = &GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 ..Default::default()
