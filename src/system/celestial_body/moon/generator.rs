@@ -274,7 +274,9 @@ impl MoonGenerator {
             let orbit = Some(Orbit {
                 primary_body_id: planet_id,
                 id: Some(moon_id),
-                ..parent_orbit
+                average_distance_from_system_center: parent_orbit.average_distance_from_system_center,
+                zone: parent_orbit.zone,
+                ..Default::default()
             });
             let mut moon_distance;
             let fixed_size = if number_of_major_moons > 0 {
@@ -1074,8 +1076,8 @@ impl MoonGenerator {
                     id: Some(ring_id),
                     average_distance: ring_distance,
                     average_distance_from_system_center: parent_orbit.average_distance_from_system_center,
-                    eccentricity: 0.0,
-                    ..parent_orbit
+                    zone: parent_orbit.zone,
+                    ..Default::default()
                 }),
                 match ring_composition {
                     CelestialRingComposition::Ice => AstronomicalObject::IcyDisk(rings),
