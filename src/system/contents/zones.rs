@@ -329,7 +329,9 @@ pub(crate) fn get_orbit_with_updated_zone(orbit: Orbit, blackbody_temperature: u
             ZoneType::BioZone
         } else if orbit.zone == ZoneType::BioZone && climate == WorldClimateType::Infernal {
             ZoneType::InnerZone
-        } else if orbit.zone == ZoneType::BioZone && climate == WorldClimateType::Frozen {
+        } else if orbit.zone == ZoneType::BioZone && climate == WorldClimateType::Frozen && blackbody_temperature > 150 {
+            ZoneType::InnerZone
+        } else if orbit.zone == ZoneType::BioZone && climate == WorldClimateType::Frozen && blackbody_temperature <= 150 {
             ZoneType::OuterZone
         } else {
             orbit.zone
