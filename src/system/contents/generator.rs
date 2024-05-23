@@ -12,6 +12,7 @@ pub fn generate_stars_systems(
     galaxy: &mut Galaxy,
 ) {
     let seed = galaxy.settings.seed.clone();
+    let mut next_id = get_next_id(all_objects);
     let all_zones = collect_all_zones(all_objects);
 
     let mut number_of_bodies_per_star =
@@ -44,6 +45,7 @@ pub fn generate_stars_systems(
                 major_bodies_left,
                 star_index,
                 primary_star_mass,
+                &mut next_id,
             ));
         });
 
@@ -84,8 +86,8 @@ fn generate_orbits_and_bodies(
     major_bodies_left: &mut i32,
     star_index: &mut usize,
     primary_star_mass: f64,
+    mut next_id: &mut u32,
 ) -> Vec<OrbitalPoint> {
-    let mut next_id = get_next_id(&all_objects);
     let initial_number_of_bodies = major_bodies_left.clone();
     let star_orbital_point = &mut all_objects[*star_index];
     let mut result: Vec<OrbitalPoint> = Vec::new();
