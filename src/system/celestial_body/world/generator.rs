@@ -183,7 +183,6 @@ impl WorldGenerator {
             volcanism,
         );
 
-        // TODO: Take volcanism into account
         let atmospheric_pressure = generate_atmosphere(
             coord,
             system_index,
@@ -198,6 +197,7 @@ impl WorldGenerator {
             mass,
             body_type,
             world_type,
+            volcanism + tectonics,
             is_moon,
             &settings,
         );
@@ -857,6 +857,7 @@ fn generate_atmosphere(
     mass: f64,
     body_type: TelluricBodyComposition,
     world_type: CelestialBodyWorldType,
+    volcanism_and_tectonics: f32,
     is_moon: bool,
     settings: &GenerationSettings,
 ) -> f32 {
@@ -896,6 +897,24 @@ fn generate_atmosphere(
         2
     } else {
         0
+    };
+    atmospheric_mass_modifier += if size == CelestialBodySize::Tiny {
+        -4
+    } else if size == CelestialBodySize::Small {
+        -2
+    } else {
+        0
+    };
+    atmospheric_mass_modifier += if volcanism_and_tectonics < 10.0 {
+        -1
+    } else if volcanism_and_tectonics < 20.0 {
+        0
+    } else if volcanism_and_tectonics < 50.0 {
+        1
+    } else if volcanism_and_tectonics < 100.0 {
+        2
+    } else {
+        5
     };
     atmospheric_mass_modifier += match star_type {
         StarSpectralType::WR(_) => -5,
@@ -953,23 +972,25 @@ fn generate_atmosphere(
             CelestialBodyWorldType::Ice
             | CelestialBodyWorldType::DirtySnowball
             | CelestialBodyWorldType::Sulfur => {
-                if size == CelestialBodySize::Tiny {
+                if size == CelestialBodySize::Tiny && volcanism_and_tectonics < 10.0 {
                     0.0
                 } else {
                     -1.0
                 }
             }
             CelestialBodyWorldType::Rock => {
-                if size == CelestialBodySize::Tiny || size == CelestialBodySize::Small {
+                if (size == CelestialBodySize::Tiny || size == CelestialBodySize::Small)
+                    && volcanism_and_tectonics < 10.0
+                {
                     0.0
                 } else {
                     -1.0
                 }
             }
             CelestialBodyWorldType::Hadean => {
-                if size == CelestialBodySize::Tiny
+                if (size == CelestialBodySize::Tiny
                     || size == CelestialBodySize::Small
-                    || size == CelestialBodySize::Standard
+                    || size == CelestialBodySize::Standard)
                 {
                     0.0
                 } else {
