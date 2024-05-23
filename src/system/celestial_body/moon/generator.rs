@@ -274,7 +274,8 @@ impl MoonGenerator {
             let orbit = Some(Orbit {
                 primary_body_id: planet_id,
                 id: Some(moon_id),
-                average_distance_from_system_center: parent_orbit.average_distance_from_system_center,
+                average_distance_from_system_center: parent_orbit
+                    .average_distance_from_system_center,
                 zone: parent_orbit.zone,
                 ..Default::default()
             });
@@ -1075,7 +1076,8 @@ impl MoonGenerator {
                     primary_body_id: planet_id,
                     id: Some(ring_id),
                     average_distance: ring_distance,
-                    average_distance_from_system_center: parent_orbit.average_distance_from_system_center,
+                    average_distance_from_system_center: parent_orbit
+                        .average_distance_from_system_center,
                     zone: parent_orbit.zone,
                     ..Default::default()
                 }),

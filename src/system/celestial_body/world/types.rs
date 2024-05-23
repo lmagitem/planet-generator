@@ -40,7 +40,7 @@ impl Display for CelestialBodyWorldType {
             f,
             "{}",
             match self {
-                CelestialBodyWorldType::Ice => "Ice",
+                CelestialBodyWorldType::Ice => "Ice Ball",
                 CelestialBodyWorldType::DirtySnowball => "Dirty Snowball",
                 CelestialBodyWorldType::Sulfur => "Sulfur",
                 CelestialBodyWorldType::Rock => "Rock",
@@ -184,14 +184,62 @@ pub enum TectonicActivity {
     Extreme,
 }
 
-impl std::fmt::Display for TectonicActivity {
+impl std::fmt::Display for crate::prelude::TectonicActivity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            TectonicActivity::None => write!(f, "No Tectonic Activity"),
-            TectonicActivity::Light => write!(f, "Light Tectonic Activity"),
-            TectonicActivity::Moderate => write!(f, "Moderate Tectonic Activity"),
-            TectonicActivity::Heavy => write!(f, "Heavy Tectonic Activity"),
-            TectonicActivity::Extreme => write!(f, "Extreme Tectonic Activity"),
+            crate::prelude::TectonicActivity::None => write!(f, "No Tectonic Activity"),
+            crate::prelude::TectonicActivity::Light => write!(f, "Light Tectonic Activity"),
+            crate::prelude::TectonicActivity::Moderate => write!(f, "Moderate Tectonic Activity"),
+            crate::prelude::TectonicActivity::Heavy => write!(f, "Heavy Tectonic Activity"),
+            crate::prelude::TectonicActivity::Extreme => write!(f, "Extreme Tectonic Activity"),
+        }
+    }
+}
+
+/// A descriptive name for the world’s over-all surface climate.
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum WorldClimateType {
+    /// Temperature below 244 K (-29.15°C).
+    #[default]
+    Frozen,
+    /// Temperature between 244 K (-29.15°C) and 255 K (-18.15°C).
+    VeryCold,
+    /// Temperature between 255 K (-18.15°C) and 266 K (-7.15°C).
+    Cold,
+    /// Temperature between 266 K (-7.15°C) and 278 K (4.85°C).
+    Chilly,
+    /// Temperature between 278 K (4.85°C) and 289 K (15.85°C).
+    Cool,
+    /// Temperature between 289 K (15.85°C) and 300 K (26.85°C).
+    Ideal,
+    /// Temperature between 300 K (26.85°C) and 311 K (37.85°C).
+    Warm,
+    /// Temperature between 311 K (37.85°C) and 322 K (48.85°C).
+    Tropical,
+    /// Temperature between 322 K (48.85°C) and 333 K (59.85°C).
+    Hot,
+    /// Temperature between 333 K (59.85°C) and 344 K (70.85°C).
+    VeryHot,
+    /// Temperature above 344 K (70.85°C).
+    Infernal,
+}
+
+impl std::fmt::Display for crate::prelude::WorldClimateType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            crate::prelude::WorldClimateType::Frozen => write!(f, "Frozen"),
+            crate::prelude::WorldClimateType::VeryCold => write!(f, "Very Cold"),
+            crate::prelude::WorldClimateType::Cold => write!(f, "Cold"),
+            crate::prelude::WorldClimateType::Chilly => write!(f, "Chilly"),
+            crate::prelude::WorldClimateType::Cool => write!(f, "Cool"),
+            crate::prelude::WorldClimateType::Ideal => write!(f, "Ideal"),
+            crate::prelude::WorldClimateType::Warm => write!(f, "Warm"),
+            crate::prelude::WorldClimateType::Tropical => write!(f, "Tropical"),
+            crate::prelude::WorldClimateType::Hot => write!(f, "Hot"),
+            crate::prelude::WorldClimateType::VeryHot => write!(f, "VeryHot"),
+            crate::prelude::WorldClimateType::Infernal => write!(f, "Infernal"),
         }
     }
 }

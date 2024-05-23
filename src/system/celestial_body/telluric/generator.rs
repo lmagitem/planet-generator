@@ -5,6 +5,7 @@ use crate::system::celestial_body::generator::{
     generate_acceptable_telluric_parameters, get_world_type,
 };
 use crate::system::contents::utils::{calculate_blackbody_temperature, calculate_surface_gravity};
+use crate::system::contents::zones::get_orbit_with_updated_zone;
 use crate::system::orbital_point::generator::{
     complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
@@ -34,6 +35,8 @@ impl TelluricBodyDetails {
                 0.0,
                 0.0,
                 0.0,
+                0.0,
+                WorldClimateType::Frozen,
             )),
         }
     }
@@ -133,7 +136,7 @@ impl TelluricBodyDetails {
                 &mut rng,
             );
 
-            let this_orbit = if !is_moon {
+            let mut this_orbit = if !is_moon {
                 complete_orbit_with_orbital_period(
                     coord,
                     system_index,
@@ -157,6 +160,7 @@ impl TelluricBodyDetails {
             } else {
                 own_orbit.clone().unwrap_or_default()
             };
+            this_orbit = get_orbit_with_updated_zone(this_orbit.clone(), blackbody_temp);
 
             moons = MoonGenerator::generate_planets_moons(
                 system_traits,
@@ -187,7 +191,7 @@ impl TelluricBodyDetails {
                 is_moon,
             );
 
-            let this_orbit = if !is_moon {
+            this_orbit = if !is_moon {
                 complete_orbit_with_rotation_and_axis(
                     coord,
                     system_index,
@@ -361,6 +365,8 @@ impl TelluricBodyDetails {
                 0.0,
                 0.0,
                 0.0,
+                0.0,
+                WorldClimateType::Frozen,
             )),
         }
     }
@@ -458,7 +464,7 @@ impl TelluricBodyDetails {
                 &mut rng,
             );
 
-            let this_orbit = if !is_moon {
+            let mut this_orbit = if !is_moon {
                 complete_orbit_with_orbital_period(
                     coord,
                     system_index,
@@ -482,6 +488,7 @@ impl TelluricBodyDetails {
             } else {
                 own_orbit.clone().unwrap_or_default()
             };
+            this_orbit = get_orbit_with_updated_zone(this_orbit.clone(), blackbody_temp);
 
             moons = MoonGenerator::generate_planets_moons(
                 system_traits,
@@ -512,7 +519,7 @@ impl TelluricBodyDetails {
                 is_moon,
             );
 
-            let this_orbit = if !is_moon {
+            this_orbit = if !is_moon {
                 complete_orbit_with_rotation_and_axis(
                     coord,
                     system_index,

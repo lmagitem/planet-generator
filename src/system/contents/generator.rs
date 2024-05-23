@@ -1103,6 +1103,7 @@ fn replace_telluric_stubs(
         .collect::<Vec<u32>>();
 
     sort_orbital_points_by_average_distance(&mut non_finished_objects);
+    // TODO: Tidal heating should also happen when eccentric orbit near to parent
     let tidal_heating_array = OrbitalHarmonicsUtils::calculate_gravitational_harmonics(
         &OrbitalHarmonicsUtils::prepare_harmonics_array(&non_finished_objects, false),
         0.03,
@@ -1138,6 +1139,7 @@ fn replace_telluric_stubs(
                             .map(|o| o.clone())
                             .collect::<Vec<OrbitalPoint>>();
 
+                        // TODO: Tidal heating should also happen when eccentric orbit near to parent
                         let tidal_heating = tidal_heating_array[new_object_index];
                         let generated = WorldGenerator::generate_world(
                             coord,

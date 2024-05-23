@@ -6,6 +6,7 @@ use crate::system::celestial_body::gaseous::constants::MASS_TO_DENSITY_DATASET;
 use crate::system::contents::utils::{
     calculate_blackbody_temperature, calculate_radius, calculate_surface_gravity,
 };
+use crate::system::contents::zones::get_orbit_with_updated_zone;
 use crate::system::orbital_point::generator::{
     complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
@@ -148,6 +149,7 @@ impl GaseousBodyDetails {
                 false,
                 &settings,
             );
+            this_orbit = get_orbit_with_updated_zone(this_orbit.clone(), blackbody_temp);
 
             moons = MoonGenerator::generate_giants_moons(
                 system_traits,

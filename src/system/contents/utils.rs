@@ -10,6 +10,12 @@ pub(crate) fn calculate_blackbody_temperature(luminosity: f32, orbital_radius: f
     b.round() as u32
 }
 
+/// Returns a value in Astronomical Units.
+pub(crate) fn calculate_distance_for_temperature(luminosity: f32, temperature: i32) -> f64 {
+    let t_ratio = temperature as f64 / 278.0;
+    (luminosity as f64 / t_ratio.powi(4)).sqrt()
+}
+
 /// Returns a value in Earth Radii
 pub(crate) fn calculate_radius(mass_earth_masses: f64, density_g_cm3: f64) -> f64 {
     let earth_mass_kg: f64 = 5.972e24;

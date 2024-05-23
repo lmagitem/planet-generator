@@ -1,5 +1,7 @@
 use crate::internal::*;
 use crate::prelude::*;
+use crate::system::celestial_body::world::utils::get_climate_from_temperature;
+use crate::system::contents::utils::calculate_distance_for_temperature;
 use std::cmp::Ordering;
 
 pub fn generate_star_zones(all_objects: &mut Vec<OrbitalPoint>) {
@@ -56,7 +58,7 @@ fn calculate_inner_limit_zone(star: &mut Star) {
 }
 
 fn calculate_inner_zone(star: &mut Star) {
-    let snow_line = 4.85 * star.luminosity.sqrt() as f64;
+    let snow_line = calculate_distance_for_temperature(star.luminosity, 150);
     let inner_limit = star
         .zones
         .iter()
@@ -71,8 +73,8 @@ fn calculate_inner_zone(star: &mut Star) {
 }
 
 fn calculate_bio_zone(star: &mut Star) {
-    let inner_habitable_zone = (star.luminosity as f64).sqrt();
-    let outer_habitable_zone = 1.77 * (star.luminosity as f64).sqrt();
+    let inner_habitable_zone = calculate_distance_for_temperature(star.luminosity, 344);
+    let outer_habitable_zone = calculate_distance_for_temperature(star.luminosity, 244);
     let inner_limit = star
         .zones
         .iter()
@@ -317,6 +319,23 @@ pub fn collect_all_zones(all_objects: &mut Vec<OrbitalPoint>) -> Vec<StarZone> {
     merge_same_zones(&mut all_zones);
 
     all_zones
+}
+
+pub(crate) fn get_orbit_with_updated_zone(orbit: Orbit, blackbody_temperature: u32) -> Orbit {
+    let climate = get_climate_from_temperature(blackbody_temperature);
+
+    Orbit {
+        zone: if climate != WorldClimateType::Frozen && climate != WorldClimateType::Infernal {
+            ZoneType::BioZone
+        } else if orbit.zone == ZoneType::BioZone && climate == WorldClimateType::Infernal {
+            ZoneType::InnerZone
+        } else if orbit.zone == ZoneType::BioZone && climate == WorldClimateType::Frozen {
+            ZoneType::OuterZone
+        } else {
+            orbit.zone
+        },
+        ..orbit
+    }
 }
 
 fn sort_zones(zones: &mut Vec<StarZone>) {

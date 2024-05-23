@@ -8,6 +8,7 @@ use crate::system::celestial_body::telluric::generator::generate_peculiarities;
 use crate::system::contents::utils::{
     calculate_blackbody_temperature, calculate_radius, calculate_surface_gravity,
 };
+use crate::system::contents::zones::get_orbit_with_updated_zone;
 use crate::system::orbital_point::generator::{
     complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
@@ -138,7 +139,7 @@ impl IcyBodyDetails {
                     &mut rng,
                 );
 
-                let this_orbit = if !is_moon {
+                let mut this_orbit = if !is_moon {
                     complete_orbit_with_orbital_period(
                         coord,
                         system_index,
@@ -192,7 +193,7 @@ impl IcyBodyDetails {
                     is_moon,
                 );
 
-                let this_orbit = if !is_moon {
+                this_orbit = if !is_moon {
                     complete_orbit_with_rotation_and_axis(
                         coord,
                         system_index,
@@ -249,7 +250,7 @@ impl IcyBodyDetails {
             let radius = calculate_radius(mass, density as f64);
             let surface_gravity = calculate_surface_gravity(density, radius);
 
-            let this_orbit = complete_orbit_with_orbital_period(
+            let mut this_orbit = complete_orbit_with_orbital_period(
                 coord,
                 system_index,
                 star_id,
@@ -269,6 +270,7 @@ impl IcyBodyDetails {
                 false,
                 &settings,
             );
+            this_orbit = get_orbit_with_updated_zone(this_orbit.clone(), blackbody_temp);
 
             moons = MoonGenerator::generate_giants_moons(
                 system_traits,
@@ -299,7 +301,7 @@ impl IcyBodyDetails {
                 false,
             );
 
-            let this_orbit = complete_orbit_with_rotation_and_axis(
+            this_orbit = complete_orbit_with_rotation_and_axis(
                 coord,
                 system_index,
                 star_id,

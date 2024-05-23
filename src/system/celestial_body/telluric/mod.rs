@@ -20,15 +20,17 @@ pub struct TelluricBodyDetails {
     // pub atmospheric_density: AtmosphericDensityType,
     /// Percentage of this world that is covered by some kind of liquid.
     pub hydrosphere: f32,
-    // pub cryosphere: f32,
+    /// Percentage of this world that is covered by some kind of ice.
+    pub cryosphere: f32,
     /// An indication of the levels of volcanism in this world, from 0 to 100 (check `get_volcanism_level` to know what the numbers correspond to).
     pub volcanism: f32,
     /// An indication of the levels of tectonic activity in this world, from 0 to 100 (check `get_tectonics_level` to know what the numbers correspond to).
     pub tectonic_activity: f32,
+    /// A descriptive name for the world’s over-all surface climate.
+    pub climate: WorldClimateType,
     // pub land_area_percentage: f32,
     // pub humidity: f32,
     // pub average_temperature: f32,
-    // pub climate: ColonizableClimateType,
     // pub landmasses: u32,
     // pub territories: Vec<Territory>,
     // pub atmospheric_composition: AtmosphericCompositionType,
@@ -45,8 +47,10 @@ impl TelluricBodyDetails {
         magnetic_field: MagneticFieldStrength,
         atmospheric_pressure: f32,
         hydrosphere: f32,
+        cryosphere: f32,
         volcanism: f32,
         tectonic_activity: f32,
+        climate: WorldClimateType,
     ) -> Self {
         Self {
             body_type,
@@ -56,8 +60,10 @@ impl TelluricBodyDetails {
             magnetic_field,
             atmospheric_pressure,
             hydrosphere,
+            cryosphere,
             volcanism,
             tectonic_activity,
+            climate,
         }
     }
 

@@ -1,12 +1,15 @@
 use crate::internal::generator::get_major_moons;
 use crate::internal::*;
 use crate::prelude::*;
+use crate::system::celestial_body::world::utils::get_climate_from_temperature;
+use crate::system::contents::zones::get_orbit_with_updated_zone;
+
 impl WorldGenerator {
     pub(crate) fn bundle_world_first_pass(
         star_name: Rc<str>,
         populated_orbit_index: u32,
         orbital_point_id: u32,
-        own_orbit: Orbit,
+        orbit: Orbit,
         orbits: Vec<Orbit>,
         mut size: CelestialBodySize,
         blackbody_temperature: u32,
@@ -22,7 +25,7 @@ impl WorldGenerator {
     ) -> OrbitalPoint {
         OrbitalPoint::new(
             orbital_point_id,
-            Some(own_orbit.clone()),
+            Some(orbit),
             AstronomicalObject::TelluricBody(CelestialBody {
                 stub: true,
                 name: format!(
@@ -50,6 +53,8 @@ impl WorldGenerator {
                     0.0,
                     0.0,
                     0.0,
+                    0.0,
+                    WorldClimateType::Frozen,
                 )),
             }),
             moons
@@ -147,6 +152,8 @@ impl WorldGenerator {
             magnetic_field,
         );
 
+        let cryosphere = 0.0;
+
         let volcanism = Self::generate_volcanism(
             &coord,
             &system_index,
@@ -176,6 +183,7 @@ impl WorldGenerator {
             volcanism,
         );
 
+        // TODO: Take volcanism into account
         let atmospheric_pressure = generate_atmosphere(
             coord,
             system_index,
@@ -210,36 +218,14 @@ impl WorldGenerator {
             atmospheric_pressure,
         );
 
-        // TODO: Climate
-        let climate = {
-            if blackbody_temperature < 244 {
-                // Frozen
-            } else if blackbody_temperature < 255 {
-                // Very cold
-            } else if blackbody_temperature < 266 {
-                // Cold
-            } else if blackbody_temperature < 278 {
-                // Chilly
-            } else if blackbody_temperature < 289 {
-                // Cool
-            } else if blackbody_temperature < 300 {
-                // Earth-like
-            } else if blackbody_temperature < 311 {
-                // Warm
-            } else if blackbody_temperature < 322 {
-                // Tropical
-            } else if blackbody_temperature < 333 {
-                // Hot
-            } else if blackbody_temperature < 344 {
-                // Very hot
-            } else {
-                // Infernal
-            }
-        };
+        let climate = get_climate_from_temperature(blackbody_temperature);
 
         OrbitalPoint::new(
             orbital_point_id,
-            Some(own_orbit.clone()),
+            Some(get_orbit_with_updated_zone(
+                own_orbit.clone(),
+                blackbody_temperature,
+            )),
             AstronomicalObject::TelluricBody(CelestialBody::new(
                 None, // No need to fill it inside the object, a call to update_existing_orbits will be made at the end of the generation
                 orbital_point_id,
@@ -263,8 +249,10 @@ impl WorldGenerator {
                     magnetic_field,
                     atmospheric_pressure,
                     hydrosphere,
+                    cryosphere,
                     volcanism,
                     tectonics,
+                    climate,
                 )),
             )),
             orbits.clone(),
