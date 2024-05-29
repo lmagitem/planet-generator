@@ -21,6 +21,7 @@ impl StarSystem {
         let center_id: u32;
         let main_star_id: u32;
         let mut all_objects: Vec<OrbitalPoint> = vec![];
+        // TODO: Did you add the special traits or is it just an empty array?
         let mut special_traits: Vec<SystemPeculiarity> = vec![];
 
         let name = get_system_name(system_index, coord, galaxy);

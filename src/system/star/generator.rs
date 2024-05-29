@@ -2,6 +2,12 @@ use crate::internal::*;
 use crate::prelude::*;
 #[path = "./constants.rs"]
 mod constants;
+use crate::system::contents::elements::generate_random_common_element;
+use crate::system::contents::elements::generate_random_element;
+use crate::system::contents::elements::generate_random_non_metal_element;
+use crate::system::contents::elements::ChemicalElement;
+use crate::system::contents::elements::ALL_ELEMENTS;
+use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
 use constants::*;
 
 impl Star {
@@ -147,6 +153,119 @@ impl Star {
         luminosity = adjust_luminosity_to_population(luminosity, population);
 
         let name = get_star_name(star_index, system_name.clone(), settings);
+
+        // TODO: Did you add the special traits or is it just an empty array?
+        let mut special_traits = Vec::new();
+
+        // TODO: Here generate elements scarcity or abundance using population, metallicity and
+        // randomness
+        if population == StellarEvolution::Paleodwarf {
+            special_traits.push(StarPeculiarity::NoMetals);
+        }
+        let elements_abundance: Vec<ChemicalElement> = {
+            let mut rng = SeededDiceRoller::new(
+                &settings.seed,
+                &format!("sys_{}_{}_{}_elem_abnd", coord, system_index, star_index),
+            );
+            let mut elements = Vec::new();
+            let mut roll = rng.gen_u8();
+
+            let random_element_abundance_threshold = 126;
+            let non_metal_threshold = match population {
+                StellarEvolution::Paleodwarf => 0,
+                StellarEvolution::Subdwarf => 126,
+                StellarEvolution::Dwarf => 240,
+                StellarEvolution::Superdwarf => 250,
+                StellarEvolution::Hyperdwarf => 256,
+            };
+            let common_threshold = match population {
+                StellarEvolution::Paleodwarf => 0,
+                StellarEvolution::Subdwarf => 56,
+                StellarEvolution::Dwarf => 126,
+                StellarEvolution::Superdwarf => 156,
+                StellarEvolution::Hyperdwarf => 180,
+            };
+
+            while roll >= random_element_abundance_threshold {
+                let specific_roll = rng.gen_u8();
+                if specific_roll >= non_metal_threshold {
+                    let el = generate_random_non_metal_element(&mut rng);
+                    if !elements.contains(&el) {
+                        elements.push(el);
+                    }
+                } else if specific_roll >= common_threshold {
+                    let el = generate_random_element(&mut rng);
+                    if !elements.contains(&el) {
+                        elements.push(el);
+                    }
+                } else {
+                    let el = generate_random_common_element(&mut rng);
+                    if !elements.contains(&el) {
+                        elements.push(el);
+                    }
+                }
+                roll = rng.gen_u8();
+            }
+            elements
+        };
+        let elements_lack: Vec<ChemicalElement> = {
+            let mut rng = SeededDiceRoller::new(
+                &settings.seed,
+                &format!("sys_{}_{}_{}_elem_lack", coord, system_index, star_index),
+            );
+            let mut elements = Vec::new();
+            let mut roll = rng.gen_u8();
+
+            let random_element_lack_threshold = 126;
+            let non_metal_threshold = match population {
+                StellarEvolution::Paleodwarf => 0,
+                StellarEvolution::Subdwarf => 236,
+                StellarEvolution::Dwarf => 200,
+                StellarEvolution::Superdwarf => 156,
+                StellarEvolution::Hyperdwarf => 100,
+            };
+            let common_threshold = match population {
+                StellarEvolution::Paleodwarf => 0,
+                StellarEvolution::Subdwarf => 56,
+                StellarEvolution::Dwarf => 126,
+                StellarEvolution::Superdwarf => 156,
+                StellarEvolution::Hyperdwarf => 180,
+            };
+
+            if population != StellarEvolution::Paleodwarf {
+                while roll >= random_element_lack_threshold {
+                    let specific_roll = rng.gen_u8();
+                    if specific_roll >= non_metal_threshold {
+                        let el = generate_random_non_metal_element(&mut rng);
+                        if !elements.contains(&el) {
+                            elements.push(el);
+                        }
+                    } else if specific_roll >= common_threshold {
+                        let el = generate_random_element(&mut rng);
+                        if !elements.contains(&el) {
+                            elements.push(el);
+                        }
+                    } else {
+                        let el = generate_random_common_element(&mut rng);
+                        if !elements.contains(&el) {
+                            elements.push(el);
+                        }
+                    }
+                    roll = rng.gen_u8()
+                }
+            }
+            elements
+        };
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!("sys_{}_{}_{}_elem_comp", coord, system_index, star_index),
+        );
+
+        elements_abundance.iter().for_each(|el| {
+            let roll = rng.roll(1, 3, 0);
+        });
+        elements_lack.iter();
+
         Self {
             name,
             mass,
@@ -157,7 +276,7 @@ impl Star {
             population,
             spectral_type,
             luminosity_class,
-            special_traits: vec![],
+            special_traits,
             orbital_point_id: star_index as u32,
             orbit: None,
             zones: vec![],

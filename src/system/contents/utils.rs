@@ -1,5 +1,7 @@
 use crate::internal::ConversionUtils;
 
+use super::elements::AtmosphereElement;
+
 /// Returns a value in Kelvin
 pub(crate) fn calculate_blackbody_temperature(luminosity: f32, orbital_radius: f64) -> u32 {
     if orbital_radius <= 0.0 {
@@ -56,6 +58,87 @@ pub(crate) fn calculate_hill_sphere_radius(
     mass_star: f64,
 ) -> f64 {
     orbital_radius_planet * (mass_planet / (3.0 * mass_star)).powf(1.0 / 3.0)
+}
+
+/// Calculates the escape velocity for a planet.
+///
+/// The escape velocity is the minimum speed needed for an object to break free
+/// from the gravitational attraction of the planet without further propulsion.
+///
+/// # Parameters
+/// - `mass_earth`: Mass of the planet in Earth masses (1 Earth mass = 5.972e24 kg)
+/// - `radius_earth`: Radius of the planet in Earth radii (1 Earth radius = 6.371e6 m)
+///
+/// # Returns
+/// The escape velocity in meters per second (m/s).
+///
+/// # Example
+/// ```
+/// let ve_earth = escape_velocity(1.0, 1.0);
+/// println!("Escape velocity of Earth: {:.2} m/s", ve_earth);
+/// println!("Escape velocity of Earth: {:.2} km/s", ve_earth / 1000.0);
+/// ```
+fn escape_velocity(mass_earth: f64, radius_earth: f64) -> f64 {
+    const G: f64 = 6.67430e-11; // Gravitational constant in m^3 kg^-1 s^-2
+    const EARTH_MASS: f64 = 5.972e24; // Earth mass in kg
+    const EARTH_RADIUS: f64 = 6.371e6; // Earth radius in meters
+
+    let mass = mass_earth * EARTH_MASS; // Convert mass to kg
+    let radius = radius_earth * EARTH_RADIUS; // Convert radius to meters
+
+    ((2.0 * G * mass) / radius).sqrt() // Result in m/s
+}
+
+/// Calculates the root mean square (rms) speed of gas molecules.
+///
+/// The rms speed is a measure of the average speed of gas molecules at a given temperature.
+///
+/// # Parameters
+/// - `temperature`: Temperature in Kelvin (K)
+/// - `molecular_mass`: Molecular mass of the gas in kilograms (kg)
+///
+/// # Returns
+/// The rms speed in meters per second (m/s).
+///
+/// # Example
+/// ```
+/// let vrms_h2 = rms_speed(288, 2.0 * 1.6735575e-27);
+/// println!("RMS speed of hydrogen molecules: {:.2} m/s", vrms_h2);
+/// println!("RMS speed of hydrogen molecules: {:.2} km/s", vrms_h2 / 1000.0);
+/// ```
+fn rms_speed(temperature: i32, molecular_mass: f64) -> f64 {
+    const K_B: f64 = 1.380649e-23; // Boltzmann constant in J/K
+    ((3.0 * K_B * temperature as f64) / molecular_mass).sqrt()
+}
+
+/// Calculates the Jeans parameter for a given planet and gas.
+///
+/// The Jeans parameter indicates the ability of a planet to retain a particular gas.
+/// Higher values indicate better retention capability.
+///
+/// # Parameters
+/// - `mass_earth`: Mass of the planet in Earth masses (1 Earth mass = 5.972e24 kg)
+/// - `radius_earth`: Radius of the planet in Earth radii (1 Earth radius = 6.371e6 m)
+/// - `temperature`: Temperature in Kelvin (K)
+/// - `element`: The atmospheric element as an enum
+///
+/// # Returns
+/// The Jeans parameter (dimensionless).
+///
+/// # Example
+/// ```
+/// let jeans_param_h2 = jeans_parameter(1.0, 1.0, 288.0, AtmosphereElement::Hydrogen);
+/// println!("Jeans parameter for hydrogen on Earth: {:.2}", jeans_param_h2);
+/// ```
+fn jeans_parameter(
+    mass_earth: f64,
+    radius_earth: f64,
+    temperature: i32,
+    element: AtmosphereElement,
+) -> f64 {
+    let v_e = escape_velocity(mass_earth, radius_earth);
+    let v_rms = rms_speed(temperature, element.molecular_weight_kg());
+    v_e / v_rms
 }
 
 #[cfg(test)]
@@ -199,5 +282,33 @@ mod tests {
         let roche_limit = calculate_roche_limit(sun_radius, sun_density, earth_density);
 
         assert!((roche_limit - expected_roche_limit_au).abs() < EPSILON);
+    }
+
+    #[test]
+    fn test_escape_velocity_earth() {
+        let ve_earth = escape_velocity(1.0, 1.0);
+        assert!((ve_earth - 11186.0).abs() < 1.0); // Expect around 11186 m/s
+    }
+
+    #[test]
+    fn test_rms_speed_hydrogen_earth() {
+        let temperature_earth = 288; // Average temperature of Earth's surface in Kelvin
+        let mass_h2 = 2.0 * 1.6735575e-27; // Mass of hydrogen molecule (H2) in kg
+        let vrms_h2 = rms_speed(temperature_earth, mass_h2);
+        assert!((vrms_h2 - 1930.0).abs() < 10.0); // Expect around 1930 m/s
+    }
+
+    #[test]
+    fn test_jeans_parameter_hydrogen_earth() {
+        let mass_earth = 1.0; // Mass of Earth in Earth masses
+        let radius_earth = 1.0; // Radius of Earth in Earth radii
+        let temperature_earth = 288; // Average temperature of Earth's surface in Kelvin
+        let jeans_param_h2_earth = jeans_parameter(
+            mass_earth,
+            radius_earth,
+            temperature_earth,
+            AtmosphereElement::Hydrogen,
+        );
+        assert!((jeans_param_h2_earth - 5.8).abs() < 0.1); // Expect around 5.8
     }
 }

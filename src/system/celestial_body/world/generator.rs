@@ -2,6 +2,9 @@ use crate::internal::generator::get_major_moons;
 use crate::internal::*;
 use crate::prelude::*;
 use crate::system::celestial_body::world::utils::get_climate_from_temperature;
+use crate::system::contents::elements::ChemicalElement;
+use crate::system::contents::elements::ALL_ELEMENTS;
+use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
 use crate::system::contents::zones::get_orbit_with_updated_zone;
 
 impl WorldGenerator {
@@ -102,7 +105,7 @@ impl WorldGenerator {
         let CelestialBodyDetails::Telluric(TelluricBodyDetails {
             body_type,
             world_type,
-            special_traits,
+            mut special_traits,
             ..
         }) = details
         else {
@@ -139,7 +142,7 @@ impl WorldGenerator {
             &settings,
         );
 
-        let hydrosphere = Self::generate_hydrosphere(
+        let mut hydrosphere = Self::generate_hydrosphere(
             &coord,
             &system_index,
             &star_id,
@@ -198,12 +201,10 @@ impl WorldGenerator {
             body_type,
             world_type,
             volcanism + tectonics,
+            hydrosphere,
             is_moon,
             &settings,
         );
-
-        // TODO: Atmospheric composition
-        let atmospheric_composition = {};
 
         blackbody_temperature = Self::adjust_blackbody_temperature(
             &coord,
@@ -218,7 +219,230 @@ impl WorldGenerator {
             atmospheric_pressure,
         );
 
+        let present_volatiles: Vec<ChemicalElement> = Vec::new();
+        if hydrosphere > 0.001 {
+            let mut rng = SeededDiceRoller::new(
+                &settings.seed,
+                &format!(
+                    "sys_{}_{}_str_{}_bdy{}_ocean",
+                    coord, system_index, star_id, orbital_point_id
+                ),
+            );
+            let roll;
+            if blackbody_temperature >= 14 && blackbody_temperature <= 20 {
+                // Liquid hydrogen
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Hydrogen,
+                ));
+            } else if blackbody_temperature >= 24 && blackbody_temperature <= 27 {
+                // Liquid neon
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Neon,
+                ));
+            } else if blackbody_temperature >= 54 && blackbody_temperature <= 62 {
+                // Liquid oxygen
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Oxygen,
+                ));
+            } else if blackbody_temperature >= 63 && blackbody_temperature <= 68 {
+                // Liquid nitrogen or oxygen
+                roll = rng.roll(1, 2, 0);
+                if roll == 1 {
+                    // nitrogen
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Nitrogen,
+                    ));
+                } else {
+                    // oxygen
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Oxygen,
+                    ));
+                }
+            } else if blackbody_temperature >= 69 && blackbody_temperature <= 77 {
+                // Liquid nitrogen or carbon monoxyde or oxygen
+                roll = rng.roll(1, 3, 0);
+                if roll == 1 {
+                    // nitrogen
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Nitrogen,
+                    ));
+                } else if roll == 2 {
+                    // carbon monoxyde
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::CarbonMonoxyde,
+                    ));
+                } else {
+                    // oxygen
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Oxygen,
+                    ));
+                }
+            } else if blackbody_temperature >= 78 && blackbody_temperature <= 82 {
+                // Liquid carbon monoxyde or oxygen
+                roll = rng.roll(1, 2, 0);
+                if roll == 1 {
+                    // carbon monoxyde
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::CarbonMonoxyde,
+                    ));
+                } else {
+                    // oxygen
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Oxygen,
+                    ));
+                }
+            } else if blackbody_temperature >= 83 && blackbody_temperature <= 90 {
+                // Liquid oxygen
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Oxygen,
+                ));
+            } else if blackbody_temperature >= 91 && blackbody_temperature <= 112 {
+                // Liquid methane
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Methane,
+                ));
+            } else if blackbody_temperature >= 195 && blackbody_temperature <= 201 {
+                // Liquid ammonia
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Ammonia,
+                ));
+            } else if blackbody_temperature >= 202 && blackbody_temperature <= 240 {
+                // Liquid ammonia or sulfur dioxyde
+                roll = rng.roll(1, 2, 0);
+                if roll == 1 {
+                    // ammonia
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Ammonia,
+                    ));
+                } else {
+                    // sulfur dioxyde
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::SulfurDioxyde,
+                    ));
+                }
+            } else if blackbody_temperature >= 241 && blackbody_temperature <= 263 {
+                // Liquid sulfur dioxyde
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::SulfurDioxyde,
+                ));
+            } else if blackbody_temperature >= 264 && blackbody_temperature <= 380 {
+                // Liquid water
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Water,
+                ));
+            } else if blackbody_temperature >= 600 && blackbody_temperature <= 1300 {
+                // Liquid lead
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Lead,
+                ));
+            } else if blackbody_temperature >= 1301 && blackbody_temperature <= 1600 {
+                // Liquid lead or rock
+                roll = rng.roll(1, 2, 0);
+                if roll == 1 {
+                    // lead
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Lead,
+                    ));
+                } else {
+                    // rock
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Rock,
+                    ));
+                }
+            } else if blackbody_temperature >= 1601 && blackbody_temperature <= 2000 {
+                // Liquid lead or rock or other metals
+                roll = rng.roll(1, 3, 0);
+                if roll == 1 {
+                    // lead
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Lead,
+                    ));
+                } else if roll == 2 {
+                    // rock
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Rock,
+                    ));
+                } else {
+                    // metals
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Metal,
+                    ));
+                }
+            } else if blackbody_temperature >= 2001 && blackbody_temperature <= 2600 {
+                // Liquid rock or other metals
+                roll = rng.roll(1, 2, 0);
+                if roll == 1 {
+                    // rock
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Rock,
+                    ));
+                } else {
+                    // metals
+                    special_traits.push(CelestialBodySpecialTrait::Oceans(
+                        TelluricOceanComposition::Metal,
+                    ));
+                }
+            } else if blackbody_temperature > 2600 {
+                // Liquid rock
+                special_traits.push(CelestialBodySpecialTrait::Oceans(
+                    TelluricOceanComposition::Rock,
+                ));
+            } else {
+                // In any other case, nothing can be liquid so remove the hydrosphere
+                hydrosphere = 0.0;
+            }
+        }
+
         let climate = get_climate_from_temperature(blackbody_temperature);
+
+        // TODO: Atmospheric composition
+        let atmospheric_composition = {
+            let system_wide_elements_abundance: Vec<ChemicalElement> = {
+                let mut rng = SeededDiceRoller::new(
+                    &settings.seed,
+                    &format!("sys_{}_{}_elem_abnd", coord, system_index),
+                );
+                let mut elements = Vec::new();
+                let mut roll = rng.gen_u8();
+                while roll >= 7 {
+                    if rng.gen_u8() >= 7 {
+                        &elements.push(ALL_ELEMENTS[rng.gen_range(0..ALL_ELEMENTS.len())]);
+                    } else {
+                        elements.push(
+                            MOST_COMMON_ELEMENTS[rng.gen_range(0..MOST_COMMON_ELEMENTS.len())],
+                        )
+                    }
+                    roll = rng.gen_u8();
+                }
+                elements
+            };
+            let system_wide_elements_lack: Vec<ChemicalElement> = {
+                let mut rng = SeededDiceRoller::new(
+                    &settings.seed,
+                    &format!("sys_{}_{}_elem_lack", coord, system_index),
+                );
+                let mut elements = Vec::new();
+                let mut roll = rng.gen_u8();
+                while roll >= 7 {
+                    if rng.gen_u8() >= 7 {
+                        let element = ALL_ELEMENTS[rng.gen_range(0..ALL_ELEMENTS.len())];
+                        if !system_wide_elements_abundance.contains(&element) {
+                            elements.push(element);
+                        }
+                    } else {
+                        let element =
+                            MOST_COMMON_ELEMENTS[rng.gen_range(0..MOST_COMMON_ELEMENTS.len())];
+                        if !system_wide_elements_abundance.contains(&element) {
+                            elements.push(element);
+                        }
+                    }
+                    roll = rng.gen_u8();
+                }
+                elements
+            };
+
+            let composition: Vec<ChemicalElement>;
+        };
 
         OrbitalPoint::new(
             orbital_point_id,
@@ -858,6 +1082,7 @@ fn generate_atmosphere(
     body_type: TelluricBodyComposition,
     world_type: CelestialBodyWorldType,
     volcanism_and_tectonics: f32,
+    hydrosphere: f32,
     is_moon: bool,
     settings: &GenerationSettings,
 ) -> f32 {
@@ -967,6 +1192,8 @@ fn generate_atmosphere(
     );
     let mut atmospheric_pressure = if size == CelestialBodySize::Puny {
         0.0
+    } else if hydrosphere > 0.1 && world_type != CelestialBodyWorldType::Greenhouse {
+        -1.0
     } else {
         match world_type {
             CelestialBodyWorldType::Ice

@@ -22,6 +22,7 @@ pub enum CelestialBodySpecialTrait {
     UnusualAxialTilt(TelluricAxialTiltDifference),
     UnusualRotation(TelluricRotationDifference),
     UnusualCore(TelluricCoreDifference),
+    Oceans(TelluricOceanComposition),
 }
 
 impl Display for CelestialBodySpecialTrait {
@@ -38,6 +39,7 @@ impl Display for CelestialBodySpecialTrait {
             CelestialBodySpecialTrait::UnusualRotation(s) => write!(f, "{}", s),
             CelestialBodySpecialTrait::UnusualCore(s) => write!(f, "{}", s),
             CelestialBodySpecialTrait::TideLocked(s) => write!(f, "Tide-Locked {}", s),
+            CelestialBodySpecialTrait::Oceans(s) => write!(f, "{} Oceans", s),
         }
     }
 }

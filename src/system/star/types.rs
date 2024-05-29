@@ -160,6 +160,11 @@ pub enum StarPeculiarity {
     /// The star seems perfectly standard for its size and type.
     #[default]
     NoPeculiarity,
+    /// Around this star, there is no or only a negligable amount of elements that are heavier than
+    /// Helium. (AKA metals)
+    NoMetals,
+    /// Around this star, the element  is more or less present by the amounr
+    UnusualElementPresence((Element,ElementPresenceOccurence),
 }
 
 impl Display for StarPeculiarity {
