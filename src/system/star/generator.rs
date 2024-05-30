@@ -5,7 +5,7 @@ mod constants;
 use crate::system::contents::elements::generate_random_common_element;
 use crate::system::contents::elements::generate_random_element;
 use crate::system::contents::elements::generate_random_non_metal_element;
-use crate::system::contents::elements::ChemicalElement;
+use crate::system::contents::elements::ChemicalComponent;
 use crate::system::contents::elements::ALL_ELEMENTS;
 use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
 use constants::*;
@@ -162,7 +162,7 @@ impl Star {
         if population == StellarEvolution::Paleodwarf {
             special_traits.push(StarPeculiarity::NoMetals);
         }
-        let elements_abundance: Vec<ChemicalElement> = {
+        let elements_abundance: Vec<ChemicalComponent> = {
             let mut rng = SeededDiceRoller::new(
                 &settings.seed,
                 &format!("sys_{}_{}_{}_elem_abnd", coord, system_index, star_index),
@@ -176,7 +176,7 @@ impl Star {
                 StellarEvolution::Subdwarf => 126,
                 StellarEvolution::Dwarf => 240,
                 StellarEvolution::Superdwarf => 250,
-                StellarEvolution::Hyperdwarf => 256,
+                StellarEvolution::Hyperdwarf => 255,
             };
             let common_threshold = match population {
                 StellarEvolution::Paleodwarf => 0,
@@ -208,7 +208,7 @@ impl Star {
             }
             elements
         };
-        let elements_lack: Vec<ChemicalElement> = {
+        let elements_lack: Vec<ChemicalComponent> = {
             let mut rng = SeededDiceRoller::new(
                 &settings.seed,
                 &format!("sys_{}_{}_{}_elem_lack", coord, system_index, star_index),

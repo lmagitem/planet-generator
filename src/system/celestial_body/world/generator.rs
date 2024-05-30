@@ -2,7 +2,7 @@ use crate::internal::generator::get_major_moons;
 use crate::internal::*;
 use crate::prelude::*;
 use crate::system::celestial_body::world::utils::get_climate_from_temperature;
-use crate::system::contents::elements::ChemicalElement;
+use crate::system::contents::elements::ChemicalComponent;
 use crate::system::contents::elements::ALL_ELEMENTS;
 use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
 use crate::system::contents::zones::get_orbit_with_updated_zone;
@@ -186,7 +186,7 @@ impl WorldGenerator {
             volcanism,
         );
 
-        let atmospheric_pressure = generate_atmosphere(
+        let mut atmospheric_pressure = generate_atmosphere(
             coord,
             system_index,
             star_id,
@@ -219,7 +219,7 @@ impl WorldGenerator {
             atmospheric_pressure,
         );
 
-        let present_volatiles: Vec<ChemicalElement> = Vec::new();
+        let present_volatiles: Vec<ChemicalComponent> = Vec::new();
         if hydrosphere > 0.001 {
             let mut rng = SeededDiceRoller::new(
                 &settings.seed,
@@ -228,167 +228,39 @@ impl WorldGenerator {
                     coord, system_index, star_id, orbital_point_id
                 ),
             );
-            let roll;
-            if blackbody_temperature >= 14 && blackbody_temperature <= 20 {
-                // Liquid hydrogen
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Hydrogen,
-                ));
-            } else if blackbody_temperature >= 24 && blackbody_temperature <= 27 {
-                // Liquid neon
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Neon,
-                ));
-            } else if blackbody_temperature >= 54 && blackbody_temperature <= 62 {
-                // Liquid oxygen
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Oxygen,
-                ));
-            } else if blackbody_temperature >= 63 && blackbody_temperature <= 68 {
-                // Liquid nitrogen or oxygen
-                roll = rng.roll(1, 2, 0);
-                if roll == 1 {
-                    // nitrogen
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Nitrogen,
-                    ));
+
+            if let Some(components) = ChemicalComponent::components_liquid_at(
+                blackbody_temperature as f64,
+                atmospheric_pressure as f64,
+            ) {
+                if !components.is_empty() {
+                    let roll = rng.gen_range(0..components.len());
+                    let chosen_component = components[roll];
+
+                    if !chosen_component.can_exist_as_liquid(
+                        blackbody_temperature as f64,
+                        atmospheric_pressure as f64,
+                    ) {
+                        if let Some((_, triple_point_pressure)) = chosen_component.triple_point() {
+                            if triple_point_pressure <= 1.0 {
+                                atmospheric_pressure = triple_point_pressure as f32
+                                    + rng.roll(1, 200, -1) as f32 / 100.0;
+                            } else {
+                                hydrosphere = 0.0;
+                            }
+                        }
+                    }
+                    if hydrosphere > 0.001 && hydrosphere < 50.0 {
+                        special_traits.push(CelestialBodySpecialTrait::Lakes(chosen_component));
+                    } else if hydrosphere >= 50.0 {
+                        special_traits.push(CelestialBodySpecialTrait::Oceans(chosen_component));
+                    }
                 } else {
-                    // oxygen
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Oxygen,
-                    ));
+                    // Nothing can be liquid so remove the hydrosphere
+                    hydrosphere = 0.0;
                 }
-            } else if blackbody_temperature >= 69 && blackbody_temperature <= 77 {
-                // Liquid nitrogen or carbon monoxyde or oxygen
-                roll = rng.roll(1, 3, 0);
-                if roll == 1 {
-                    // nitrogen
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Nitrogen,
-                    ));
-                } else if roll == 2 {
-                    // carbon monoxyde
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::CarbonMonoxyde,
-                    ));
-                } else {
-                    // oxygen
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Oxygen,
-                    ));
-                }
-            } else if blackbody_temperature >= 78 && blackbody_temperature <= 82 {
-                // Liquid carbon monoxyde or oxygen
-                roll = rng.roll(1, 2, 0);
-                if roll == 1 {
-                    // carbon monoxyde
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::CarbonMonoxyde,
-                    ));
-                } else {
-                    // oxygen
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Oxygen,
-                    ));
-                }
-            } else if blackbody_temperature >= 83 && blackbody_temperature <= 90 {
-                // Liquid oxygen
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Oxygen,
-                ));
-            } else if blackbody_temperature >= 91 && blackbody_temperature <= 112 {
-                // Liquid methane
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Methane,
-                ));
-            } else if blackbody_temperature >= 195 && blackbody_temperature <= 201 {
-                // Liquid ammonia
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Ammonia,
-                ));
-            } else if blackbody_temperature >= 202 && blackbody_temperature <= 240 {
-                // Liquid ammonia or sulfur dioxyde
-                roll = rng.roll(1, 2, 0);
-                if roll == 1 {
-                    // ammonia
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Ammonia,
-                    ));
-                } else {
-                    // sulfur dioxyde
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::SulfurDioxyde,
-                    ));
-                }
-            } else if blackbody_temperature >= 241 && blackbody_temperature <= 263 {
-                // Liquid sulfur dioxyde
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::SulfurDioxyde,
-                ));
-            } else if blackbody_temperature >= 264 && blackbody_temperature <= 380 {
-                // Liquid water
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Water,
-                ));
-            } else if blackbody_temperature >= 600 && blackbody_temperature <= 1300 {
-                // Liquid lead
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Lead,
-                ));
-            } else if blackbody_temperature >= 1301 && blackbody_temperature <= 1600 {
-                // Liquid lead or rock
-                roll = rng.roll(1, 2, 0);
-                if roll == 1 {
-                    // lead
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Lead,
-                    ));
-                } else {
-                    // rock
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Rock,
-                    ));
-                }
-            } else if blackbody_temperature >= 1601 && blackbody_temperature <= 2000 {
-                // Liquid lead or rock or other metals
-                roll = rng.roll(1, 3, 0);
-                if roll == 1 {
-                    // lead
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Lead,
-                    ));
-                } else if roll == 2 {
-                    // rock
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Rock,
-                    ));
-                } else {
-                    // metals
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Metal,
-                    ));
-                }
-            } else if blackbody_temperature >= 2001 && blackbody_temperature <= 2600 {
-                // Liquid rock or other metals
-                roll = rng.roll(1, 2, 0);
-                if roll == 1 {
-                    // rock
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Rock,
-                    ));
-                } else {
-                    // metals
-                    special_traits.push(CelestialBodySpecialTrait::Oceans(
-                        TelluricOceanComposition::Metal,
-                    ));
-                }
-            } else if blackbody_temperature > 2600 {
-                // Liquid rock
-                special_traits.push(CelestialBodySpecialTrait::Oceans(
-                    TelluricOceanComposition::Rock,
-                ));
             } else {
-                // In any other case, nothing can be liquid so remove the hydrosphere
+                // Nothing can be liquid so remove the hydrosphere
                 hydrosphere = 0.0;
             }
         }
@@ -397,7 +269,7 @@ impl WorldGenerator {
 
         // TODO: Atmospheric composition
         let atmospheric_composition = {
-            let system_wide_elements_abundance: Vec<ChemicalElement> = {
+            let system_wide_elements_abundance: Vec<ChemicalComponent> = {
                 let mut rng = SeededDiceRoller::new(
                     &settings.seed,
                     &format!("sys_{}_{}_elem_abnd", coord, system_index),
@@ -416,7 +288,7 @@ impl WorldGenerator {
                 }
                 elements
             };
-            let system_wide_elements_lack: Vec<ChemicalElement> = {
+            let system_wide_elements_lack: Vec<ChemicalComponent> = {
                 let mut rng = SeededDiceRoller::new(
                     &settings.seed,
                     &format!("sys_{}_{}_elem_lack", coord, system_index),
@@ -441,7 +313,7 @@ impl WorldGenerator {
                 elements
             };
 
-            let composition: Vec<ChemicalElement>;
+            let composition: Vec<ChemicalComponent>;
         };
 
         OrbitalPoint::new(

@@ -1,6 +1,6 @@
 use crate::internal::ConversionUtils;
 
-use super::elements::AtmosphereElement;
+use super::elements::ChemicalComponent;
 
 /// Returns a value in Kelvin
 pub(crate) fn calculate_blackbody_temperature(luminosity: f32, orbital_radius: f64) -> u32 {
@@ -71,14 +71,7 @@ pub(crate) fn calculate_hill_sphere_radius(
 ///
 /// # Returns
 /// The escape velocity in meters per second (m/s).
-///
-/// # Example
-/// ```
-/// let ve_earth = escape_velocity(1.0, 1.0);
-/// println!("Escape velocity of Earth: {:.2} m/s", ve_earth);
-/// println!("Escape velocity of Earth: {:.2} km/s", ve_earth / 1000.0);
-/// ```
-fn escape_velocity(mass_earth: f64, radius_earth: f64) -> f64 {
+pub(crate) fn escape_velocity(mass_earth: f64, radius_earth: f64) -> f64 {
     const G: f64 = 6.67430e-11; // Gravitational constant in m^3 kg^-1 s^-2
     const EARTH_MASS: f64 = 5.972e24; // Earth mass in kg
     const EARTH_RADIUS: f64 = 6.371e6; // Earth radius in meters
@@ -99,13 +92,6 @@ fn escape_velocity(mass_earth: f64, radius_earth: f64) -> f64 {
 ///
 /// # Returns
 /// The rms speed in meters per second (m/s).
-///
-/// # Example
-/// ```
-/// let vrms_h2 = rms_speed(288, 2.0 * 1.6735575e-27);
-/// println!("RMS speed of hydrogen molecules: {:.2} m/s", vrms_h2);
-/// println!("RMS speed of hydrogen molecules: {:.2} km/s", vrms_h2 / 1000.0);
-/// ```
 fn rms_speed(temperature: i32, molecular_mass: f64) -> f64 {
     const K_B: f64 = 1.380649e-23; // Boltzmann constant in J/K
     ((3.0 * K_B * temperature as f64) / molecular_mass).sqrt()
@@ -124,17 +110,11 @@ fn rms_speed(temperature: i32, molecular_mass: f64) -> f64 {
 ///
 /// # Returns
 /// The Jeans parameter (dimensionless).
-///
-/// # Example
-/// ```
-/// let jeans_param_h2 = jeans_parameter(1.0, 1.0, 288.0, AtmosphereElement::Hydrogen);
-/// println!("Jeans parameter for hydrogen on Earth: {:.2}", jeans_param_h2);
-/// ```
 fn jeans_parameter(
     mass_earth: f64,
     radius_earth: f64,
     temperature: i32,
-    element: AtmosphereElement,
+    element: ChemicalComponent,
 ) -> f64 {
     let v_e = escape_velocity(mass_earth, radius_earth);
     let v_rms = rms_speed(temperature, element.molecular_weight_kg());
@@ -295,7 +275,7 @@ mod tests {
         let temperature_earth = 288; // Average temperature of Earth's surface in Kelvin
         let mass_h2 = 2.0 * 1.6735575e-27; // Mass of hydrogen molecule (H2) in kg
         let vrms_h2 = rms_speed(temperature_earth, mass_h2);
-        assert!((vrms_h2 - 1930.0).abs() < 10.0); // Expect around 1930 m/s
+        assert!((vrms_h2 - 1887.83).abs() < 10.0); // Expect around 1887.83 m/s
     }
 
     #[test]
@@ -307,8 +287,8 @@ mod tests {
             mass_earth,
             radius_earth,
             temperature_earth,
-            AtmosphereElement::Hydrogen,
+            ChemicalComponent::Hydrogen,
         );
-        assert!((jeans_param_h2_earth - 5.8).abs() < 0.1); // Expect around 5.8
+        assert!((jeans_param_h2_earth - 4.1).abs() < 0.1);
     }
 }

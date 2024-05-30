@@ -1,6 +1,7 @@
 use crate::internal::*;
 use crate::prelude::*;
 use std::fmt::Display;
+
 pub mod types;
 
 /// Peculiarities a celestial body might have.
@@ -22,7 +23,8 @@ pub enum CelestialBodySpecialTrait {
     UnusualAxialTilt(TelluricAxialTiltDifference),
     UnusualRotation(TelluricRotationDifference),
     UnusualCore(TelluricCoreDifference),
-    Oceans(TelluricOceanComposition),
+    Oceans(ChemicalComponent),
+    Lakes(ChemicalComponent),
 }
 
 impl Display for CelestialBodySpecialTrait {
@@ -40,6 +42,7 @@ impl Display for CelestialBodySpecialTrait {
             CelestialBodySpecialTrait::UnusualCore(s) => write!(f, "{}", s),
             CelestialBodySpecialTrait::TideLocked(s) => write!(f, "Tide-Locked {}", s),
             CelestialBodySpecialTrait::Oceans(s) => write!(f, "{} Oceans", s),
+            CelestialBodySpecialTrait::Lakes(s) => write!(f, "{} Lakes", s),
         }
     }
 }

@@ -164,7 +164,7 @@ pub enum StarPeculiarity {
     /// Helium. (AKA metals)
     NoMetals,
     /// Around this star, the element  is more or less present by the amounr
-    UnusualElementPresence((Element,ElementPresenceOccurence),
+    UnusualElementPresence((ChemicalComponent, ElementPresenceOccurrence)),
 }
 
 impl Display for StarPeculiarity {
@@ -184,6 +184,10 @@ impl Display for StarPeculiarity {
             }
             StarPeculiarity::CircumstellarDisk => write!(f, "Circumstellar Disk"),
             StarPeculiarity::NoPeculiarity => write!(f, "No Peculiarity"),
+            StarPeculiarity::NoMetals => write!(f, "No Metals"),
+            StarPeculiarity::UnusualElementPresence(difference) => {
+                write!(f, "{} of {}", difference.1, difference.0)
+            }
         }
     }
 }

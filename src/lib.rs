@@ -44,6 +44,7 @@ pub mod prelude {
     pub use crate::system::celestial_disk::ring::CelestialRingDetails;
     pub use crate::system::celestial_disk::types::*;
     pub use crate::system::celestial_disk::CelestialDisk;
+    pub use crate::system::contents::elements::*;
     pub use crate::system::contents::types::*;
     pub use crate::system::neighborhood::types::*;
     pub use crate::system::neighborhood::StellarNeighborhood;
@@ -71,6 +72,8 @@ mod internal {
     pub use std::fmt::Display;
     pub use std::mem::discriminant;
     pub use std::rc::Rc;
+    pub use strum::IntoEnumIterator;
+    pub use strum_macros::EnumIter;
 }
 
 lazy_static! {
