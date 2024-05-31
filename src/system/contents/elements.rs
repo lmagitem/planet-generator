@@ -270,19 +270,23 @@ impl ChemicalComponent {
         let mut possible_liquids = Vec::new();
         let mut possible_lowest_pressure = None;
 
-        for component in ChemicalComponent::iter() {
-            if component.can_exist_as_liquid(temperature, pressure) {
-                possible_liquids.push(component);
-            } else if let Some((triple_point_temp, triple_point_pressure)) =
-                component.triple_point()
-            {
-                if component.can_exist_as_liquid(temperature, triple_point_pressure) {
-                    if let Some((_, lowest_pressure)) = possible_lowest_pressure {
-                        if triple_point_pressure < lowest_pressure {
+        if (ChemicalComponent::Water.can_exist_as_liquid(temperature, pressure)) {
+            possible_liquids.push(ChemicalComponent::Water);
+        } else {
+            for component in ChemicalComponent::iter() {
+                if component.can_exist_as_liquid(temperature, pressure) {
+                    possible_liquids.push(component);
+                } else if let Some((triple_point_temp, triple_point_pressure)) =
+                    component.triple_point()
+                {
+                    if component.can_exist_as_liquid(temperature, triple_point_pressure) {
+                        if let Some((_, lowest_pressure)) = possible_lowest_pressure {
+                            if triple_point_pressure < lowest_pressure {
+                                possible_lowest_pressure = Some((component, triple_point_pressure));
+                            }
+                        } else {
                             possible_lowest_pressure = Some((component, triple_point_pressure));
                         }
-                    } else {
-                        possible_lowest_pressure = Some((component, triple_point_pressure));
                     }
                 }
             }
@@ -466,6 +470,127 @@ pub(crate) fn generate_random_common_element(rng: &mut SeededDiceRoller) -> Chem
 
 pub(crate) fn generate_random_element(rng: &mut SeededDiceRoller) -> ChemicalComponent {
     ALL_ELEMENTS[rng.gen_range(0..ALL_ELEMENTS.len())]
+}
+
+pub(crate) fn liquid_majority_composition_likelihood(
+    component: ChemicalComponent,
+    peculiarities: &[StarPeculiarity],
+) -> f64 {
+    let base_likelihood = match component {
+        ChemicalComponent::Water => 1.0,
+        ChemicalComponent::Methane => 0.8,
+        ChemicalComponent::Ammonia => 0.6,
+        ChemicalComponent::CarbonDioxide => 0.5,
+        ChemicalComponent::SulfurDioxide => 0.4,
+        ChemicalComponent::Formaldehyde => 0.2,
+        ChemicalComponent::Hydrogen => 0.3,
+        ChemicalComponent::Helium => 0.1,
+        ChemicalComponent::Carbon => 0.2,
+        ChemicalComponent::Nitrogen => 0.4,
+        ChemicalComponent::Oxygen => 0.3,
+        ChemicalComponent::Silicon => 0.1,
+        ChemicalComponent::Magnesium => 0.1,
+        ChemicalComponent::Iron => 0.1,
+        ChemicalComponent::Sulfur => 0.3,
+        ChemicalComponent::Sodium => 0.1,
+        ChemicalComponent::Potassium => 0.1,
+        ChemicalComponent::Calcium => 0.1,
+        ChemicalComponent::Aluminum => 0.1,
+        ChemicalComponent::Phosphorus => 0.2,
+        ChemicalComponent::Chlorine => 0.3,
+        ChemicalComponent::Argon => 0.1,
+        ChemicalComponent::Titanium => 0.1,
+        ChemicalComponent::Chromium => 0.1,
+        ChemicalComponent::Manganese => 0.1,
+        ChemicalComponent::Nickel => 0.1,
+        ChemicalComponent::HydrogenSulfide => 0.3,
+        ChemicalComponent::Hydroxyl => 0.1,
+        ChemicalComponent::NitricOxide => 0.2,
+        ChemicalComponent::NitrogenDioxide => 0.2,
+        ChemicalComponent::Methanol => 0.4,
+        ChemicalComponent::Ethylene => 0.3,
+        ChemicalComponent::Ethane => 0.4,
+        ChemicalComponent::Acetylene => 0.2,
+        ChemicalComponent::Benzene => 0.3,
+        ChemicalComponent::Acetonitrile => 0.2,
+        ChemicalComponent::Methylamine => 0.2,
+        ChemicalComponent::HydrogenCyanide => 0.2,
+        ChemicalComponent::Glycine => 0.1,
+        ChemicalComponent::Silicates => 0.1,
+        ChemicalComponent::PolycyclicAromaticHydrocarbons => 0.2,
+        ChemicalComponent::CarbonMonoxide => 0.4,
+    };
+
+    let stability = match component {
+        ChemicalComponent::Hydrogen => 0.7,
+        ChemicalComponent::Helium => 1.0,
+        ChemicalComponent::Carbon => 0.9,
+        ChemicalComponent::Nitrogen => 0.9,
+        ChemicalComponent::Oxygen => 0.8,
+        ChemicalComponent::Silicon => 0.8,
+        ChemicalComponent::Magnesium => 0.7,
+        ChemicalComponent::Iron => 0.7,
+        ChemicalComponent::Sulfur => 0.6,
+        ChemicalComponent::Sodium => 0.5,
+        ChemicalComponent::Potassium => 0.5,
+        ChemicalComponent::Calcium => 0.6,
+        ChemicalComponent::Aluminum => 0.7,
+        ChemicalComponent::Phosphorus => 0.6,
+        ChemicalComponent::Chlorine => 0.6,
+        ChemicalComponent::Argon => 1.0,
+        ChemicalComponent::Titanium => 0.8,
+        ChemicalComponent::Chromium => 0.7,
+        ChemicalComponent::Manganese => 0.7,
+        ChemicalComponent::Nickel => 0.7,
+        ChemicalComponent::Water => 1.0,
+        ChemicalComponent::CarbonMonoxide => 0.5,
+        ChemicalComponent::CarbonDioxide => 0.9,
+        ChemicalComponent::Methane => 0.8,
+        ChemicalComponent::Ammonia => 0.6,
+        ChemicalComponent::HydrogenSulfide => 0.4,
+        ChemicalComponent::SulfurDioxide => 0.5,
+        ChemicalComponent::Hydroxyl => 0.3,
+        ChemicalComponent::NitricOxide => 0.4,
+        ChemicalComponent::NitrogenDioxide => 0.4,
+        ChemicalComponent::Formaldehyde => 0.2,
+        ChemicalComponent::Methanol => 0.6,
+        ChemicalComponent::Ethylene => 0.6,
+        ChemicalComponent::Ethane => 0.7,
+        ChemicalComponent::Acetylene => 0.5,
+        ChemicalComponent::Benzene => 0.7,
+        ChemicalComponent::Acetonitrile => 0.5,
+        ChemicalComponent::Methylamine => 0.4,
+        ChemicalComponent::HydrogenCyanide => 0.3,
+        ChemicalComponent::Glycine => 0.8,
+        ChemicalComponent::Silicates => 0.9,
+        ChemicalComponent::PolycyclicAromaticHydrocarbons => 0.6,
+    };
+
+    let mut adjusted_likelihood = base_likelihood * stability;
+
+    for peculiarity in peculiarities {
+        if let StarPeculiarity::UnusualElementPresence((peculiar_component, occurrence)) =
+            peculiarity
+        {
+            if *peculiar_component == component {
+                adjusted_likelihood *= get_occurence_adjustment_factor(*occurrence);
+            }
+        }
+    }
+
+    adjusted_likelihood
+}
+
+fn get_occurence_adjustment_factor(occurrence: ElementPresenceOccurrence) -> f64 {
+    match occurrence {
+        ElementPresenceOccurrence::Absence => 0.0,
+        ElementPresenceOccurrence::VeryLow => 0.2,
+        ElementPresenceOccurrence::Low => 0.5,
+        ElementPresenceOccurrence::Normal => 1.0,
+        ElementPresenceOccurrence::High => 1.5,
+        ElementPresenceOccurrence::VeryHigh => 2.0,
+        ElementPresenceOccurrence::Omnipresence => 3.0,
+    }
 }
 
 #[cfg(test)]

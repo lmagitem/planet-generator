@@ -221,39 +221,62 @@ impl WorldGenerator {
 
         let present_volatiles: Vec<ChemicalComponent> = Vec::new();
         if hydrosphere > 0.001 {
-            let mut rng = SeededDiceRoller::new(
-                &settings.seed,
-                &format!(
-                    "sys_{}_{}_str_{}_bdy{}_ocean",
-                    coord, system_index, star_id, orbital_point_id
-                ),
-            );
-
             if let Some(components) = ChemicalComponent::components_liquid_at(
                 blackbody_temperature as f64,
                 atmospheric_pressure as f64,
             ) {
                 if !components.is_empty() {
-                    let roll = rng.gen_range(0..components.len());
-                    let chosen_component = components[roll];
-
-                    if !chosen_component.can_exist_as_liquid(
-                        blackbody_temperature as f64,
-                        atmospheric_pressure as f64,
-                    ) {
-                        if let Some((_, triple_point_pressure)) = chosen_component.triple_point() {
-                            if triple_point_pressure <= 1.0 {
-                                atmospheric_pressure = triple_point_pressure as f32
-                                    + rng.roll(1, 200, -1) as f32 / 100.0;
-                            } else {
-                                hydrosphere = 0.0;
-                            }
+                    // Pixk the most likely component to be the majority of liquid
+                    let mut candidates: Vec<(ChemicalComponent, f64)> = vec![];
+                    for &component in &components {
+                        let score = liquid_majority_composition_likelihood(component, star_traits);
+                        if score > 0.0 {
+                            candidates.push((component, score));
                         }
                     }
-                    if hydrosphere > 0.001 && hydrosphere < 50.0 {
-                        special_traits.push(CelestialBodySpecialTrait::Lakes(chosen_component));
-                    } else if hydrosphere >= 50.0 {
-                        special_traits.push(CelestialBodySpecialTrait::Oceans(chosen_component));
+                    candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+                    let chosen_component = candidates.first().map(|s| s.0);
+
+                    if chosen_component.is_some() {
+                        // If only one component was available, and not at the current pressure, modify the current pressure.
+                        if !chosen_component.unwrap().can_exist_as_liquid(
+                            blackbody_temperature as f64,
+                            atmospheric_pressure as f64,
+                        ) {
+                            if let Some((_, triple_point_pressure)) =
+                                chosen_component.unwrap().triple_point()
+                            {
+                                if triple_point_pressure <= 1.0 {
+                                    let mut rng = SeededDiceRoller::new(
+                                        &settings.seed,
+                                        &format!(
+                                            "sys_{}_{}_str_{}_bdy{}_ocean",
+                                            coord, system_index, star_id, orbital_point_id
+                                        ),
+                                    );
+                                    atmospheric_pressure = triple_point_pressure as f32
+                                        + rng.roll(1, 200, -1) as f32 / 100.0;
+                                } else {
+                                    // Nothing can be liquid so remove the hydrosphere
+                                    hydrosphere = 0.0;
+                                }
+                            }
+                        }
+
+                        // Then add lakes or oceans to the body
+                        if hydrosphere > 0.001 && hydrosphere < 50.0 {
+                            special_traits
+                                .push(CelestialBodySpecialTrait::Lakes(chosen_component.unwrap()));
+                        } else if hydrosphere >= 50.0 {
+                            special_traits
+                                .push(CelestialBodySpecialTrait::Oceans(chosen_component.unwrap()));
+                        } else {
+                            // Nothing can be liquid so remove the hydrosphere
+                            hydrosphere = 0.0;
+                        }
+                    } else {
+                        // Nothing can be liquid so remove the hydrosphere
+                        hydrosphere = 0.0;
                     }
                 } else {
                     // Nothing can be liquid so remove the hydrosphere
@@ -1028,6 +1051,11 @@ fn generate_atmosphere(
         StarLuminosityClass::XNS => -5,
         _ => 0,
     };
+    atmospheric_mass_modifier += if world_type == CelestialBodyWorldType::Chthonian {
+        -5
+    } else {
+        0
+    };
     atmospheric_mass_modifier += if is_moon { -2 } else { 0 };
     for peculiarity in star_traits {
         if let StarPeculiarity::UnusualMetallicity(metallicity_difference) = peculiarity {
@@ -1090,13 +1118,20 @@ fn generate_atmosphere(
                 if (size == CelestialBodySize::Tiny
                     || size == CelestialBodySize::Small
                     || size == CelestialBodySize::Standard)
+                    && volcanism_and_tectonics < 10.0
                 {
                     0.0
                 } else {
                     -1.0
                 }
             }
-            CelestialBodyWorldType::Chthonian => 0.0,
+            CelestialBodyWorldType::Chthonian => {
+                if volcanism_and_tectonics < 10.0 {
+                    0.0
+                } else {
+                    -1.0
+                }
+            }
             CelestialBodyWorldType::Greenhouse => rng.gen_range(1.5..300.0),
             _ => -1.0,
         }
