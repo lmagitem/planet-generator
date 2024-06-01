@@ -170,7 +170,7 @@ impl Star {
             let mut elements = Vec::new();
             let mut roll = rng.gen_u8();
 
-            let random_element_abundance_threshold = 126;
+            let random_element_abundance_threshold = 156;
             let non_metal_threshold = match population {
                 StellarEvolution::Paleodwarf => 0,
                 StellarEvolution::Subdwarf => 126,
@@ -216,7 +216,7 @@ impl Star {
             let mut elements = Vec::new();
             let mut roll = rng.gen_u8();
 
-            let random_element_lack_threshold = 126;
+            let random_element_lack_threshold = 156;
             let non_metal_threshold = match population {
                 StellarEvolution::Paleodwarf => 0,
                 StellarEvolution::Subdwarf => 236,
@@ -262,9 +262,43 @@ impl Star {
         );
 
         elements_abundance.iter().for_each(|el| {
-            let roll = rng.roll(1, 3, 0);
+            let roll = rng.roll(1, 12, 0);
+            if roll <= 7 {
+                special_traits.push(StarPeculiarity::UnusualElementPresence((
+                    *el,
+                    ElementPresenceOccurrence::High,
+                )));
+            } else if roll <= 11 {
+                special_traits.push(StarPeculiarity::UnusualElementPresence((
+                    *el,
+                    ElementPresenceOccurrence::VeryHigh,
+                )));
+            } else {
+                special_traits.push(StarPeculiarity::UnusualElementPresence((
+                    *el,
+                    ElementPresenceOccurrence::Omnipresence,
+                )));
+            }
         });
-        elements_lack.iter();
+        elements_lack.iter().for_each(|el| {
+            let roll = rng.roll(1, 12, 0);
+            if roll <= 7 {
+                special_traits.push(StarPeculiarity::UnusualElementPresence((
+                    *el,
+                    ElementPresenceOccurrence::Low,
+                )));
+            } else if roll <= 11 {
+                special_traits.push(StarPeculiarity::UnusualElementPresence((
+                    *el,
+                    ElementPresenceOccurrence::VeryLow,
+                )));
+            } else {
+                special_traits.push(StarPeculiarity::UnusualElementPresence((
+                    *el,
+                    ElementPresenceOccurrence::Absence,
+                )));
+            }
+        });
 
         Self {
             name,
