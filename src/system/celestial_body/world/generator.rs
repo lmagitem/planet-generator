@@ -104,7 +104,7 @@ impl WorldGenerator {
         } = world;
         let CelestialBodyDetails::Telluric(TelluricBodyDetails {
             body_type,
-            world_type,
+            mut world_type,
             mut special_traits,
             ..
         }) = details
@@ -153,7 +153,11 @@ impl WorldGenerator {
             &special_traits,
             tidal_heating,
             magnetic_field,
+            density,
         );
+        if hydrosphere >= 85.0 && world_type == CelestialBodyWorldType::Terrestrial {
+            world_type = CelestialBodyWorldType::Ocean;
+        }
 
         let cryosphere = 0.0;
 
@@ -715,6 +719,7 @@ impl WorldGenerator {
         special_traits: &Vec<CelestialBodySpecialTrait>,
         tidal_heating: u32,
         magnetic_field: MagneticFieldStrength,
+        density: f32,
     ) -> f32 {
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
@@ -792,11 +797,33 @@ impl WorldGenerator {
                 CelestialBodyWorldType::Ocean => (rng.roll(1, 3000, 6999 + modifier) as f32
                     / 100.0)
                     .min(100.0)
-                    .max(70.0),
+                    .max(if density < 1.5 {
+                        95.0
+                    } else if density < 1.9 {
+                        90.0
+                    } else if density < 2.5 {
+                        80.0
+                    } else {
+                        70.0
+                    }),
                 CelestialBodyWorldType::Terrestrial => (rng.roll(3, 2903, 997 + modifier) as f32
                     / 100.0)
-                    .min(90.0)
-                    .max(9.8),
+                    .min(if density < 1.9 {
+                        100.0
+                    } else if density < 2.5 {
+                        95.0
+                    } else {
+                        90.0
+                    })
+                    .max(if density < 1.5 {
+                        95.0
+                    } else if density < 1.9 {
+                        70.0
+                    } else if density < 2.5 {
+                        50.5
+                    } else {
+                        9.8
+                    }),
                 _ => 0.0,
             }
         };
