@@ -155,11 +155,9 @@ impl WorldGenerator {
             magnetic_field,
             density,
         );
-        if hydrosphere >= 85.0 && world_type == CelestialBodyWorldType::Terrestrial {
+        if hydrosphere >= 90.0 && world_type == CelestialBodyWorldType::Terrestrial {
             world_type = CelestialBodyWorldType::Ocean;
         }
-
-        let cryosphere = 0.0;
 
         let volcanism = Self::generate_volcanism(
             &coord,
@@ -222,6 +220,7 @@ impl WorldGenerator {
             hydrosphere,
             atmospheric_pressure,
         );
+        let climate = get_climate_from_temperature(blackbody_temperature);
 
         let present_volatiles: Vec<ChemicalComponent> = Vec::new();
         let changed_hydrosphere_and_pressure = Self::compute_oceans(
@@ -238,6 +237,9 @@ impl WorldGenerator {
         );
         hydrosphere = changed_hydrosphere_and_pressure.0;
         atmospheric_pressure = changed_hydrosphere_and_pressure.1;
+        if hydrosphere < 90.0 && world_type == CelestialBodyWorldType::Ocean {
+            world_type = CelestialBodyWorldType::Terrestrial;
+        }
 
         Self::compute_subsurface_oceans(
             coord,
@@ -253,7 +255,61 @@ impl WorldGenerator {
             density,
         );
 
-        let climate = get_climate_from_temperature(blackbody_temperature);
+        let cryosphere = {
+            let mut cryosphere = 0.0;
+            let mut rng = SeededDiceRoller::new(
+                &settings.seed,
+                &format!(
+                    "sys_{}_{}_str_{}_bdy{}_cryo",
+                    coord, system_index, star_id, orbital_point_id
+                ),
+            );
+
+            let to_roll = match world_type {
+                CelestialBodyWorldType::Ice => (0, 0, 0, 0),
+                CelestialBodyWorldType::DirtySnowball => (0, 0, 0, 0),
+                CelestialBodyWorldType::Sulfur => (0, 0, 0, 0),
+                CelestialBodyWorldType::Rock => (0, 0, 0, 0),
+                CelestialBodyWorldType::Hadean => (0, 0, 0, 0),
+                CelestialBodyWorldType::Ammonia => (0, 0, 0, 0),
+                CelestialBodyWorldType::Ocean => (0, 0, 0, 0),
+                CelestialBodyWorldType::Terrestrial => match climate {
+                    WorldClimateType::Frozen => (7000, 7000, 6000, 10000),
+                    WorldClimateType::VeryCold => (7500, 3500, 3000, 10000),
+                    WorldClimateType::Cold => (5000, 2500, 2000, 9000),
+                    WorldClimateType::Chilly => (4000, 1500, 1000, 7000),
+                    WorldClimateType::Cool => (3000, 1000, 500, 5000),
+                    WorldClimateType::Ideal => (2500, 450, 300, 3000),
+                    WorldClimateType::Warm => (1500, 350, 0, 2000),
+                    WorldClimateType::Tropical => (500, 250, 0, 1000),
+                    WorldClimateType::Hot => (0, 0, 0, 0),
+                    WorldClimateType::VeryHot => (0, 0, 0, 0),
+                    WorldClimateType::Infernal => (0, 0, 0, 0),
+                },
+                CelestialBodyWorldType::Greenhouse => (0, 0, 0, 0),
+                CelestialBodyWorldType::Chthonian => (0, 0, 0, 0),
+                CelestialBodyWorldType::VolatilesGiant => (0, 0, 0, 0),
+            };
+            cryosphere = if to_roll.0 == 0 {
+                0.0
+            } else {
+                rng.roll(1, to_roll.0, to_roll.1)
+                    .max(to_roll.2)
+                    .min(to_roll.3) as f32
+                    / 100.0
+            };
+
+            if cryosphere > 0.01 {
+                cryosphere += (rng.roll(1, 101, -51) as f32 / 100.0);
+            }
+
+            cryosphere.min(100.0).max(0.0)
+        };
+        hydrosphere = if hydrosphere + cryosphere < 100.0 {
+            (hydrosphere - cryosphere / 2.0)
+        } else {
+            100.0 - cryosphere / 2.0
+        };
 
         // TODO: Atmospheric composition
         let atmospheric_composition = {
@@ -798,13 +854,13 @@ impl WorldGenerator {
                     / 100.0)
                     .min(100.0)
                     .max(if density < 1.5 {
-                        95.0
+                        97.5
                     } else if density < 1.9 {
-                        90.0
+                        95.0
                     } else if density < 2.5 {
-                        80.0
+                        90.0
                     } else {
-                        70.0
+                        85.0
                     }),
                 CelestialBodyWorldType::Terrestrial => (rng.roll(3, 2903, 997 + modifier) as f32
                     / 100.0)
@@ -829,7 +885,7 @@ impl WorldGenerator {
         };
 
         if hydrosphere > 0.01 {
-            hydrosphere += (rng.roll(1, 1001, -501) as f32 / 100.0);
+            hydrosphere += (rng.roll(1, 101, -51) as f32 / 100.0);
         }
 
         hydrosphere.min(100.0).max(0.0)
