@@ -3,6 +3,7 @@ use crate::prelude::*;
 pub mod celestial_body;
 pub mod celestial_disk;
 pub mod contents;
+mod display;
 pub mod generator;
 pub mod neighborhood;
 pub mod orbital_point;

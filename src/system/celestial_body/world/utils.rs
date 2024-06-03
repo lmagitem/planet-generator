@@ -1,29 +1,29 @@
-use crate::prelude::WorldClimateType;
+use crate::prelude::WorldTemperatureCategory;
 
-pub fn get_climate_from_temperature(blackbody_temperature: u32) -> WorldClimateType {
+pub fn get_category_from_temperature(blackbody_temperature: u32) -> WorldTemperatureCategory {
     let climate = {
         if blackbody_temperature < 244 {
-            WorldClimateType::Frozen
+            WorldTemperatureCategory::Frozen
         } else if blackbody_temperature < 255 {
-            WorldClimateType::VeryCold
+            WorldTemperatureCategory::VeryCold
         } else if blackbody_temperature < 266 {
-            WorldClimateType::Cold
+            WorldTemperatureCategory::Cold
         } else if blackbody_temperature < 278 {
-            WorldClimateType::Chilly
+            WorldTemperatureCategory::Chilly
         } else if blackbody_temperature < 289 {
-            WorldClimateType::Cool
+            WorldTemperatureCategory::Cool
         } else if blackbody_temperature < 300 {
-            WorldClimateType::Ideal
+            WorldTemperatureCategory::Temperate
         } else if blackbody_temperature < 311 {
-            WorldClimateType::Warm
+            WorldTemperatureCategory::Warm
         } else if blackbody_temperature < 322 {
-            WorldClimateType::Tropical
+            WorldTemperatureCategory::Tropical
         } else if blackbody_temperature < 333 {
-            WorldClimateType::Hot
+            WorldTemperatureCategory::Hot
         } else if blackbody_temperature < 344 {
-            WorldClimateType::VeryHot
+            WorldTemperatureCategory::VeryHot
         } else {
-            WorldClimateType::Infernal
+            WorldTemperatureCategory::Infernal
         }
     };
     climate

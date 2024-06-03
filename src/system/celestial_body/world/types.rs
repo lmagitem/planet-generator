@@ -200,7 +200,7 @@ impl std::fmt::Display for crate::prelude::TectonicActivity {
 #[derive(
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
 )]
-pub enum WorldClimateType {
+pub enum WorldTemperatureCategory {
     /// Temperature below 244 K (-29.15°C).
     #[default]
     Frozen,
@@ -213,7 +213,7 @@ pub enum WorldClimateType {
     /// Temperature between 278 K (4.85°C) and 289 K (15.85°C).
     Cool,
     /// Temperature between 289 K (15.85°C) and 300 K (26.85°C).
-    Ideal,
+    Temperate,
     /// Temperature between 300 K (26.85°C) and 311 K (37.85°C).
     Warm,
     /// Temperature between 311 K (37.85°C) and 322 K (48.85°C).
@@ -226,20 +226,20 @@ pub enum WorldClimateType {
     Infernal,
 }
 
-impl std::fmt::Display for crate::prelude::WorldClimateType {
+impl std::fmt::Display for crate::prelude::WorldTemperatureCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            crate::prelude::WorldClimateType::Frozen => write!(f, "Frozen"),
-            crate::prelude::WorldClimateType::VeryCold => write!(f, "Very Cold"),
-            crate::prelude::WorldClimateType::Cold => write!(f, "Cold"),
-            crate::prelude::WorldClimateType::Chilly => write!(f, "Chilly"),
-            crate::prelude::WorldClimateType::Cool => write!(f, "Cool"),
-            crate::prelude::WorldClimateType::Ideal => write!(f, "Ideal"),
-            crate::prelude::WorldClimateType::Warm => write!(f, "Warm"),
-            crate::prelude::WorldClimateType::Tropical => write!(f, "Tropical"),
-            crate::prelude::WorldClimateType::Hot => write!(f, "Hot"),
-            crate::prelude::WorldClimateType::VeryHot => write!(f, "VeryHot"),
-            crate::prelude::WorldClimateType::Infernal => write!(f, "Infernal"),
+            crate::prelude::WorldTemperatureCategory::Frozen => write!(f, "Frozen"),
+            crate::prelude::WorldTemperatureCategory::VeryCold => write!(f, "Very Cold"),
+            crate::prelude::WorldTemperatureCategory::Cold => write!(f, "Cold"),
+            crate::prelude::WorldTemperatureCategory::Chilly => write!(f, "Chilly"),
+            crate::prelude::WorldTemperatureCategory::Cool => write!(f, "Cool"),
+            crate::prelude::WorldTemperatureCategory::Temperate => write!(f, "Ideal"),
+            crate::prelude::WorldTemperatureCategory::Warm => write!(f, "Warm"),
+            crate::prelude::WorldTemperatureCategory::Tropical => write!(f, "Tropical"),
+            crate::prelude::WorldTemperatureCategory::Hot => write!(f, "Hot"),
+            crate::prelude::WorldTemperatureCategory::VeryHot => write!(f, "VeryHot"),
+            crate::prelude::WorldTemperatureCategory::Infernal => write!(f, "Infernal"),
         }
     }
 }

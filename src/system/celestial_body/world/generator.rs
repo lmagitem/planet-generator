@@ -1,8 +1,7 @@
 use crate::internal::generator::get_major_moons;
 use crate::internal::*;
 use crate::prelude::*;
-use crate::system::celestial_body::world::utils::get_climate_from_temperature;
-use crate::system::contents::elements::ChemicalComponent;
+use crate::system::celestial_body::world::utils::get_category_from_temperature;
 use crate::system::contents::elements::ALL_ELEMENTS;
 use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
 use crate::system::contents::zones::get_orbit_with_updated_zone;
@@ -57,7 +56,9 @@ impl WorldGenerator {
                     0.0,
                     0.0,
                     0.0,
-                    WorldClimateType::Frozen,
+                    0.0,
+                    0.0,
+                    WorldTemperatureCategory::Frozen,
                 )),
             }),
             moons
@@ -155,6 +156,7 @@ impl WorldGenerator {
             magnetic_field,
             density,
         );
+        // Here, we might have generated a world with "too much water", so it becomes an ocean world
         if hydrosphere >= 90.0 && world_type == CelestialBodyWorldType::Terrestrial {
             world_type = CelestialBodyWorldType::Ocean;
         }
@@ -220,9 +222,8 @@ impl WorldGenerator {
             hydrosphere,
             atmospheric_pressure,
         );
-        let climate = get_climate_from_temperature(blackbody_temperature);
+        let temperature_category = get_category_from_temperature(blackbody_temperature);
 
-        let present_volatiles: Vec<ChemicalComponent> = Vec::new();
         let changed_hydrosphere_and_pressure = Self::compute_oceans(
             coord,
             system_index,
@@ -230,6 +231,7 @@ impl WorldGenerator {
             star_traits,
             orbital_point_id,
             &settings,
+            world_type,
             blackbody_temperature,
             &mut special_traits,
             hydrosphere,
@@ -237,7 +239,8 @@ impl WorldGenerator {
         );
         hydrosphere = changed_hydrosphere_and_pressure.0;
         atmospheric_pressure = changed_hydrosphere_and_pressure.1;
-        if hydrosphere < 90.0 && world_type == CelestialBodyWorldType::Ocean {
+        // Here hydrosphere might have been reduced to zero if no water can exist on the planet
+        if hydrosphere < 87.5 && world_type == CelestialBodyWorldType::Ocean {
             world_type = CelestialBodyWorldType::Terrestrial;
         }
 
@@ -255,63 +258,24 @@ impl WorldGenerator {
             density,
         );
 
-        let cryosphere = {
-            let mut cryosphere = 0.0;
-            let mut rng = SeededDiceRoller::new(
-                &settings.seed,
-                &format!(
-                    "sys_{}_{}_str_{}_bdy{}_cryo",
-                    coord, system_index, star_id, orbital_point_id
-                ),
-            );
-
-            let to_roll = match world_type {
-                CelestialBodyWorldType::Ice => (0, 0, 0, 0),
-                CelestialBodyWorldType::DirtySnowball => (0, 0, 0, 0),
-                CelestialBodyWorldType::Sulfur => (0, 0, 0, 0),
-                CelestialBodyWorldType::Rock => (0, 0, 0, 0),
-                CelestialBodyWorldType::Hadean => (0, 0, 0, 0),
-                CelestialBodyWorldType::Ammonia => (0, 0, 0, 0),
-                CelestialBodyWorldType::Ocean => (0, 0, 0, 0),
-                CelestialBodyWorldType::Terrestrial => match climate {
-                    WorldClimateType::Frozen => (7000, 7000, 6000, 10000),
-                    WorldClimateType::VeryCold => (7500, 3500, 3000, 10000),
-                    WorldClimateType::Cold => (5000, 2500, 2000, 9000),
-                    WorldClimateType::Chilly => (4000, 1500, 1000, 7000),
-                    WorldClimateType::Cool => (3000, 1000, 500, 5000),
-                    WorldClimateType::Ideal => (2500, 450, 300, 3000),
-                    WorldClimateType::Warm => (1500, 350, 0, 2000),
-                    WorldClimateType::Tropical => (500, 250, 0, 1000),
-                    WorldClimateType::Hot => (0, 0, 0, 0),
-                    WorldClimateType::VeryHot => (0, 0, 0, 0),
-                    WorldClimateType::Infernal => (0, 0, 0, 0),
-                },
-                CelestialBodyWorldType::Greenhouse => (0, 0, 0, 0),
-                CelestialBodyWorldType::Chthonian => (0, 0, 0, 0),
-                CelestialBodyWorldType::VolatilesGiant => (0, 0, 0, 0),
-            };
-            cryosphere = if to_roll.0 == 0 {
-                0.0
-            } else {
-                rng.roll(1, to_roll.0, to_roll.1)
-                    .max(to_roll.2)
-                    .min(to_roll.3) as f32
-                    / 100.0
-            };
-
-            if cryosphere > 0.01 {
-                cryosphere += (rng.roll(1, 101, -51) as f32 / 100.0);
-            }
-
-            cryosphere.min(100.0).max(0.0)
-        };
-        hydrosphere = if hydrosphere + cryosphere < 100.0 {
-            (hydrosphere - cryosphere / 2.0)
-        } else {
-            100.0 - cryosphere / 2.0
-        };
+        let hydrosphere_and_cryosphere = Self::generate_cryosphere_and_adjust_hydrosphere(
+            coord,
+            system_index,
+            star_id,
+            orbital_point_id,
+            &settings,
+            world_type,
+            special_traits.clone(),
+            hydrosphere,
+            temperature_category,
+        );
+        hydrosphere = hydrosphere_and_cryosphere.0;
+        let ice_over_water = hydrosphere_and_cryosphere.1;
+        let ice_over_land = hydrosphere_and_cryosphere.2;
+        let land_area_percentage = 100.0 - hydrosphere - ice_over_water - ice_over_land;
 
         // TODO: Atmospheric composition
+        let present_volatiles: Vec<ChemicalComponent> = Vec::new();
         let atmospheric_composition = {
             let system_wide_elements_abundance: Vec<ChemicalComponent> = {
                 let mut rng = SeededDiceRoller::new(
@@ -389,14 +353,130 @@ impl WorldGenerator {
                     magnetic_field,
                     atmospheric_pressure,
                     hydrosphere,
-                    cryosphere,
+                    ice_over_water,
+                    land_area_percentage,
+                    ice_over_land,
                     volcanism,
                     tectonics,
-                    climate,
+                    temperature_category,
                 )),
             )),
             orbits.clone(),
         )
+    }
+
+    fn generate_cryosphere_and_adjust_hydrosphere(
+        coord: SpaceCoordinates,
+        system_index: u16,
+        star_id: u32,
+        orbital_point_id: u32,
+        settings: &GenerationSettings,
+        world_type: CelestialBodyWorldType,
+        special_traits: Vec<CelestialBodySpecialTrait>,
+        hydrosphere: f32,
+        temperature_category: WorldTemperatureCategory,
+    ) -> (f32, f32, f32) {
+        let mut cryosphere = 0.0;
+        let mut ice_over_water = 0.0;
+        let mut ice_over_land = 0.0;
+        let mut hydrosphere = hydrosphere;
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_bdy{}_cryo",
+                coord, system_index, star_id, orbital_point_id
+            ),
+        );
+
+        let to_roll = match world_type {
+            CelestialBodyWorldType::Greenhouse | CelestialBodyWorldType::Chthonian => (0, 0, 0, 0),
+            CelestialBodyWorldType::Ice | CelestialBodyWorldType::Hadean => {
+                (10000, 7000, 6500, 10000)
+            }
+            CelestialBodyWorldType::DirtySnowball => (10000, 3000, 2000, 10000),
+            CelestialBodyWorldType::Sulfur => match temperature_category {
+                WorldTemperatureCategory::Frozen
+                | WorldTemperatureCategory::VeryCold
+                | WorldTemperatureCategory::Cold
+                | WorldTemperatureCategory::Chilly => (20000, -10000, 0, 10000),
+                _ => (0, 0, 0, 0),
+            },
+            CelestialBodyWorldType::Ammonia => match temperature_category {
+                WorldTemperatureCategory::Frozen
+                | WorldTemperatureCategory::VeryCold
+                | WorldTemperatureCategory::Cold
+                | WorldTemperatureCategory::Chilly
+                | WorldTemperatureCategory::Cool
+                | WorldTemperatureCategory::Temperate
+                | WorldTemperatureCategory::Warm => (10000, 1000, 0, 10000),
+                _ => (0, 0, 0, 0),
+            },
+            CelestialBodyWorldType::Rock => match temperature_category {
+                WorldTemperatureCategory::Frozen
+                | WorldTemperatureCategory::VeryCold
+                | WorldTemperatureCategory::Cold
+                | WorldTemperatureCategory::Chilly => (10000, -5000, 0, 6000),
+                _ => (0, 0, 0, 0),
+            },
+            CelestialBodyWorldType::Ocean | CelestialBodyWorldType::Terrestrial => {
+                match temperature_category {
+                    WorldTemperatureCategory::Frozen => (7000, 7000, 6000, 10000),
+                    WorldTemperatureCategory::VeryCold => (7500, 3500, 3000, 10000),
+                    WorldTemperatureCategory::Cold => (5000, 2500, 2000, 9000),
+                    WorldTemperatureCategory::Chilly => (4000, 1500, 1000, 7000),
+                    WorldTemperatureCategory::Cool => (3000, 1000, 500, 5000),
+                    WorldTemperatureCategory::Temperate => (2500, 450, 300, 3000),
+                    WorldTemperatureCategory::Warm => (1500, 350, 0, 2000),
+                    WorldTemperatureCategory::Tropical => (500, 250, 0, 1000),
+                    WorldTemperatureCategory::Hot => (0, 0, 0, 0),
+                    WorldTemperatureCategory::VeryHot => (0, 0, 0, 0),
+                    WorldTemperatureCategory::Infernal => (0, 0, 0, 0),
+                }
+            }
+            CelestialBodyWorldType::VolatilesGiant => (0, 0, 0, 0),
+        };
+        cryosphere = if to_roll.0 == 0 {
+            0.0
+        } else {
+            rng.roll(1, to_roll.0, to_roll.1)
+                .max(to_roll.2)
+                .min(to_roll.3) as f32
+                / 100.0
+        };
+
+        // Add some digits if round number
+        if cryosphere > 0.01 {
+            cryosphere += (rng.roll(1, 101, -51) as f32 / 100.0);
+        }
+        cryosphere = cryosphere.min(100.0).max(0.0);
+
+        // If oceans of other elements than water were generated, let them be over the ices
+        let mut was_there_something_else_than_water = false;
+        for special_trait in &special_traits {
+            if let CelestialBodySpecialTrait::Oceans(peculiar_component)
+            | CelestialBodySpecialTrait::Lakes(peculiar_component) = special_trait
+            {
+                if peculiar_component != &ChemicalComponent::Water {
+                    was_there_something_else_than_water = true;
+                    if cryosphere + hydrosphere >= 100.0 {
+                        cryosphere = 100.0 - hydrosphere;
+                    }
+                }
+            }
+        }
+
+        if was_there_something_else_than_water {
+            ice_over_land = cryosphere;
+        } else {
+            // Remove proportionally from land and oceans to make room for ices
+            let land_prop = (100.0 - hydrosphere) / 100.0;
+            let water_prop = hydrosphere / 100.0;
+            ice_over_land = cryosphere * land_prop;
+            ice_over_water = cryosphere * water_prop;
+            hydrosphere = hydrosphere - ice_over_water;
+        }
+
+        (hydrosphere, ice_over_water, ice_over_land)
     }
 
     fn compute_oceans(
@@ -406,13 +486,20 @@ impl WorldGenerator {
         star_traits: &Vec<StarPeculiarity>,
         orbital_point_id: u32,
         settings: &GenerationSettings,
-        mut blackbody_temperature: u32,
+        world_type: CelestialBodyWorldType,
+        blackbody_temperature: u32,
         special_traits: &mut Vec<CelestialBodySpecialTrait>,
         mut hydrosphere: f32,
         mut atmospheric_pressure: f32,
     ) -> (f32, f32) {
         if hydrosphere > 0.001 {
-            if let Some(components) = ChemicalComponent::components_liquid_at(
+            let mut chosen_component = None;
+
+            if world_type == CelestialBodyWorldType::Terrestrial
+                || world_type == CelestialBodyWorldType::Ocean
+            {
+                chosen_component = Some(ChemicalComponent::Water);
+            } else if let Some(components) = ChemicalComponent::components_liquid_at(
                 blackbody_temperature as f64,
                 atmospheric_pressure as f64,
             ) {
@@ -426,7 +513,7 @@ impl WorldGenerator {
                         }
                     }
                     candidates.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
-                    let chosen_component = candidates.first().map(|s| s.0);
+                    chosen_component = candidates.first().map(|s| s.0);
 
                     if chosen_component.is_some() {
                         // If only one component was available, and not at the current pressure, modify the current pressure.
@@ -448,32 +535,26 @@ impl WorldGenerator {
                                     atmospheric_pressure = triple_point_pressure as f32
                                         + rng.roll(1, 200, -1) as f32 / 100.0;
                                 } else {
-                                    // Nothing can be liquid so remove the hydrosphere
-                                    hydrosphere = 0.0;
+                                    chosen_component = None;
                                 }
                             }
                         }
-
-                        // Then add lakes or oceans to the body
-                        if hydrosphere > 0.001 && hydrosphere < 50.0 {
-                            special_traits
-                                .push(CelestialBodySpecialTrait::Lakes(chosen_component.unwrap()));
-                        } else if hydrosphere >= 50.0 {
-                            special_traits
-                                .push(CelestialBodySpecialTrait::Oceans(chosen_component.unwrap()));
-                        } else {
-                            // Nothing can be liquid so remove the hydrosphere
-                            hydrosphere = 0.0;
-                        }
-                    } else {
-                        // Nothing can be liquid so remove the hydrosphere
-                        hydrosphere = 0.0;
                     }
-                } else {
-                    // Nothing can be liquid so remove the hydrosphere
-                    hydrosphere = 0.0;
                 }
-            } else {
+            }
+
+            // Then add lakes or oceans to the body
+            if chosen_component.is_some() {
+                if hydrosphere > 0.001 && hydrosphere < 50.0 {
+                    special_traits
+                        .push(CelestialBodySpecialTrait::Lakes(chosen_component.unwrap()));
+                } else if hydrosphere >= 50.0 {
+                    special_traits
+                        .push(CelestialBodySpecialTrait::Oceans(chosen_component.unwrap()));
+                }
+            }
+
+            if chosen_component.is_none() {
                 // Nothing can be liquid so remove the hydrosphere
                 hydrosphere = 0.0;
             }
@@ -850,7 +931,7 @@ impl WorldGenerator {
                         0.0
                     }
                 }
-                CelestialBodyWorldType::Ocean => (rng.roll(1, 3000, 6999 + modifier) as f32
+                CelestialBodyWorldType::Ocean => (rng.roll(1, 2250, 8249 + modifier) as f32
                     / 100.0)
                     .min(100.0)
                     .max(if density < 1.5 {
@@ -860,7 +941,7 @@ impl WorldGenerator {
                     } else if density < 2.5 {
                         90.0
                     } else {
-                        85.0
+                        87.5
                     }),
                 CelestialBodyWorldType::Terrestrial => (rng.roll(3, 2903, 997 + modifier) as f32
                     / 100.0)

@@ -1,6 +1,6 @@
 use crate::internal::*;
 use crate::prelude::*;
-use crate::system::celestial_body::world::utils::get_climate_from_temperature;
+use crate::system::celestial_body::world::utils::get_category_from_temperature;
 use crate::system::contents::utils::calculate_distance_for_temperature;
 use std::cmp::Ordering;
 
@@ -322,20 +322,24 @@ pub fn collect_all_zones(all_objects: &mut Vec<OrbitalPoint>) -> Vec<StarZone> {
 }
 
 pub(crate) fn get_orbit_with_updated_zone(orbit: Orbit, blackbody_temperature: u32) -> Orbit {
-    let climate = get_climate_from_temperature(blackbody_temperature);
+    let temp_category = get_category_from_temperature(blackbody_temperature);
 
     Orbit {
-        zone: if climate != WorldClimateType::Frozen && climate != WorldClimateType::Infernal {
+        zone: if temp_category != WorldTemperatureCategory::Frozen
+            && temp_category != WorldTemperatureCategory::Infernal
+        {
             ZoneType::BioZone
-        } else if orbit.zone == ZoneType::BioZone && climate == WorldClimateType::Infernal {
+        } else if orbit.zone == ZoneType::BioZone
+            && temp_category == WorldTemperatureCategory::Infernal
+        {
             ZoneType::InnerZone
         } else if orbit.zone == ZoneType::BioZone
-            && climate == WorldClimateType::Frozen
+            && temp_category == WorldTemperatureCategory::Frozen
             && blackbody_temperature > 150
         {
             ZoneType::InnerZone
         } else if orbit.zone == ZoneType::BioZone
-            && climate == WorldClimateType::Frozen
+            && temp_category == WorldTemperatureCategory::Frozen
             && blackbody_temperature <= 150
         {
             ZoneType::OuterZone
