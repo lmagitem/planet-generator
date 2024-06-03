@@ -30,9 +30,10 @@ pub struct TelluricBodyDetails {
     pub volcanism: f32,
     /// An indication of the levels of tectonic activity in this world, from 0 to 100 (check `get_tectonics_level` to know what the numbers correspond to).
     pub tectonic_activity: f32,
+    /// An indication of the levels of average relative humidity in this world.
+    pub humidity: f32,
     /// A descriptive name for the world’s over-all surface temperature.
     pub temperature_category: WorldTemperatureCategory,
-    // pub humidity: f32,
     // pub landmasses: u32,
     // pub territories: Vec<Territory>,
     // pub atmospheric_composition: AtmosphericCompositionType,
@@ -54,6 +55,7 @@ impl TelluricBodyDetails {
         ice_over_land: f32,
         volcanism: f32,
         tectonic_activity: f32,
+        humidity: f32,
         climate: WorldTemperatureCategory,
     ) -> Self {
         Self {
@@ -69,6 +71,7 @@ impl TelluricBodyDetails {
             ice_over_land,
             volcanism,
             tectonic_activity,
+            humidity,
             temperature_category: climate,
         }
     }

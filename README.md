@@ -57,7 +57,7 @@ This is the current roadmap of the library:
   - [ ] Life presence
   - [ ] Points of interest
   - [ ] Map generation
-  - [ ] Proto planets
+  - [x] Proto planets
   - [ ] Exotic planets
 - [ ] Species generation
   - [ ] Add species using the given settings

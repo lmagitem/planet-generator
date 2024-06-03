@@ -58,6 +58,7 @@ impl WorldGenerator {
                     0.0,
                     0.0,
                     0.0,
+                    0.0,
                     WorldTemperatureCategory::Frozen,
                 )),
             }),
@@ -123,6 +124,7 @@ impl WorldGenerator {
             size,
             density,
             body_type,
+            world_type,
             &special_traits,
             tidal_heating,
             orbit.clone().unwrap_or_default().rotation,
@@ -172,6 +174,7 @@ impl WorldGenerator {
             &settings,
             gravity,
             size,
+            world_type,
             &special_traits,
             core_heat,
         );
@@ -184,11 +187,13 @@ impl WorldGenerator {
             moons,
             &settings,
             size,
+            world_type,
             &special_traits,
             core_heat,
             hydrosphere,
             volcanism,
         );
+        // TODO: Change to GeoActive for those with very high volcanism?
 
         let mut atmospheric_pressure = generate_atmosphere(
             coord,
@@ -274,6 +279,9 @@ impl WorldGenerator {
         let ice_over_land = hydrosphere_and_cryosphere.2;
         let land_area_percentage = 100.0 - hydrosphere - ice_over_water - ice_over_land;
 
+        // TODO: Humidity
+        let humidity = 0.0;
+
         // TODO: Atmospheric composition
         let present_volatiles: Vec<ChemicalComponent> = Vec::new();
         let atmospheric_composition = {
@@ -358,6 +366,7 @@ impl WorldGenerator {
                     ice_over_land,
                     volcanism,
                     tectonics,
+                    humidity,
                     temperature_category,
                 )),
             )),
@@ -389,12 +398,15 @@ impl WorldGenerator {
         );
 
         let to_roll = match world_type {
-            CelestialBodyWorldType::Greenhouse | CelestialBodyWorldType::Chthonian => (0, 0, 0, 0),
+            CelestialBodyWorldType::Greenhouse
+            | CelestialBodyWorldType::Chthonian
+            | CelestialBodyWorldType::VolatilesGiant
+            | CelestialBodyWorldType::ProtoWorld => (0, 0, 0, 0),
             CelestialBodyWorldType::Ice | CelestialBodyWorldType::Hadean => {
                 (10000, 7000, 6500, 10000)
             }
             CelestialBodyWorldType::DirtySnowball => (10000, 3000, 2000, 10000),
-            CelestialBodyWorldType::Sulfur => match temperature_category {
+            CelestialBodyWorldType::GeoActive => match temperature_category {
                 WorldTemperatureCategory::Frozen
                 | WorldTemperatureCategory::VeryCold
                 | WorldTemperatureCategory::Cold
@@ -433,7 +445,6 @@ impl WorldGenerator {
                     WorldTemperatureCategory::Infernal => (0, 0, 0, 0),
                 }
             }
-            CelestialBodyWorldType::VolatilesGiant => (0, 0, 0, 0),
         };
         cryosphere = if to_roll.0 == 0 {
             0.0
@@ -665,7 +676,7 @@ impl WorldGenerator {
                 }
             }
             CelestialBodyWorldType::Ammonia => 0.84,
-            CelestialBodyWorldType::Sulfur => 0.77,
+            CelestialBodyWorldType::GeoActive => 0.77,
             CelestialBodyWorldType::Hadean => 0.67,
             CelestialBodyWorldType::Rock => {
                 if size == CelestialBodySize::Standard || size == CelestialBodySize::Large {
@@ -689,6 +700,7 @@ impl WorldGenerator {
             }
             CelestialBodyWorldType::Greenhouse => 0.77,
             CelestialBodyWorldType::Chthonian => 0.97,
+            CelestialBodyWorldType::ProtoWorld => 1.21,
             _ => 0.97,
         };
         let greenhouse_factor = if atmospheric_pressure <= 1.0 {
@@ -713,9 +725,14 @@ impl WorldGenerator {
         settings: &GenerationSettings,
         gravity: f32,
         size: CelestialBodySize,
+        world_type: CelestialBodyWorldType,
         special_traits: &Vec<CelestialBodySpecialTrait>,
         core_heat: CelestialBodyCoreHeat,
     ) -> f32 {
+        if world_type == CelestialBodyWorldType::ProtoWorld {
+            return 100.0;
+        }
+
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
             &format!(
@@ -773,11 +790,16 @@ impl WorldGenerator {
         moons: &Vec<OrbitalPoint>,
         settings: &GenerationSettings,
         size: CelestialBodySize,
+        world_type: CelestialBodyWorldType,
         special_traits: &Vec<CelestialBodySpecialTrait>,
         core_heat: CelestialBodyCoreHeat,
         hydrosphere: f32,
         volcanism: f32,
     ) -> f32 {
+        if world_type == CelestialBodyWorldType::ProtoWorld {
+            return 100.0;
+        }
+
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
             &format!(
@@ -1080,6 +1102,7 @@ impl WorldGenerator {
         size: CelestialBodySize,
         density: f32,
         body_type: TelluricBodyComposition,
+        world_type: CelestialBodyWorldType,
         special_traits: &Vec<CelestialBodySpecialTrait>,
         tidal_heating: u32,
         rotation_speed: f32,
@@ -1088,6 +1111,8 @@ impl WorldGenerator {
     ) -> CelestialBodyCoreHeat {
         if size == CelestialBodySize::Tiny {
             CelestialBodyCoreHeat::FrozenCore
+        } else if world_type == CelestialBodyWorldType::ProtoWorld {
+            CelestialBodyCoreHeat::IntenseCore
         } else {
             let mut rng = SeededDiceRoller::new(
                 &settings.seed,
@@ -1377,7 +1402,7 @@ fn generate_atmosphere(
         match world_type {
             CelestialBodyWorldType::Ice
             | CelestialBodyWorldType::DirtySnowball
-            | CelestialBodyWorldType::Sulfur => {
+            | CelestialBodyWorldType::GeoActive => {
                 if size == CelestialBodySize::Tiny && volcanism_and_tectonics < 10.0 {
                     0.0
                 } else {
@@ -1468,7 +1493,7 @@ fn generate_atmosphere(
             (1.2, 1.5),
         ];
         let atmospheric_pressure_bracket: (f32, f32) = (match world_type {
-            CelestialBodyWorldType::Sulfur | CelestialBodyWorldType::Ammonia => {
+            CelestialBodyWorldType::GeoActive | CelestialBodyWorldType::Ammonia => {
                 generic_pressure_table
             }
             CelestialBodyWorldType::Ocean | CelestialBodyWorldType::Terrestrial => {

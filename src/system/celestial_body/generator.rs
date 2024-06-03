@@ -111,8 +111,17 @@ pub(crate) fn get_world_type(
     body_type: CelestialBodyComposition,
     blackbody_temperature: u32,
     primary_star_mass: f64,
+    star_age: f32,
     rng: &mut SeededDiceRoller,
 ) -> CelestialBodyWorldType {
+    if blackbody_temperature > 1272
+        // TODO: Add if special_trait == rogue planet, skip the following conditions, or on the contrary randomly set protoworld:
+        || (star_age <= 0.15 && size == CelestialBodySize::Small)
+        || (star_age <= 0.2 && size == CelestialBodySize::Standard)
+        || (star_age <= 0.3 && size == CelestialBodySize::Large)
+    {
+        return CelestialBodyWorldType::ProtoWorld;
+    }
     match size {
         CelestialBodySize::Puny | CelestialBodySize::Tiny => {
             if blackbody_temperature <= 140 && body_type != CelestialBodyComposition::Icy {

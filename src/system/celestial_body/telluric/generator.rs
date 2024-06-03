@@ -38,6 +38,7 @@ impl TelluricBodyDetails {
                 0.0,
                 0.0,
                 0.0,
+                0.0,
                 WorldTemperatureCategory::Frozen,
             )),
         }
@@ -135,6 +136,7 @@ impl TelluricBodyDetails {
                 CelestialBodyComposition::Rocky,
                 blackbody_temp,
                 primary_star_mass,
+                star_age,
                 &mut rng,
             );
 
@@ -370,6 +372,7 @@ impl TelluricBodyDetails {
                 0.0,
                 0.0,
                 0.0,
+                0.0,
                 WorldTemperatureCategory::Frozen,
             )),
         }
@@ -465,6 +468,7 @@ impl TelluricBodyDetails {
                 CelestialBodyComposition::Metallic,
                 blackbody_temp,
                 primary_star_mass,
+                star_age,
                 &mut rng,
             );
 

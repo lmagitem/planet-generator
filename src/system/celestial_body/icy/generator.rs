@@ -136,6 +136,7 @@ impl IcyBodyDetails {
                     CelestialBodyComposition::Icy,
                     blackbody_temp,
                     primary_star_mass,
+                    star_age,
                     &mut rng,
                 );
 

@@ -5,12 +5,14 @@ use std::fmt;
     Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, SmartDefault, Serialize, Deserialize,
 )]
 pub enum CelestialBodyWorldType {
+    /// Worlds of molten rock and tremendous volcanic releases, they are infernally hot, and are either newly formed or have experienced a tremendous cataclysm recently.
+    ProtoWorld,
     /// Worlds mainly made of ices and cold enough to have water ice and similar frozen volatiles on its surface. May have liquid oceans under the surface if conditions are ok.
     Ice,
     /// Worlds mainly made of rocks and cold enough to have water ice and similar frozen volatiles on its surface.
     DirtySnowball,
-    /// Worlds orbiting gas giants that experience tremendous amount of volcanic activity because of their proximity to the giant and other moons.
-    Sulfur,
+    /// Worlds that experience tremendous amount of volcanic and possibly tectonic activity because of tidal forces, extreme radioactivity or a young age.
+    GeoActive,
     /// Worlds not large enough to retain water vapor, and too hot to have much ice without atmosphere.
     #[default]
     Rock,
@@ -40,9 +42,10 @@ impl Display for CelestialBodyWorldType {
             f,
             "{}",
             match self {
+                CelestialBodyWorldType::ProtoWorld => "Proto-World",
                 CelestialBodyWorldType::Ice => "Ice Ball",
                 CelestialBodyWorldType::DirtySnowball => "Dirty Snowball",
-                CelestialBodyWorldType::Sulfur => "Sulfur",
+                CelestialBodyWorldType::GeoActive => "Geo-Active",
                 CelestialBodyWorldType::Rock => "Rock",
                 CelestialBodyWorldType::Hadean => "Hadean",
                 CelestialBodyWorldType::Ammonia => "Ammonia",
@@ -184,14 +187,14 @@ pub enum TectonicActivity {
     Extreme,
 }
 
-impl std::fmt::Display for crate::prelude::TectonicActivity {
+impl std::fmt::Display for TectonicActivity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            crate::prelude::TectonicActivity::None => write!(f, "No Tectonic Activity"),
-            crate::prelude::TectonicActivity::Light => write!(f, "Light Tectonic Activity"),
-            crate::prelude::TectonicActivity::Moderate => write!(f, "Moderate Tectonic Activity"),
-            crate::prelude::TectonicActivity::Heavy => write!(f, "Heavy Tectonic Activity"),
-            crate::prelude::TectonicActivity::Extreme => write!(f, "Extreme Tectonic Activity"),
+            TectonicActivity::None => write!(f, "No Tectonic Activity"),
+            TectonicActivity::Light => write!(f, "Light Tectonic Activity"),
+            TectonicActivity::Moderate => write!(f, "Moderate Tectonic Activity"),
+            TectonicActivity::Heavy => write!(f, "Heavy Tectonic Activity"),
+            TectonicActivity::Extreme => write!(f, "Extreme Tectonic Activity"),
         }
     }
 }
@@ -226,20 +229,38 @@ pub enum WorldTemperatureCategory {
     Infernal,
 }
 
-impl std::fmt::Display for crate::prelude::WorldTemperatureCategory {
+impl Display for WorldTemperatureCategory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            crate::prelude::WorldTemperatureCategory::Frozen => write!(f, "Frozen"),
-            crate::prelude::WorldTemperatureCategory::VeryCold => write!(f, "Very Cold"),
-            crate::prelude::WorldTemperatureCategory::Cold => write!(f, "Cold"),
-            crate::prelude::WorldTemperatureCategory::Chilly => write!(f, "Chilly"),
-            crate::prelude::WorldTemperatureCategory::Cool => write!(f, "Cool"),
-            crate::prelude::WorldTemperatureCategory::Temperate => write!(f, "Ideal"),
-            crate::prelude::WorldTemperatureCategory::Warm => write!(f, "Warm"),
-            crate::prelude::WorldTemperatureCategory::Tropical => write!(f, "Tropical"),
-            crate::prelude::WorldTemperatureCategory::Hot => write!(f, "Hot"),
-            crate::prelude::WorldTemperatureCategory::VeryHot => write!(f, "VeryHot"),
-            crate::prelude::WorldTemperatureCategory::Infernal => write!(f, "Infernal"),
+            WorldTemperatureCategory::Frozen => write!(f, "Frozen"),
+            WorldTemperatureCategory::VeryCold => write!(f, "Very Cold"),
+            WorldTemperatureCategory::Cold => write!(f, "Cold"),
+            WorldTemperatureCategory::Chilly => write!(f, "Chilly"),
+            WorldTemperatureCategory::Cool => write!(f, "Cool"),
+            WorldTemperatureCategory::Temperate => write!(f, "Ideal"),
+            WorldTemperatureCategory::Warm => write!(f, "Warm"),
+            WorldTemperatureCategory::Tropical => write!(f, "Tropical"),
+            WorldTemperatureCategory::Hot => write!(f, "Hot"),
+            WorldTemperatureCategory::VeryHot => write!(f, "VeryHot"),
+            WorldTemperatureCategory::Infernal => write!(f, "Infernal"),
+        }
+    }
+}
+
+/// A descriptive name for the world’s over-all surface climate.
+#[derive(
+    Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
+)]
+pub enum WorldClimateType {
+    /// Temperature below 244 K (-29.15°C).
+    #[default]
+    Frozen,
+}
+
+impl Display for WorldClimateType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            WorldClimateType::Frozen => write!(f, "Frozen"),
         }
     }
 }
