@@ -17,11 +17,11 @@ pub fn get_category_from_temperature(blackbody_temperature: u32) -> WorldTempera
         } else if blackbody_temperature < 311 {
             WorldTemperatureCategory::Warm
         } else if blackbody_temperature < 322 {
-            WorldTemperatureCategory::Tropical
-        } else if blackbody_temperature < 333 {
             WorldTemperatureCategory::Hot
-        } else if blackbody_temperature < 344 {
+        } else if blackbody_temperature < 333 {
             WorldTemperatureCategory::VeryHot
+        } else if blackbody_temperature < 344 {
+            WorldTemperatureCategory::Scorching
         } else {
             WorldTemperatureCategory::Infernal
         }

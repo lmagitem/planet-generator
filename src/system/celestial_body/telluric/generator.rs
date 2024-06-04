@@ -40,6 +40,7 @@ impl TelluricBodyDetails {
                 0.0,
                 0.0,
                 WorldTemperatureCategory::Frozen,
+                WorldClimateType::Dead,
             )),
         }
     }
@@ -374,6 +375,7 @@ impl TelluricBodyDetails {
                 0.0,
                 0.0,
                 WorldTemperatureCategory::Frozen,
+                WorldClimateType::Dead,
             )),
         }
     }

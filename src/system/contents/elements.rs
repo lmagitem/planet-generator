@@ -218,10 +218,12 @@ impl ChemicalComponent {
     /// use crate::planet_generator::prelude::*;
     ///
     /// let water = ChemicalComponent::Water;
-    /// let can_exist = water.can_exist_as_liquid(280.0, 1.0);
+    /// let can_exist = water.can_exist_as_liquid(280, 1.0);
     /// println!("Can water exist as liquid at 280 K and 1 atm? {}", can_exist);
     /// ```
-    pub fn can_exist_as_liquid(&self, temperature: f64, pressure: f64) -> bool {
+    pub fn can_exist_as_liquid(&self, temperature: u32, pressure: f32) -> bool {
+        let temperature = temperature as f64;
+        let pressure = pressure as f64;
         if let Some((triple_point_temp, triple_point_pressure)) = self.triple_point() {
             if let Some(boiling_point_temp) = self.boiling_point() {
                 return temperature > triple_point_temp
@@ -246,14 +248,16 @@ impl ChemicalComponent {
     /// use crate::planet_generator::prelude::*;
     ///
     /// let water = ChemicalComponent::Water;
-    /// let can_exist = water.can_exist_as_gas(400.0, 1.0);
+    /// let can_exist = water.can_exist_as_gas(400, 1.0);
     /// println!("Can water exist as gas at 400 K and 1 atm? {}", can_exist);
     /// ```
-    pub fn can_exist_as_gas(&self, temperature: f64, pressure: f64) -> bool {
+    pub fn can_exist_as_gas(&self, temperature: u32, pressure: f32) -> bool {
+        let temperature = temperature as f64;
+        let pressure = pressure as f64;
         if let Some((triple_point_temp, triple_point_pressure)) = self.triple_point() {
             if let Some(boiling_point_temp) = self.boiling_point() {
                 // Check if the temperature is above the boiling point or above the triple point temperature
-                if temperature > boiling_point_temp {
+                if temperature > boiling_point_temp as f64 {
                     return true;
                 } else if temperature > triple_point_temp && pressure < triple_point_pressure {
                     return true;
@@ -266,7 +270,7 @@ impl ChemicalComponent {
         false
     }
 
-    pub fn components_liquid_at(temperature: f64, pressure: f64) -> Option<Vec<ChemicalComponent>> {
+    pub fn components_liquid_at(temperature: u32, pressure: f32) -> Option<Vec<ChemicalComponent>> {
         let mut possible_liquids = Vec::new();
         let mut possible_lowest_pressure = None;
 
@@ -279,7 +283,7 @@ impl ChemicalComponent {
                 } else if let Some((triple_point_temp, triple_point_pressure)) =
                     component.triple_point()
                 {
-                    if component.can_exist_as_liquid(temperature, triple_point_pressure) {
+                    if component.can_exist_as_liquid(temperature, triple_point_pressure as f32) {
                         if let Some((_, lowest_pressure)) = possible_lowest_pressure {
                             if triple_point_pressure < lowest_pressure {
                                 possible_lowest_pressure = Some((component, triple_point_pressure));
@@ -645,39 +649,39 @@ mod tests {
 
     #[test]
     fn test_can_exist_as_liquid() {
-        assert!(ChemicalComponent::Water.can_exist_as_liquid(280.0, 1.0));
-        assert!(!ChemicalComponent::Water.can_exist_as_liquid(280.0, 0.001));
-        assert!(ChemicalComponent::Oxygen.can_exist_as_liquid(60.0, 0.002));
-        assert!(!ChemicalComponent::Oxygen.can_exist_as_liquid(60.0, 0.0005));
-        assert!(ChemicalComponent::CarbonDioxide.can_exist_as_liquid(220.0, 6.0));
-        assert!(!ChemicalComponent::CarbonDioxide.can_exist_as_liquid(220.0, 4.0));
+        assert!(ChemicalComponent::Water.can_exist_as_liquid(280, 1.0));
+        assert!(!ChemicalComponent::Water.can_exist_as_liquid(280, 0.001));
+        assert!(ChemicalComponent::Oxygen.can_exist_as_liquid(60, 0.002));
+        assert!(!ChemicalComponent::Oxygen.can_exist_as_liquid(60, 0.0005));
+        assert!(ChemicalComponent::CarbonDioxide.can_exist_as_liquid(220, 6.0));
+        assert!(!ChemicalComponent::CarbonDioxide.can_exist_as_liquid(220, 4.0));
     }
 
     #[test]
     fn test_can_exist_as_gas() {
-        assert!(ChemicalComponent::Water.can_exist_as_gas(400.0, 1.0));
-        assert!(ChemicalComponent::Water.can_exist_as_gas(300.0, 0.005));
-        assert!(ChemicalComponent::Oxygen.can_exist_as_gas(100.0, 0.001));
-        assert!(!ChemicalComponent::Oxygen.can_exist_as_gas(50.0, 1.0));
-        assert!(ChemicalComponent::CarbonDioxide.can_exist_as_gas(220.0, 5.0));
-        assert!(!ChemicalComponent::CarbonDioxide.can_exist_as_gas(220.0, 6.0));
+        assert!(ChemicalComponent::Water.can_exist_as_gas(400, 1.0));
+        assert!(ChemicalComponent::Water.can_exist_as_gas(300, 0.005));
+        assert!(ChemicalComponent::Oxygen.can_exist_as_gas(100, 0.001));
+        assert!(!ChemicalComponent::Oxygen.can_exist_as_gas(50, 1.0));
+        assert!(ChemicalComponent::CarbonDioxide.can_exist_as_gas(220, 5.0));
+        assert!(!ChemicalComponent::CarbonDioxide.can_exist_as_gas(220, 6.0));
     }
 
     #[test]
     fn test_components_liquid_at() {
-        let components = ChemicalComponent::components_liquid_at(280.0, 1.0);
+        let components = ChemicalComponent::components_liquid_at(280, 1.0);
         assert!(components.is_some());
         let components = components.unwrap();
         assert!(components.contains(&ChemicalComponent::Water));
         assert!(!components.contains(&ChemicalComponent::Oxygen));
 
-        let components = ChemicalComponent::components_liquid_at(60.0, 0.002);
+        let components = ChemicalComponent::components_liquid_at(60, 0.002);
         assert!(components.is_some());
         let components = components.unwrap();
         assert!(components.contains(&ChemicalComponent::Oxygen));
         assert!(!components.contains(&ChemicalComponent::Water));
 
-        let components = ChemicalComponent::components_liquid_at(220.0, 6.0);
+        let components = ChemicalComponent::components_liquid_at(220, 6.0);
         assert!(components.is_some());
         let components = components.unwrap();
         assert!(components.contains(&ChemicalComponent::CarbonDioxide));

@@ -17,7 +17,6 @@ pub struct TelluricBodyDetails {
     pub magnetic_field: MagneticFieldStrength,
     /// This body's atmospheric pressure, in atm, with 1 atm being equal to the average sea-level air pressure on Earth.
     pub atmospheric_pressure: f32,
-    // pub atmospheric_density: AtmosphericDensityType,
     /// Percentage of this world that is covered by some kind of liquid.
     pub hydrosphere: f32,
     /// Percentage of water on this world that is covered by some kind of ice.
@@ -30,10 +29,12 @@ pub struct TelluricBodyDetails {
     pub volcanism: f32,
     /// An indication of the levels of tectonic activity in this world, from 0 to 100 (check `get_tectonics_level` to know what the numbers correspond to).
     pub tectonic_activity: f32,
-    /// An indication of the levels of average relative humidity in this world.
+    /// An indication of the levels of average relative water humidity in this world. Value will be -1.0 if non-applicable (no atmosphere or temperature < -50°C for example).
     pub humidity: f32,
     /// A descriptive name for the world’s over-all surface temperature.
     pub temperature_category: WorldTemperatureCategory,
+    /// A descriptive name for the world’s over-all climate.
+    pub climate: WorldClimateType,
     // pub landmasses: u32,
     // pub territories: Vec<Territory>,
     // pub atmospheric_composition: AtmosphericCompositionType,
@@ -56,7 +57,8 @@ impl TelluricBodyDetails {
         volcanism: f32,
         tectonic_activity: f32,
         humidity: f32,
-        climate: WorldTemperatureCategory,
+        temperature_category: WorldTemperatureCategory,
+        climate: WorldClimateType,
     ) -> Self {
         Self {
             body_type,
@@ -72,7 +74,8 @@ impl TelluricBodyDetails {
             volcanism,
             tectonic_activity,
             humidity,
-            temperature_category: climate,
+            temperature_category,
+            climate,
         }
     }
 

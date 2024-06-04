@@ -60,6 +60,7 @@ impl WorldGenerator {
                     0.0,
                     0.0,
                     WorldTemperatureCategory::Frozen,
+                    WorldClimateType::Dead,
                 )),
             }),
             moons
@@ -277,10 +278,22 @@ impl WorldGenerator {
         hydrosphere = hydrosphere_and_cryosphere.0;
         let ice_over_water = hydrosphere_and_cryosphere.1;
         let ice_over_land = hydrosphere_and_cryosphere.2;
-        let land_area_percentage = 100.0 - hydrosphere - ice_over_water - ice_over_land;
+        let cryosphere = ice_over_water + ice_over_land;
+        let land_area_percentage = 100.0 - hydrosphere - cryosphere;
 
-        // TODO: Humidity
-        let humidity = 0.0;
+        let humidity = Self::generate_relative_humidity(
+            coord,
+            system_index,
+            star_id,
+            orbital_point_id,
+            &settings,
+            blackbody_temperature,
+            &special_traits,
+            hydrosphere,
+            atmospheric_pressure,
+            cryosphere,
+            land_area_percentage,
+        );
 
         // TODO: Atmospheric composition
         let present_volatiles: Vec<ChemicalComponent> = Vec::new();
@@ -332,6 +345,123 @@ impl WorldGenerator {
             let composition: Vec<ChemicalComponent>;
         };
 
+        // TODO: Life
+        let mut has_life = true;
+
+        // TODO: Climate
+        let climate = {
+            let mut climate = None;
+
+            if world_type != CelestialBodyWorldType::Terrestrial
+                && world_type != CelestialBodyWorldType::Ocean
+            {
+                climate = Some(WorldClimateType::Dead)
+            }
+
+            if climate.is_none() {
+                has_life = SeededDiceRoller::new(
+                    &settings.seed,
+                    &format!("sys_{}_{}_elem_lack", coord, system_index),
+                )
+                .gen_bool();
+                for special_trait in &special_traits {
+                    if let CelestialBodySpecialTrait::TideLocked(TideLockTarget::Orbited) =
+                        special_trait
+                    {
+                        climate = Some(WorldClimateType::Ribbon);
+                    }
+                }
+            }
+
+            if climate.is_none() {
+                let humidity_rating = if humidity < 35.0 {
+                    0 // Low
+                } else if humidity < 75.0 {
+                    2 // Moderate
+                } else {
+                    3 // High
+                };
+                let hydrosphere_rating = if hydrosphere < 35.0 {
+                    0 // Low
+                } else if hydrosphere < 50.0 {
+                    1 // Moderate-
+                } else if hydrosphere < 75.0 {
+                    2 // Moderate+
+                } else if hydrosphere < 90.0 {
+                    3 // High
+                } else {
+                    4 // Ocean
+                };
+                let cryosphere_rating = if cryosphere < 10.0 {
+                    0 // Low
+                } else if cryosphere < 30.0 {
+                    2 // Moderate
+                } else {
+                    3 // High
+                };
+
+                if climate.is_none() && humidity_rating <= 0 {
+                    // Low humidity
+                    if hydrosphere_rating <= 0 && cryosphere_rating <= 1 {
+                        climate = Some(WorldClimateType::Desert);
+                    }
+                }
+                if climate.is_none() && humidity_rating <= 2 {
+                    // Moderate humidity
+                    if climate.is_none() && hydrosphere_rating <= 0 && cryosphere_rating <= 2 {
+                        if blackbody_temperature < 291 && has_life {
+                            climate = Some(WorldClimateType::Steppe);
+                        } else if has_life {
+                            climate = Some(WorldClimateType::Savanna);
+                        }
+                    }
+                    if climate.is_none() && hydrosphere_rating <= 2 {
+                        if cryosphere_rating <= 2 {
+                            climate = Some(WorldClimateType::Terrestrial);
+                        } else if blackbody_temperature <= 278 && has_life {
+                            climate = Some(WorldClimateType::Taiga);
+                        }
+                    }
+                }
+                if climate.is_none() && humidity_rating <= 10 {
+                    // High humidity
+                    if climate.is_none() && hydrosphere_rating <= 0 {
+                        if blackbody_temperature <= 267 {
+                            climate = Some(WorldClimateType::Tundra);
+                        } else {
+                            climate = Some(WorldClimateType::MudBall);
+                        }
+                    }
+                    if climate.is_none() && hydrosphere_rating <= 1 {
+                        if cryosphere_rating <= 0 && has_life {
+                            climate = Some(WorldClimateType::Jungle);
+                        }
+                    }
+                    if climate.is_none() && hydrosphere_rating <= 2 {
+                        if cryosphere_rating <= 0 && has_life {
+                            climate = Some(WorldClimateType::Tropical);
+                        }
+                    }
+                    if climate.is_none() && hydrosphere_rating <= 3 {
+                        if cryosphere_rating <= 1 && has_life {
+                            climate = Some(WorldClimateType::Rainforest);
+                        }
+                    }
+                    if climate.is_none() && blackbody_temperature <= 263 {
+                        climate = Some(WorldClimateType::Arctic);
+                    }
+                    if climate.is_none() && hydrosphere_rating >= 4 {
+                        climate = Some(WorldClimateType::Ocean);
+                    }
+                    if climate.is_none() && hydrosphere_rating <= 1 {
+                        climate = Some(WorldClimateType::MudBall);
+                    }
+                }
+            }
+
+            climate.unwrap_or_default()
+        };
+
         OrbitalPoint::new(
             orbital_point_id,
             Some(get_orbit_with_updated_zone(
@@ -368,10 +498,145 @@ impl WorldGenerator {
                     tectonics,
                     humidity,
                     temperature_category,
+                    climate,
                 )),
             )),
             orbits.clone(),
         )
+    }
+
+    fn generate_relative_humidity(
+        coord: SpaceCoordinates,
+        system_index: u16,
+        star_id: u32,
+        orbital_point_id: u32,
+        settings: &GenerationSettings,
+        blackbody_temperature: u32,
+        special_traits: &Vec<CelestialBodySpecialTrait>,
+        hydrosphere: f32,
+        atmospheric_pressure: f32,
+        cryosphere: f32,
+        land_area_percentage: f32,
+    ) -> f32 {
+        if blackbody_temperature > 223 && atmospheric_pressure > 0.01 {
+            let mut rng = SeededDiceRoller::new(
+                &settings.seed,
+                &format!(
+                    "sys_{}_{}_str_{}_bdy{}_hmdt",
+                    coord, system_index, star_id, orbital_point_id
+                ),
+            );
+
+            let ocean_humidity = {
+                if blackbody_temperature <= 223 {
+                    80.0
+                } else if blackbody_temperature <= 243 {
+                    75.0
+                } else if blackbody_temperature <= 273 {
+                    80.0
+                } else if blackbody_temperature <= 303 {
+                    75.0
+                } else if blackbody_temperature <= 313 {
+                    70.0
+                } else if blackbody_temperature <= 323 {
+                    65.0
+                } else if blackbody_temperature <= 333 {
+                    60.0
+                } else if blackbody_temperature <= 343 {
+                    55.0
+                } else if blackbody_temperature <= 363 {
+                    45.0
+                } else {
+                    35.0
+                }
+            };
+            let ice_humidity = {
+                if blackbody_temperature <= 163 {
+                    100.0
+                } else if blackbody_temperature <= 173 {
+                    95.0
+                } else if blackbody_temperature <= 183 {
+                    90.0
+                } else if blackbody_temperature <= 193 {
+                    85.0
+                } else if blackbody_temperature <= 203 {
+                    80.0
+                } else if blackbody_temperature <= 213 {
+                    85.0
+                } else if blackbody_temperature <= 223 {
+                    82.5
+                } else if blackbody_temperature <= 253 {
+                    80.0
+                } else if blackbody_temperature <= 263 {
+                    77.5
+                } else if blackbody_temperature <= 273 {
+                    72.5
+                } else if blackbody_temperature <= 283 {
+                    67.5
+                } else if blackbody_temperature <= 293 {
+                    62.5
+                } else if blackbody_temperature <= 303 {
+                    57.5
+                } else if blackbody_temperature <= 313 {
+                    52.5
+                } else if blackbody_temperature <= 323 {
+                    47.5
+                } else if blackbody_temperature <= 333 {
+                    42.5
+                } else if blackbody_temperature <= 343 {
+                    37.5
+                } else {
+                    32.5
+                }
+            };
+
+            let mut is_there_water = false;
+            let mut is_there_something_else_than_water = false;
+            for special_trait in special_traits {
+                if let CelestialBodySpecialTrait::Oceans(peculiar_component)
+                | CelestialBodySpecialTrait::Lakes(peculiar_component) = special_trait
+                {
+                    if *peculiar_component == ChemicalComponent::Water {
+                        is_there_water = true;
+                    } else {
+                        is_there_something_else_than_water = true;
+                    }
+                }
+            }
+
+            let land_humidity = if hydrosphere >= 0.01 && is_there_water {
+                (((rng.roll(1, 1000, 0) as f32 / 100.0) + hydrosphere) / 2.0)
+                    .min(100.0)
+                    .max(0.0)
+            } else {
+                (rng.roll(1, 15000, -10000) as f32 / 10000.0)
+                    .min(10.0)
+                    .max(0.0)
+            };
+
+            if is_there_water || cryosphere <= 0.01 {
+                // The sum of relative humidity everywhere
+                ((hydrosphere / 100.0) * ocean_humidity)
+                    + ((cryosphere / 100.0) * ice_humidity)
+                    + (land_area_percentage / 100.0) * land_humidity
+            } else if is_there_something_else_than_water || cryosphere <= 0.01 {
+                let ocean_water_percentage = rng.roll(1, 1000, -500) as f32 / 100.0;
+                let ice_water_percentage = rng.roll(1, 1000, 0) as f32 / 100.0;
+
+                // The sum of relative humidity everywhere, taking into account that oceans aren't primarily made of water, and ice might not be either
+                ((ocean_water_percentage / 100.0) * ice_humidity)
+                    + ((ice_water_percentage / 100.0) * ice_humidity)
+                    + (land_area_percentage / 100.0) * land_humidity
+            } else {
+                let ice_water_percentage = rng.roll(1, 1000, 0) as f32 / 100.0;
+
+                // The sum of relative humidity everywhere, taking into account that ices aren't primarily made of water
+                ((ice_water_percentage / 100.0) * ice_humidity)
+                    + (land_area_percentage / 100.0) * 0.0
+            }
+        } else {
+            -1.0
+        }
     }
 
     fn generate_cryosphere_and_adjust_hydrosphere(
@@ -439,9 +704,9 @@ impl WorldGenerator {
                     WorldTemperatureCategory::Cool => (3000, 1000, 500, 5000),
                     WorldTemperatureCategory::Temperate => (2500, 450, 300, 3000),
                     WorldTemperatureCategory::Warm => (1500, 350, 0, 2000),
-                    WorldTemperatureCategory::Tropical => (500, 250, 0, 1000),
-                    WorldTemperatureCategory::Hot => (0, 0, 0, 0),
+                    WorldTemperatureCategory::Hot => (500, 250, 0, 1000),
                     WorldTemperatureCategory::VeryHot => (0, 0, 0, 0),
+                    WorldTemperatureCategory::Scorching => (0, 0, 0, 0),
                     WorldTemperatureCategory::Infernal => (0, 0, 0, 0),
                 }
             }
@@ -510,10 +775,9 @@ impl WorldGenerator {
                 || world_type == CelestialBodyWorldType::Ocean
             {
                 chosen_component = Some(ChemicalComponent::Water);
-            } else if let Some(components) = ChemicalComponent::components_liquid_at(
-                blackbody_temperature as f64,
-                atmospheric_pressure as f64,
-            ) {
+            } else if let Some(components) =
+                ChemicalComponent::components_liquid_at(blackbody_temperature, atmospheric_pressure)
+            {
                 if !components.is_empty() {
                     // Pick the most likely component to be the majority of liquid
                     let mut candidates: Vec<(ChemicalComponent, f64)> = vec![];
@@ -528,10 +792,10 @@ impl WorldGenerator {
 
                     if chosen_component.is_some() {
                         // If only one component was available, and not at the current pressure, modify the current pressure.
-                        if !chosen_component.unwrap().can_exist_as_liquid(
-                            blackbody_temperature as f64,
-                            atmospheric_pressure as f64,
-                        ) {
+                        if !chosen_component
+                            .unwrap()
+                            .can_exist_as_liquid(blackbody_temperature, atmospheric_pressure)
+                        {
                             if let Some((_, triple_point_pressure)) =
                                 chosen_component.unwrap().triple_point()
                             {
@@ -657,6 +921,7 @@ impl WorldGenerator {
         hydrosphere: f32,
         atmospheric_pressure: f32,
     ) -> u32 {
+        // TODO: Make sure that proto-worlds are always hotter than rock melting point
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
             &format!(

@@ -220,11 +220,11 @@ pub enum WorldTemperatureCategory {
     /// Temperature between 300 K (26.85°C) and 311 K (37.85°C).
     Warm,
     /// Temperature between 311 K (37.85°C) and 322 K (48.85°C).
-    Tropical,
-    /// Temperature between 322 K (48.85°C) and 333 K (59.85°C).
     Hot,
-    /// Temperature between 333 K (59.85°C) and 344 K (70.85°C).
+    /// Temperature between 322 K (48.85°C) and 333 K (59.85°C).
     VeryHot,
+    /// Temperature between 333 K (59.85°C) and 344 K (70.85°C).
+    Scorching,
     /// Temperature above 344 K (70.85°C).
     Infernal,
 }
@@ -239,9 +239,9 @@ impl Display for WorldTemperatureCategory {
             WorldTemperatureCategory::Cool => write!(f, "Cool"),
             WorldTemperatureCategory::Temperate => write!(f, "Ideal"),
             WorldTemperatureCategory::Warm => write!(f, "Warm"),
-            WorldTemperatureCategory::Tropical => write!(f, "Tropical"),
             WorldTemperatureCategory::Hot => write!(f, "Hot"),
-            WorldTemperatureCategory::VeryHot => write!(f, "VeryHot"),
+            WorldTemperatureCategory::VeryHot => write!(f, "Very Hot"),
+            WorldTemperatureCategory::Scorching => write!(f, "Scorching"),
             WorldTemperatureCategory::Infernal => write!(f, "Infernal"),
         }
     }
@@ -252,15 +252,40 @@ impl Display for WorldTemperatureCategory {
     Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, SmartDefault, Serialize, Deserialize,
 )]
 pub enum WorldClimateType {
-    /// Temperature below 244 K (-29.15°C).
     #[default]
-    Frozen,
+    Terrestrial,
+    MudBall,
+    Ocean,
+    Arctic,
+    Rainforest,
+    Tropical,
+    Jungle,
+    Tundra,
+    Taiga,
+    Savanna,
+    Steppe,
+    Desert,
+    Ribbon,
+    Dead,
 }
 
 impl Display for WorldClimateType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            WorldClimateType::Frozen => write!(f, "Frozen"),
+            WorldClimateType::Terrestrial => write!(f, "Terrestrial"),
+            WorldClimateType::MudBall => write!(f, "Mud Ball"),
+            WorldClimateType::Ocean => write!(f, "Ocean"),
+            WorldClimateType::Arctic => write!(f, "Arctic"),
+            WorldClimateType::Rainforest => write!(f, "Rainforest"),
+            WorldClimateType::Tropical => write!(f, "Tropical"),
+            WorldClimateType::Jungle => write!(f, "Jungle"),
+            WorldClimateType::Tundra => write!(f, "Tundra"),
+            WorldClimateType::Taiga => write!(f, "Taiga"),
+            WorldClimateType::Savanna => write!(f, "Savanna"),
+            WorldClimateType::Steppe => write!(f, "Steppe"),
+            WorldClimateType::Desert => write!(f, "Desert"),
+            WorldClimateType::Ribbon => write!(f, "Ribbon"),
+            WorldClimateType::Dead => write!(f, "Dead"),
         }
     }
 }
