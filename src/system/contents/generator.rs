@@ -5,18 +5,19 @@ use crate::system::contents::zones::collect_all_zones;
 use crate::system::orbital_point::utils::sort_orbital_points_by_average_distance;
 
 pub fn generate_stars_systems(
+    system_gen_try: u32,
     all_objects: &mut Vec<OrbitalPoint>,
     system_traits: &Vec<SystemPeculiarity>,
     system_index: u16,
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
 ) {
-    let seed = galaxy.settings.seed.clone();
+    let seed: Rc<str> = format!("{}{}", system_gen_try, &galaxy.settings.seed).into();
     let mut next_id = get_next_id(all_objects);
     let all_zones = collect_all_zones(all_objects);
 
     let mut number_of_bodies_per_star =
-        collect_number_of_bodies_per_star(all_objects, &system_index, &coord, galaxy);
+        collect_number_of_bodies_per_star(all_objects, &system_index, &coord, &*seed);
     let primary_star_mass = all_objects
         .iter()
         .filter_map(|o| {
@@ -56,7 +57,7 @@ fn collect_number_of_bodies_per_star(
     all_objects: &mut Vec<OrbitalPoint>,
     system_index: &u16,
     coord: &SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    seed: &str,
 ) -> Vec<(i32, usize)> {
     all_objects
         .iter_mut()
@@ -64,7 +65,7 @@ fn collect_number_of_bodies_per_star(
         .filter_map(|(index, o)| {
             if let AstronomicalObject::Star(ref mut star) = o.object {
                 Some((
-                    generate_number_of_bodies(system_index, coord, galaxy, star),
+                    generate_number_of_bodies(system_index, coord, seed, star),
                     index,
                 ))
             } else {
@@ -1708,11 +1709,11 @@ fn handle_proto_gas_giant_placement(
 fn generate_number_of_bodies(
     system_index: &u16,
     coord: &SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    seed: &str,
     star: &mut Star,
 ) -> i32 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        seed,
         &format!(
             "sys_{}_{}_str_{}_nbr_bdy",
             coord, system_index, star.orbital_point_id

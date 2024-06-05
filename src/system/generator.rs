@@ -18,60 +18,102 @@ impl StarSystem {
         sub_sector: &GalacticMapDivision,
         galaxy: &mut Galaxy,
     ) -> Self {
-        let center_id: u32;
-        let main_star_id: u32;
-        let mut all_objects: Vec<OrbitalPoint> = vec![];
+        let mut center_id: u32 = 0;
+        let mut main_star_id: u32 = 0;
+        let mut all_objects: Vec<OrbitalPoint> = Vec::new();
         // TODO: Did you add the special traits or is it just an empty array?
-        let mut special_traits: Vec<SystemPeculiarity> = vec![];
+        let mut special_traits: Vec<SystemPeculiarity> = Vec::new();
 
         let name = get_system_name(system_index, coord, galaxy);
 
-        let number_of_stars = generate_number_of_stars_in_system(system_index, coord, galaxy);
-        let mut stars = generate_stars(
-            number_of_stars,
-            system_index,
-            name.clone(),
-            coord,
-            hex,
-            sub_sector,
-            galaxy,
-        );
+        let mut accept_system = false;
+        let mut i = 0;
+        while !accept_system {
+            all_objects = Vec::new();
+            special_traits = Vec::new();
 
-        if stars.len() > 1 {
-            let result = generate_binary_relations(
-                &mut stars,
+            let number_of_stars =
+                generate_number_of_stars_in_system(i, system_index, coord, galaxy);
+            let mut stars = generate_stars(
+                i,
+                number_of_stars,
+                system_index,
+                name.clone(),
+                coord,
+                hex,
+                sub_sector,
+                galaxy,
+            );
+
+            if stars.len() > 1 {
+                let result = generate_binary_relations(
+                    i,
+                    &mut stars,
+                    &mut all_objects,
+                    system_index,
+                    coord,
+                    galaxy,
+                );
+                center_id = result.0;
+                main_star_id = result.1;
+
+                let mut calculated_ids = HashSet::new();
+                for id in all_objects.iter().map(|op| op.id).collect::<Vec<u32>>() {
+                    calculate_distance_from_system_center(
+                        id,
+                        &mut all_objects,
+                        &mut calculated_ids,
+                    );
+                }
+            } else {
+                let center =
+                    OrbitalPoint::new(0, None, AstronomicalObject::Star(stars.remove(0)), vec![]);
+                center_id = 0;
+                main_star_id = 0;
+                all_objects.push(center);
+            }
+
+            // TODO: Generate dynamic parameters for star orbits
+            update_existing_orbits(&mut all_objects);
+            generate_star_zones(&mut all_objects);
+            generate_stars_systems(
+                i,
                 &mut all_objects,
+                &special_traits,
                 system_index,
                 coord,
                 galaxy,
             );
-            center_id = result.0;
-            main_star_id = result.1;
+            update_existing_orbits(&mut all_objects);
 
-            let mut calculated_ids = HashSet::new();
-            for id in all_objects.iter().map(|op| op.id).collect::<Vec<u32>>() {
-                calculate_distance_from_system_center(id, &mut all_objects, &mut calculated_ids);
+            accept_system = if galaxy.settings.system.only_interesting {
+                let mut is_interesting = false;
+
+                is_interesting = all_objects
+                    .iter()
+                    .find(|o| {
+                        if let AstronomicalObject::TelluricBody(body) = o.object.clone() {
+                            if let CelestialBodyDetails::Telluric(details) = body.details {
+                                details.world_type == CelestialBodyWorldType::Terrestrial
+                                    || details.world_type == CelestialBodyWorldType::Ocean
+                            } else {
+                                false
+                            }
+                        } else {
+                            false
+                        }
+                    })
+                    .is_some();
+
+                is_interesting
+            } else {
+                true
+            };
+            i += 1;
+            if i > 5000 {
+                panic!("There should be at least one interesting system in every 5000 tries!");
             }
-        } else {
-            let center =
-                OrbitalPoint::new(0, None, AstronomicalObject::Star(stars.remove(0)), vec![]);
-            center_id = 0;
-            main_star_id = 0;
-            all_objects.push(center);
         }
-
-        // TODO: Generate dynamic parameters for star orbits
-        update_existing_orbits(&mut all_objects);
-        generate_star_zones(&mut all_objects);
-        generate_stars_systems(
-            &mut all_objects,
-            &special_traits,
-            system_index,
-            coord,
-            galaxy,
-        );
-        update_existing_orbits(&mut all_objects);
-
         Self::new(name, center_id, main_star_id, all_objects, special_traits)
     }
 }
@@ -92,12 +134,13 @@ fn get_system_name(system_index: u16, coord: SpaceCoordinates, galaxy: &Galaxy) 
 }
 
 fn generate_number_of_stars_in_system(
+    system_gen_try: u32,
     system_index: u16,
     coord: SpaceCoordinates,
     galaxy: &mut Galaxy,
 ) -> u16 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
         &format!("sys_{}_{}_ste_evo", coord, system_index),
     );
     rng.get_result(&CopyableRollToProcess::new(
@@ -118,6 +161,7 @@ fn generate_number_of_stars_in_system(
 }
 
 fn generate_stars(
+    system_gen_try: u32,
     number_of_stars: u16,
     system_index: u16,
     system_name: Rc<str>,
@@ -128,10 +172,18 @@ fn generate_stars(
 ) -> Vec<Star> {
     let mut stars = Vec::new();
     for star_index in 0..number_of_stars {
-        let evolution =
-            generate_stellar_evolution(star_index, system_index, coord, hex, sub_sector, galaxy);
+        let evolution = generate_stellar_evolution(
+            system_gen_try,
+            star_index,
+            system_index,
+            coord,
+            hex,
+            sub_sector,
+            galaxy,
+        );
 
         stars.push(Star::generate(
+            system_gen_try,
             star_index,
             system_index,
             system_name.clone(),
@@ -147,6 +199,7 @@ fn generate_stars(
 
 /// Generates the Population of stars in a system.
 fn generate_stellar_evolution(
+    system_gen_try: u32,
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
@@ -155,17 +208,19 @@ fn generate_stellar_evolution(
     galaxy: &mut Galaxy,
 ) -> StellarEvolution {
     let mut subsector_rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
         &format!("sys_{}_ste_evo", sub_sector.index),
     );
-    let mut hex_rng =
-        SeededDiceRoller::new(&galaxy.settings.seed, &format!("sys_{}_ste_evo", hex.index));
+    let mut hex_rng = SeededDiceRoller::new(
+        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
+        &format!("sys_{}_ste_evo", hex.index),
+    );
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
         &format!("sys_{}_{}_ste_evo", coord, system_index),
     );
     let mut coord_rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
         &format!("sys_{}_ste_evo", star_index),
     );
 
@@ -245,6 +300,7 @@ fn generate_stellar_evolution(
 /// For a given list of stars, generates binary pairs and makes them dance together. Returns the id of the system's
 /// center point of gravity (res.0), the id of the system's main star (res.1) and the last id used for an object (res.2).
 fn generate_binary_relations(
+    system_gen_try: u32,
     stars_left: &mut Vec<Star>,
     all_objects: &mut Vec<OrbitalPoint>,
     system_index: u16,
@@ -252,7 +308,7 @@ fn generate_binary_relations(
     galaxy: &mut Galaxy,
 ) -> (u32, u32, u32) {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
         &format!("sys_{}_{}_bin_rel", coord, system_index),
     );
     let mut center_id = 0;

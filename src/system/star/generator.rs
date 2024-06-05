@@ -13,6 +13,7 @@ use constants::*;
 impl Star {
     /// Generates a new star.
     pub fn generate(
+        system_gen_try: u32,
         star_index: u16,
         system_index: u16,
         system_name: Rc<str>,
@@ -22,6 +23,7 @@ impl Star {
         galaxy: &Galaxy,
         settings: &GenerationSettings,
     ) -> Self {
+        let seed: Rc<str> = format!("{}{}", system_gen_try, &galaxy.settings.seed).into();
         let age = if settings.star.fixed_age.is_some() {
             settings.star.fixed_age.unwrap() * 1000.0
         } else {
@@ -30,7 +32,7 @@ impl Star {
                 system_index,
                 coord,
                 hex,
-                &galaxy,
+                &*seed,
                 &galaxy.neighborhood.universe,
             )
         };
@@ -38,7 +40,7 @@ impl Star {
         let mut mass: f64 = if settings.star.fixed_mass.is_some() {
             settings.star.fixed_mass.unwrap()
         } else {
-            let generated_mass: f64 = generate_mass(star_index, system_index, coord, galaxy);
+            let generated_mass: f64 = generate_mass(star_index, system_index, coord, &*seed);
             simulate_mass_loss_over_the_years(generated_mass, age)
         };
 
@@ -81,7 +83,7 @@ impl Star {
                 temperature = calculate_white_dwarf_temperature(initial_temperature, age);
                 luminosity = calculate_luminosity_using_temperature(temperature, radius as f64);
                 spectral_type =
-                    generate_white_dwarf_spectral_type(star_index, system_index, coord, galaxy);
+                    generate_white_dwarf_spectral_type(star_index, system_index, coord, &*seed);
                 luminosity_class = StarLuminosityClass::VII;
             } else if mass < 3.2 {
                 // Neutron star
@@ -210,7 +212,7 @@ impl Star {
         };
         let elements_lack: Vec<ChemicalComponent> = {
             let mut rng = SeededDiceRoller::new(
-                &settings.seed,
+                &*seed,
                 &format!("sys_{}_{}_{}_elem_lack", coord, system_index, star_index),
             );
             let mut elements = Vec::new();
@@ -257,7 +259,7 @@ impl Star {
             elements
         };
         let mut rng = SeededDiceRoller::new(
-            &settings.seed,
+            &*seed,
             &format!("sys_{}_{}_{}_elem_comp", coord, system_index, star_index),
         );
 
@@ -366,14 +368,9 @@ fn calculate_radius_using_luminosity_and_temperature(luminosity: f32, temperatur
     result
 }
 
-fn generate_mass(
-    star_index: u16,
-    system_index: u16,
-    coord: SpaceCoordinates,
-    galaxy: &Galaxy,
-) -> f64 {
+fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, seed: &str) -> f64 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        seed,
         &format!("star_{}_{}_{}_mass", coord, system_index, star_index),
     );
     let range = rng
@@ -631,11 +628,11 @@ fn generate_age(
     system_index: u16,
     coord: SpaceCoordinates,
     hex: &GalacticHex,
-    galaxy: &Galaxy,
+    seed: &str,
     universe: &Universe,
 ) -> f32 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        seed,
         &format!("star_{}_{}_{}_age", coord, system_index, star_index),
     );
     let mut age = if let StellarNeighborhoodAge::Ancient(years)
@@ -781,10 +778,10 @@ fn generate_white_dwarf_spectral_type(
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
-    galaxy: &Galaxy,
+    seed: &str,
 ) -> StarSpectralType {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        seed,
         &format!("star_{}_{}_{}_wd_st", coord, system_index, star_index),
     );
     rng.get_result(&CopyableRollToProcess::new(
@@ -1273,7 +1270,7 @@ mod tests {
                     },
                     ..Default::default()
                 };
-                let mut generated_star = Star::generate(
+                let mut generated_star = Star::generate(0,
                     0,
                     0,
                     "Test".into(),
@@ -1386,7 +1383,7 @@ mod tests {
                 .get_hex(coord.rel(galaxy.get_galactic_start()))
                 .expect("Should have generated a hex.");
 
-            let generated_star = Star::generate(
+            let generated_star = Star::generate(0,
                 0,
                 0,
                 "Test".into(),
@@ -1433,7 +1430,7 @@ mod tests {
                 i as u16 + 1,
                 coord,
                 &GalacticHex::generate(coord, coord, &mut galaxy),
-                &galaxy,
+                &galaxy.settings.seed,
                 &galaxy.neighborhood.universe,
             ) / 1000.0;
             assert!(age > 0.0 && age < galaxy.neighborhood.universe.age);

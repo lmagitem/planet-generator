@@ -2,6 +2,7 @@
 #![allow(dead_code, unused_imports, unused)]
 mod galaxy;
 mod generator;
+mod life;
 mod system;
 mod universe;
 mod utils;
@@ -26,6 +27,7 @@ pub mod prelude {
     pub use crate::galaxy::Galaxy;
     pub use crate::generator::types::*;
     pub use crate::generator::Generator;
+    pub use crate::life::types::*;
     pub use crate::system::celestial_body::gaseous::types::*;
     pub use crate::system::celestial_body::gaseous::GaseousBodyDetails;
     pub use crate::system::celestial_body::icy::types::*;

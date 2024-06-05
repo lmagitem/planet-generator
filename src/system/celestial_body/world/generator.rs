@@ -115,6 +115,8 @@ impl WorldGenerator {
             panic!("At this point, the CelestialBodyDetails should be telluric.")
         };
 
+        let is_ribbon_world = Self::check_if_ribbon_world(&special_traits);
+
         let core_heat: CelestialBodyCoreHeat = Self::generate_core_heat(
             coord,
             system_index,
@@ -159,10 +161,7 @@ impl WorldGenerator {
             magnetic_field,
             density,
         );
-        // Here, we might have generated a world with "too much water", so it becomes an ocean world
-        if hydrosphere >= 90.0 && world_type == CelestialBodyWorldType::Terrestrial {
-            world_type = CelestialBodyWorldType::Ocean;
-        }
+        world_type = Self::set_as_ocean_if_too_much_water(world_type, hydrosphere);
 
         let volcanism = Self::generate_volcanism(
             &coord,
@@ -245,10 +244,7 @@ impl WorldGenerator {
         );
         hydrosphere = changed_hydrosphere_and_pressure.0;
         atmospheric_pressure = changed_hydrosphere_and_pressure.1;
-        // Here hydrosphere might have been reduced to zero if no water can exist on the planet
-        if hydrosphere < 87.5 && world_type == CelestialBodyWorldType::Ocean {
-            world_type = CelestialBodyWorldType::Terrestrial;
-        }
+        world_type = Self::set_ocean_as_terrestrial_if_too_little_water(world_type, hydrosphere);
 
         Self::compute_subsurface_oceans(
             coord,
@@ -264,6 +260,12 @@ impl WorldGenerator {
             density,
         );
 
+        let (
+            is_there_surface_water,
+            is_there_underground_water,
+            is_there_something_else_than_water,
+        ) = Self::check_for_volatiles_presence(&special_traits);
+
         let hydrosphere_and_cryosphere = Self::generate_cryosphere_and_adjust_hydrosphere(
             coord,
             system_index,
@@ -272,6 +274,8 @@ impl WorldGenerator {
             &settings,
             world_type,
             special_traits.clone(),
+            is_ribbon_world,
+            is_there_something_else_than_water,
             hydrosphere,
             temperature_category,
         );
@@ -289,6 +293,8 @@ impl WorldGenerator {
             &settings,
             blackbody_temperature,
             &special_traits,
+            is_there_surface_water,
+            is_there_something_else_than_water,
             hydrosphere,
             atmospheric_pressure,
             cryosphere,
@@ -346,121 +352,20 @@ impl WorldGenerator {
         };
 
         // TODO: Life
-        let mut has_life = true;
+        let mut life_level = LifeLevel::Sentient;
 
-        // TODO: Climate
-        let climate = {
-            let mut climate = None;
-
-            if world_type != CelestialBodyWorldType::Terrestrial
-                && world_type != CelestialBodyWorldType::Ocean
-            {
-                climate = Some(WorldClimateType::Dead)
-            }
-
-            if climate.is_none() {
-                has_life = SeededDiceRoller::new(
-                    &settings.seed,
-                    &format!("sys_{}_{}_elem_lack", coord, system_index),
-                )
-                .gen_bool();
-                for special_trait in &special_traits {
-                    if let CelestialBodySpecialTrait::TideLocked(TideLockTarget::Orbited) =
-                        special_trait
-                    {
-                        climate = Some(WorldClimateType::Ribbon);
-                    }
-                }
-            }
-
-            if climate.is_none() {
-                let humidity_rating = if humidity < 35.0 {
-                    0 // Low
-                } else if humidity < 75.0 {
-                    2 // Moderate
-                } else {
-                    3 // High
-                };
-                let hydrosphere_rating = if hydrosphere < 35.0 {
-                    0 // Low
-                } else if hydrosphere < 50.0 {
-                    1 // Moderate-
-                } else if hydrosphere < 75.0 {
-                    2 // Moderate+
-                } else if hydrosphere < 90.0 {
-                    3 // High
-                } else {
-                    4 // Ocean
-                };
-                let cryosphere_rating = if cryosphere < 10.0 {
-                    0 // Low
-                } else if cryosphere < 30.0 {
-                    2 // Moderate
-                } else {
-                    3 // High
-                };
-
-                if climate.is_none() && humidity_rating <= 0 {
-                    // Low humidity
-                    if hydrosphere_rating <= 0 && cryosphere_rating <= 1 {
-                        climate = Some(WorldClimateType::Desert);
-                    }
-                }
-                if climate.is_none() && humidity_rating <= 2 {
-                    // Moderate humidity
-                    if climate.is_none() && hydrosphere_rating <= 0 && cryosphere_rating <= 2 {
-                        if blackbody_temperature < 291 && has_life {
-                            climate = Some(WorldClimateType::Steppe);
-                        } else if has_life {
-                            climate = Some(WorldClimateType::Savanna);
-                        }
-                    }
-                    if climate.is_none() && hydrosphere_rating <= 2 {
-                        if cryosphere_rating <= 2 {
-                            climate = Some(WorldClimateType::Terrestrial);
-                        } else if blackbody_temperature <= 278 && has_life {
-                            climate = Some(WorldClimateType::Taiga);
-                        }
-                    }
-                }
-                if climate.is_none() && humidity_rating <= 10 {
-                    // High humidity
-                    if climate.is_none() && hydrosphere_rating <= 0 {
-                        if blackbody_temperature <= 267 {
-                            climate = Some(WorldClimateType::Tundra);
-                        } else {
-                            climate = Some(WorldClimateType::MudBall);
-                        }
-                    }
-                    if climate.is_none() && hydrosphere_rating <= 1 {
-                        if cryosphere_rating <= 0 && has_life {
-                            climate = Some(WorldClimateType::Jungle);
-                        }
-                    }
-                    if climate.is_none() && hydrosphere_rating <= 2 {
-                        if cryosphere_rating <= 0 && has_life {
-                            climate = Some(WorldClimateType::Tropical);
-                        }
-                    }
-                    if climate.is_none() && hydrosphere_rating <= 3 {
-                        if cryosphere_rating <= 1 && has_life {
-                            climate = Some(WorldClimateType::Rainforest);
-                        }
-                    }
-                    if climate.is_none() && blackbody_temperature <= 263 {
-                        climate = Some(WorldClimateType::Arctic);
-                    }
-                    if climate.is_none() && hydrosphere_rating >= 4 {
-                        climate = Some(WorldClimateType::Ocean);
-                    }
-                    if climate.is_none() && hydrosphere_rating <= 1 {
-                        climate = Some(WorldClimateType::MudBall);
-                    }
-                }
-            }
-
-            climate.unwrap_or_default()
-        };
+        let climate = Self::generate_climate(
+            coord,
+            system_index,
+            &settings,
+            blackbody_temperature,
+            world_type,
+            is_ribbon_world,
+            hydrosphere,
+            cryosphere,
+            humidity,
+            life_level,
+        );
 
         OrbitalPoint::new(
             orbital_point_id,
@@ -505,6 +410,193 @@ impl WorldGenerator {
         )
     }
 
+    fn generate_climate(
+        coord: SpaceCoordinates,
+        system_index: u16,
+        settings: &GenerationSettings,
+        blackbody_temperature: u32,
+        world_type: CelestialBodyWorldType,
+        is_ribbon_world: bool,
+        hydrosphere: f32,
+        cryosphere: f32,
+        humidity: f32,
+        life_level: LifeLevel,
+    ) -> WorldClimateType {
+        let mut climate = None;
+
+        if world_type != CelestialBodyWorldType::Terrestrial
+            && world_type != CelestialBodyWorldType::Ocean
+        {
+            climate = Some(WorldClimateType::Dead)
+        }
+
+        if climate.is_none() {
+            if is_ribbon_world {
+                climate = Some(WorldClimateType::Ribbon);
+            }
+        }
+
+        if climate.is_none() {
+            let humidity_rating = if humidity < 35.0 {
+                0 // Low
+            } else if humidity < 75.0 {
+                2 // Moderate
+            } else {
+                3 // High
+            };
+            let hydrosphere_rating = if hydrosphere < 35.0 {
+                0 // Low
+            } else if hydrosphere < 50.0 {
+                1 // Moderate-
+            } else if hydrosphere < 75.0 {
+                2 // Moderate+
+            } else if hydrosphere < 90.0 {
+                3 // High
+            } else {
+                4 // Ocean
+            };
+            let cryosphere_rating = if cryosphere < 10.0 {
+                0 // Low
+            } else if cryosphere < 30.0 {
+                2 // Moderate
+            } else {
+                3 // High
+            };
+
+            if climate.is_none() && humidity_rating <= 0 {
+                // Low humidity
+                if hydrosphere_rating <= 0 && cryosphere_rating <= 1 {
+                    climate = Some(WorldClimateType::Desert);
+                }
+            }
+            if climate.is_none() && humidity_rating <= 2 {
+                // Moderate humidity
+                if climate.is_none() && hydrosphere_rating <= 0 && cryosphere_rating <= 2 {
+                    if blackbody_temperature < 291
+                        && life_level.as_u8() >= LifeLevel::PlantLike.as_u8()
+                    {
+                        climate = Some(WorldClimateType::Steppe);
+                    } else if life_level.as_u8() >= LifeLevel::PlantLike.as_u8() {
+                        climate = Some(WorldClimateType::Savanna);
+                    }
+                }
+                if climate.is_none() && hydrosphere_rating <= 2 {
+                    if cryosphere_rating <= 2 {
+                        climate = Some(WorldClimateType::Terrestrial);
+                    } else if blackbody_temperature <= 278
+                        && life_level.as_u8() >= LifeLevel::PlantLike.as_u8()
+                    {
+                        climate = Some(WorldClimateType::Taiga);
+                    }
+                }
+            }
+            if climate.is_none() && humidity_rating <= 10 {
+                // High humidity
+                if climate.is_none() && hydrosphere_rating <= 0 {
+                    if blackbody_temperature <= 267 {
+                        climate = Some(WorldClimateType::Tundra);
+                    } else {
+                        climate = Some(WorldClimateType::MudBall);
+                    }
+                }
+                if climate.is_none() && hydrosphere_rating <= 1 {
+                    if cryosphere_rating <= 0 && life_level.as_u8() >= LifeLevel::PlantLike.as_u8()
+                    {
+                        climate = Some(WorldClimateType::Jungle);
+                    }
+                }
+                if climate.is_none() && hydrosphere_rating <= 2 {
+                    if cryosphere_rating <= 0 && life_level.as_u8() >= LifeLevel::PlantLike.as_u8()
+                    {
+                        climate = Some(WorldClimateType::Tropical);
+                    }
+                }
+                if climate.is_none() && hydrosphere_rating <= 3 {
+                    if cryosphere_rating <= 1 && life_level.as_u8() >= LifeLevel::PlantLike.as_u8()
+                    {
+                        climate = Some(WorldClimateType::Rainforest);
+                    }
+                }
+                if climate.is_none() && blackbody_temperature <= 263 {
+                    climate = Some(WorldClimateType::Arctic);
+                }
+                if climate.is_none() && hydrosphere_rating >= 4 {
+                    climate = Some(WorldClimateType::Ocean);
+                }
+                if climate.is_none() && hydrosphere_rating <= 1 {
+                    climate = Some(WorldClimateType::MudBall);
+                }
+            }
+        }
+
+        climate.unwrap_or_default()
+    }
+
+    fn check_for_volatiles_presence(
+        special_traits: &Vec<CelestialBodySpecialTrait>,
+    ) -> (bool, bool, bool) {
+        let mut is_there_surface_water = false;
+        let mut is_there_underground_water = false;
+        let mut is_there_something_else_than_water = false;
+        for special_trait in special_traits {
+            if let CelestialBodySpecialTrait::Oceans(peculiar_component)
+            | CelestialBodySpecialTrait::Lakes(peculiar_component)
+            | CelestialBodySpecialTrait::SubSurfaceOceans(peculiar_component) = special_trait
+            {
+                if peculiar_component == &ChemicalComponent::Water {
+                    if special_trait
+                        == &CelestialBodySpecialTrait::SubSurfaceOceans(*peculiar_component)
+                    {
+                        is_there_underground_water = true;
+                    } else {
+                        is_there_surface_water = true;
+                    }
+                } else {
+                    is_there_something_else_than_water = true;
+                }
+            }
+        }
+        (
+            is_there_surface_water,
+            is_there_underground_water,
+            is_there_something_else_than_water,
+        )
+    }
+
+    fn set_ocean_as_terrestrial_if_too_little_water(
+        world_type: CelestialBodyWorldType,
+        hydrosphere: f32,
+    ) -> CelestialBodyWorldType {
+        if hydrosphere < 87.5 && world_type == CelestialBodyWorldType::Ocean {
+            CelestialBodyWorldType::Terrestrial
+        } else {
+            world_type
+        }
+    }
+
+    fn set_as_ocean_if_too_much_water(
+        world_type: CelestialBodyWorldType,
+        hydrosphere: f32,
+    ) -> CelestialBodyWorldType {
+        if hydrosphere >= 90.0 && world_type == CelestialBodyWorldType::Terrestrial {
+            CelestialBodyWorldType::Ocean
+        } else {
+            world_type
+        }
+    }
+
+    fn check_if_ribbon_world(special_traits: &Vec<CelestialBodySpecialTrait>) -> bool {
+        let mut is_ribbon_world = false;
+        for special_trait in special_traits {
+            if let CelestialBodySpecialTrait::TideLocked(target) = special_trait {
+                if *target == TideLockTarget::Orbited {
+                    is_ribbon_world = true;
+                }
+            }
+        }
+        is_ribbon_world
+    }
+
     fn generate_relative_humidity(
         coord: SpaceCoordinates,
         system_index: u16,
@@ -513,6 +605,8 @@ impl WorldGenerator {
         settings: &GenerationSettings,
         blackbody_temperature: u32,
         special_traits: &Vec<CelestialBodySpecialTrait>,
+        is_there_water: bool,
+        is_there_something_else_than_water: bool,
         hydrosphere: f32,
         atmospheric_pressure: f32,
         cryosphere: f32,
@@ -590,20 +684,6 @@ impl WorldGenerator {
                 }
             };
 
-            let mut is_there_water = false;
-            let mut is_there_something_else_than_water = false;
-            for special_trait in special_traits {
-                if let CelestialBodySpecialTrait::Oceans(peculiar_component)
-                | CelestialBodySpecialTrait::Lakes(peculiar_component) = special_trait
-                {
-                    if *peculiar_component == ChemicalComponent::Water {
-                        is_there_water = true;
-                    } else {
-                        is_there_something_else_than_water = true;
-                    }
-                }
-            }
-
             let land_humidity = if hydrosphere >= 0.01 && is_there_water {
                 (((rng.roll(1, 1000, 0) as f32 / 100.0) + hydrosphere) / 2.0)
                     .min(100.0)
@@ -647,6 +727,8 @@ impl WorldGenerator {
         settings: &GenerationSettings,
         world_type: CelestialBodyWorldType,
         special_traits: Vec<CelestialBodySpecialTrait>,
+        is_ribbon_world: bool,
+        was_there_something_else_than_water: bool,
         hydrosphere: f32,
         temperature_category: WorldTemperatureCategory,
     ) -> (f32, f32, f32) {
@@ -720,26 +802,20 @@ impl WorldGenerator {
                 / 100.0
         };
 
+        cryosphere -= cryosphere / 2.0;
+        cryosphere += cryosphere * (hydrosphere / 75.0);
+
+        if is_ribbon_world && cryosphere <= 30.0 {
+            cryosphere += rng.roll(1, 2000, 0) as f32 / 100.0;
+        } else if is_ribbon_world && cryosphere >= 50.0 {
+            cryosphere -= rng.roll(1, 2000, 0) as f32 / 100.0;
+        }
+
         // Add some digits if round number
         if cryosphere > 0.01 {
             cryosphere += (rng.roll(1, 101, -51) as f32 / 100.0);
         }
         cryosphere = cryosphere.min(100.0).max(0.0);
-
-        // If oceans of other elements than water were generated, let them be over the ices
-        let mut was_there_something_else_than_water = false;
-        for special_trait in &special_traits {
-            if let CelestialBodySpecialTrait::Oceans(peculiar_component)
-            | CelestialBodySpecialTrait::Lakes(peculiar_component) = special_trait
-            {
-                if peculiar_component != &ChemicalComponent::Water {
-                    was_there_something_else_than_water = true;
-                    if cryosphere + hydrosphere >= 100.0 {
-                        cryosphere = 100.0 - hydrosphere;
-                    }
-                }
-            }
-        }
 
         if was_there_something_else_than_water {
             ice_over_land = cryosphere;
@@ -1230,7 +1306,7 @@ impl WorldGenerator {
                     } else {
                         87.5
                     }),
-                CelestialBodyWorldType::Terrestrial => (rng.roll(3, 2903, 997 + modifier) as f32
+                CelestialBodyWorldType::Terrestrial => (rng.roll(1, 9001, 99 + modifier) as f32
                     / 100.0)
                     .min(if density < 1.9 {
                         100.0

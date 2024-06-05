@@ -6,6 +6,8 @@ use crate::prelude::*;
 pub struct SystemSettings {
     /// Skip the system generation and just uses a copy of ours.
     pub use_ours: bool,
+    /// Makes sure that only interesting systems are generated.
+    pub only_interesting: bool,
 }
 
 /// The population of stars in this system.
