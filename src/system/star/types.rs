@@ -2,7 +2,7 @@ use crate::internal::*;
 use crate::prelude::*;
 
 /// A list of settings used to configure the [Star] generation.
-#[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
 pub struct StarSettings {
     /// The specific age to use for star generation, if any. In billions of years.
     pub fixed_age: Option<f32>,
@@ -11,6 +11,51 @@ pub struct StarSettings {
     pub fixed_mass: Option<f64>,
     /// Skip the star generation and just uses a copy of ours.
     pub use_ours: bool,
+    /// The likelihood of brown dwarfs to be generated in star generation.
+    #[default = 920]
+    pub brown_dwarf_gen_chance: u32,
+    /// The likelihood of red dwarfs of smallest size to be generated in star generation.
+    #[default = 1078]
+    pub red_dwarf_one_gen_chance: u32,
+    /// The likelihood of red dwarfs of smaller size to be generated in star generation.
+    #[default = 1013]
+    pub red_dwarf_two_gen_chance: u32,
+    /// The likelihood of red dwarfs of medium size to be generated in star generation.
+    #[default = 2252]
+    pub red_dwarf_three_gen_chance: u32,
+    /// The likelihood of red dwarfs of bigger size to be generated in star generation.
+    #[default = 1344]
+    pub red_dwarf_four_gen_chance: u32,
+    /// The likelihood of red dwarfs of biggest size to be generated in star generation.
+    #[default = 896]
+    pub red_dwarf_five_gen_chance: u32,
+    /// The likelihood of orange dwarfs to be generated in star generation.
+    #[default = 1520]
+    pub orange_dwarf_gen_chance: u32,
+    /// The likelihood of yellow dwarfs to be generated in star generation.
+    #[default = 640]
+    pub yellow_dwarf_gen_chance: u32,
+    /// The likelihood of white stars to be generated in star generation.
+    #[default = 240]
+    pub white_star_gen_chance: u32,
+    /// The likelihood of blue stars of smaller size to be generated in star generation.
+    #[default = 64]
+    pub blue_star_one_gen_chance: u32,
+    /// The likelihood of blue stars of medium size to be generated in star generation.
+    #[default = 24]
+    pub blue_star_two_gen_chance: u32,
+    /// The likelihood of blue stars of bigger size to be generated in star generation.
+    #[default = 2]
+    pub blue_star_three_gen_chance: u32,
+    /// The likelihood of violet stars of smaller size to be generated in star generation.
+    #[default = 1]
+    pub violet_star_one_gen_chance: u32,
+    /// The likelihood of violet stars of medium size to be generated in star generation.
+    #[default = 1]
+    pub violet_star_two_gen_chance: u32,
+    /// The likelihood of violet stars of bigger size to be generated in star generation.
+    #[default = 1]
+    pub violet_star_three_gen_chance: u32,
 }
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]

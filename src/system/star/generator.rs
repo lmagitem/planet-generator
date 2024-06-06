@@ -40,7 +40,8 @@ impl Star {
         let mut mass: f64 = if settings.star.fixed_mass.is_some() {
             settings.star.fixed_mass.unwrap()
         } else {
-            let generated_mass: f64 = generate_mass(star_index, system_index, coord, &*seed);
+            let generated_mass: f64 =
+                generate_mass(star_index, system_index, coord, &*seed, &settings.star);
             simulate_mass_loss_over_the_years(generated_mass, age)
         };
 
@@ -368,7 +369,13 @@ fn calculate_radius_using_luminosity_and_temperature(luminosity: f32, temperatur
     result
 }
 
-fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, seed: &str) -> f64 {
+fn generate_mass(
+    star_index: u16,
+    system_index: u16,
+    coord: SpaceCoordinates,
+    seed: &str,
+    settings: &StarSettings,
+) -> f64 {
     let mut rng = SeededDiceRoller::new(
         seed,
         &format!("star_{}_{}_{}_mass", coord, system_index, star_index),
@@ -382,7 +389,7 @@ fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, se
                         BROWN_DWARF_MIN_MASS,
                         RED_DWARF_POP_HYPERDWARF_MIN_MASS - 0.001,
                     ),
-                    weight: 920,
+                    weight: settings.brown_dwarf_gen_chance,
                 },
                 // Red dwarf Pop 0
                 CopyableWeightedResult {
@@ -390,7 +397,7 @@ fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, se
                         RED_DWARF_POP_HYPERDWARF_MIN_MASS,
                         RED_DWARF_POP_DWARF_MIN_MASS - 0.001,
                     ),
-                    weight: 1078,
+                    weight: settings.red_dwarf_one_gen_chance,
                 },
                 // Red dwarf Pop I
                 CopyableWeightedResult {
@@ -398,16 +405,16 @@ fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, se
                         RED_DWARF_POP_DWARF_MIN_MASS,
                         RED_DWARF_POP_SUBDWARF_MIN_MASS - 0.001,
                     ),
-                    weight: 1013,
+                    weight: settings.red_dwarf_two_gen_chance,
                 },
                 // Red dwarf Pop II
                 CopyableWeightedResult {
                     result: (RED_DWARF_POP_SUBDWARF_MIN_MASS, 0.25),
-                    weight: 2252,
+                    weight: settings.red_dwarf_three_gen_chance,
                 },
                 CopyableWeightedResult {
                     result: (0.251, RED_DWARF_POP_PALEODWARF_MIN_MASS - 0.001),
-                    weight: 1344,
+                    weight: settings.red_dwarf_four_gen_chance,
                 },
                 // Red dwarf Pop III
                 CopyableWeightedResult {
@@ -415,36 +422,36 @@ fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, se
                         RED_DWARF_POP_PALEODWARF_MIN_MASS,
                         ORANGE_DWARF_MIN_MASS - 0.001,
                     ),
-                    weight: 896,
+                    weight: settings.red_dwarf_five_gen_chance,
                 },
                 // Orange
                 CopyableWeightedResult {
                     result: (ORANGE_DWARF_MIN_MASS, YELLOW_DWARF_MIN_MASS - 0.001),
-                    weight: 1520,
+                    weight: settings.orange_dwarf_gen_chance,
                 },
                 // Yellow
                 CopyableWeightedResult {
                     result: (YELLOW_DWARF_MIN_MASS, WHITE_DWARF_MIN_MASS - 0.001),
-                    weight: 640,
+                    weight: settings.yellow_dwarf_gen_chance,
                 },
                 // White
                 CopyableWeightedResult {
                     result: (WHITE_DWARF_MIN_MASS, WHITE_GIANT_MIN_MASS - 0.001),
-                    weight: 240,
+                    weight: settings.white_star_gen_chance,
                 },
                 // Giants
                 CopyableWeightedResult {
                     result: (WHITE_GIANT_MIN_MASS, BLUE_GIANT_MIN_MASS - 0.001),
-                    weight: 64,
+                    weight: settings.blue_star_one_gen_chance,
                 },
                 // Blue giants
                 CopyableWeightedResult {
                     result: (BLUE_GIANT_MIN_MASS, 20.0),
-                    weight: 24,
+                    weight: settings.blue_star_two_gen_chance,
                 },
                 CopyableWeightedResult {
                     result: (20.001, BLUE_GIANT_POP_HYPERDWARF_MAX_MASS),
-                    weight: 2,
+                    weight: settings.blue_star_three_gen_chance,
                 },
                 // Pop I
                 CopyableWeightedResult {
@@ -452,7 +459,7 @@ fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, se
                         BLUE_GIANT_POP_HYPERDWARF_MAX_MASS + 0.001,
                         BLUE_GIANT_POP_DWARF_MAX_MASS,
                     ),
-                    weight: 1,
+                    weight: settings.violet_star_one_gen_chance,
                 },
                 // Pop II
                 CopyableWeightedResult {
@@ -460,7 +467,7 @@ fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, se
                         BLUE_GIANT_POP_DWARF_MAX_MASS + 0.001,
                         BLUE_GIANT_POP_SUBDWARF_MAX_MASS,
                     ),
-                    weight: 1,
+                    weight: settings.violet_star_two_gen_chance,
                 },
                 // Pop III
                 CopyableWeightedResult {
@@ -468,7 +475,7 @@ fn generate_mass(star_index: u16, system_index: u16, coord: SpaceCoordinates, se
                         BLUE_GIANT_POP_SUBDWARF_MAX_MASS + 0.001,
                         BLUE_GIANT_POP_PALEODWARF_MAX_MASS,
                     ),
-                    weight: 1,
+                    weight: settings.violet_star_three_gen_chance,
                 },
             ],
             RollMethod::SimpleRoll,
@@ -1270,7 +1277,8 @@ mod tests {
                     },
                     ..Default::default()
                 };
-                let mut generated_star = Star::generate(0,
+                let mut generated_star = Star::generate(
+                    0,
                     0,
                     0,
                     "Test".into(),
@@ -1383,7 +1391,8 @@ mod tests {
                 .get_hex(coord.rel(galaxy.get_galactic_start()))
                 .expect("Should have generated a hex.");
 
-            let generated_star = Star::generate(0,
+            let generated_star = Star::generate(
+                0,
                 0,
                 0,
                 "Test".into(),
