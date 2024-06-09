@@ -1,6 +1,6 @@
 [package]
 name = "planet_generator"
-version = "0.0.5-pre-alpha"
+version = "0.0.6-pre-alpha"
 edition = "2021"
 description = "[WIP] Generates data for galaxies, sectors, solar systems, planets and their inhabitants (Check README for features list)."
 license = "MIT"
