@@ -193,7 +193,7 @@ impl WorldGenerator {
             hydrosphere,
             volcanism,
         );
-        // TODO: Change to GeoActive for those with very high volcanism?
+        world_type = Self::set_as_geoactive_if_extreme(world_type, volcanism, tectonics);
 
         let mut atmospheric_pressure = generate_atmosphere(
             coord,
@@ -226,6 +226,8 @@ impl WorldGenerator {
             world_type,
             hydrosphere,
             atmospheric_pressure,
+            star_age,
+            tidal_heating,
         );
         let temperature_category = get_category_from_temperature(blackbody_temperature);
 
@@ -364,6 +366,7 @@ impl WorldGenerator {
             hydrosphere,
             cryosphere,
             humidity,
+            is_moon,
             life_level,
         );
 
@@ -410,6 +413,22 @@ impl WorldGenerator {
         )
     }
 
+    fn set_as_geoactive_if_extreme(
+        world_type: CelestialBodyWorldType,
+        volcanism: f32,
+        tectonics: f32,
+    ) -> CelestialBodyWorldType {
+        if world_type != CelestialBodyWorldType::Ocean
+            && world_type != CelestialBodyWorldType::Terrestrial
+            && world_type != CelestialBodyWorldType::ProtoWorld
+            && (volcanism > 55.0 || tectonics > 55.0)
+        {
+            CelestialBodyWorldType::GeoActive
+        } else {
+            world_type
+        }
+    }
+
     fn generate_climate(
         coord: SpaceCoordinates,
         system_index: u16,
@@ -420,6 +439,7 @@ impl WorldGenerator {
         hydrosphere: f32,
         cryosphere: f32,
         humidity: f32,
+        is_moon: bool,
         life_level: LifeLevel,
     ) -> WorldClimateType {
         let mut climate = None;
@@ -431,7 +451,7 @@ impl WorldGenerator {
         }
 
         if climate.is_none() {
-            if is_ribbon_world {
+            if is_ribbon_world && !is_moon {
                 climate = Some(WorldClimateType::Ribbon);
             }
         }
@@ -996,8 +1016,9 @@ impl WorldGenerator {
         world_type: CelestialBodyWorldType,
         hydrosphere: f32,
         atmospheric_pressure: f32,
+        star_age: f32,
+        tidal_heating: u32,
     ) -> u32 {
-        // TODO: Make sure that proto-worlds are always hotter than rock melting point
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
             &format!(
@@ -1005,6 +1026,12 @@ impl WorldGenerator {
                 coord, system_index, star_id, orbital_point_id
             ),
         );
+
+        if world_type == CelestialBodyWorldType::ProtoWorld {
+            return 950
+                + (rng.roll(2, 600, 0) as f32 / star_age.max(1.0)) as u32
+                + tidal_heating * 10;
+        }
 
         let absorption_factor = match world_type {
             CelestialBodyWorldType::Ice | CelestialBodyWorldType::DirtySnowball => {
@@ -1041,7 +1068,6 @@ impl WorldGenerator {
             }
             CelestialBodyWorldType::Greenhouse => 0.77,
             CelestialBodyWorldType::Chthonian => 0.97,
-            CelestialBodyWorldType::ProtoWorld => 1.21,
             _ => 0.97,
         };
         let greenhouse_factor = if atmospheric_pressure <= 1.0 {
