@@ -138,170 +138,42 @@ mod tests {
                 .cloned()
                 .unwrap()
                 .object;
-            //  if system.all_objects.len() > 60 {
-            //  if let AstronomicalObject::Star(star) = main_star {
-            //      if discriminant(&star.spectral_type) == discriminant(&StarSpectralType::F(0)) {
+
             print_system_bodies(i, system);
-            //     }
-            // }
-            //  }
         }
     }
 
-    #[test]
+    // #[test]
     fn generate_interesting_example_systems() {
         // init_logger(LevelFilter::Debug);
-        let mut highest_distance;
         for i in 0..50 {
             let settings = &GenerationSettings {
                 seed: Rc::from(i.to_string()),
+                system: SystemSettings {
+                    only_interesting: true,
+                    ..Default::default()
+                },
                 ..Default::default()
             };
             let universe = Universe::generate(&settings);
             let neighborhood = GalacticNeighborhood::generate(universe, &settings);
-            let mut galaxy = Galaxy::generate(neighborhood, 0, &settings);
+            let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let coord = SpaceCoordinates::new(0, 0, 0);
             let sub_sector = galaxy
                 .get_division_at_level(coord, 1)
                 .expect("Should have returned a sub-sector.");
             let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
-            let system = StarSystem::generate(0, coord, &hex, &sub_sector, &mut galaxy);
-            // Find in objects the one with the highest distance from primary body.
-            let higher_distance = system
+            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
+            let main_star = system
+                .clone()
                 .all_objects
                 .iter()
-                .map(|o| {
-                    o.get_own_orbit()
-                        .unwrap_or(Orbit {
-                            ..Default::default()
-                        })
-                        .average_distance
-                })
-                .max_by(|a, b| a.total_cmp(b))
-                .unwrap();
-            if
-            /* higher_distance > highest_distance */
-            i % 500 == 0
-                || system.center_id >= 13
-                    && (system
-                        .all_objects
-                        .iter()
-                        .filter(|o| {
-                            let mut result = false;
-                            if let AstronomicalObject::Star(star) = &o.object {
-                                match star.spectral_type {
-                                    StarSpectralType::WR(_)
-                                    | StarSpectralType::O(_)
-                                    | StarSpectralType::B(_)
-                                    | StarSpectralType::A(_)
-                                    | StarSpectralType::F(_)
-                                    | StarSpectralType::G(_)
-                                    | StarSpectralType::Y(_)
-                                    | StarSpectralType::DA
-                                    | StarSpectralType::DB
-                                    | StarSpectralType::DC
-                                    | StarSpectralType::DO
-                                    | StarSpectralType::DZ
-                                    | StarSpectralType::DQ
-                                    | StarSpectralType::DX
-                                    | StarSpectralType::XNS
-                                    | StarSpectralType::XBH => {
-                                        result = true;
-                                    }
-                                    _ => (),
-                                }
-                                match star.luminosity_class {
-                                    StarLuminosityClass::O
-                                    | StarLuminosityClass::Ia
-                                    | StarLuminosityClass::Ib
-                                    | StarLuminosityClass::II
-                                    | StarLuminosityClass::III
-                                    | StarLuminosityClass::IV
-                                    | StarLuminosityClass::VII
-                                    | StarLuminosityClass::XNS
-                                    | StarLuminosityClass::XBH => {
-                                        result = true;
-                                    }
-                                    _ => (),
-                                }
-                            }
-                            result
-                        })
-                        .count()
-                        > 4
-                        || (system
-                            .all_objects
-                            .iter()
-                            .filter(|o| {
-                                let mut result = false;
-                                if let AstronomicalObject::Star(star) = &o.object {
-                                    match star.spectral_type {
-                                        StarSpectralType::WR(_)
-                                        | StarSpectralType::O(_)
-                                        | StarSpectralType::B(_)
-                                        | StarSpectralType::A(_)
-                                        | StarSpectralType::F(_)
-                                        | StarSpectralType::G(_)
-                                        | StarSpectralType::Y(_)
-                                        | StarSpectralType::DA
-                                        | StarSpectralType::DB
-                                        | StarSpectralType::DC
-                                        | StarSpectralType::DO
-                                        | StarSpectralType::DZ
-                                        | StarSpectralType::DQ
-                                        | StarSpectralType::DX
-                                        | StarSpectralType::XNS
-                                        | StarSpectralType::XBH => {
-                                            result = true;
-                                        }
-                                        _ => (),
-                                    }
-                                    match star.luminosity_class {
-                                        StarLuminosityClass::O
-                                        | StarLuminosityClass::Ia
-                                        | StarLuminosityClass::Ib
-                                        | StarLuminosityClass::II
-                                        | StarLuminosityClass::III
-                                        | StarLuminosityClass::IV
-                                        | StarLuminosityClass::VII
-                                        | StarLuminosityClass::XNS
-                                        | StarLuminosityClass::XBH => {
-                                            result = true;
-                                        }
-                                        _ => (),
-                                    }
-                                }
-                                result
-                            })
-                            .count()
-                            > 1
-                            && system
-                                .all_objects
-                                .iter()
-                                .filter(|o| {
-                                    let mut result = false;
-                                    if let AstronomicalObject::Star(star) = &o.object {
-                                        match star.spectral_type {
-                                            StarSpectralType::WR(_)
-                                            | StarSpectralType::O(_)
-                                            | StarSpectralType::B(_)
-                                            | StarSpectralType::A(_)
-                                            | StarSpectralType::XNS
-                                            | StarSpectralType::XBH => {
-                                                result = true;
-                                            }
-                                            _ => (),
-                                        }
-                                    }
-                                    result
-                                })
-                                .count()
-                                > 0))
-            {
-                highest_distance = higher_distance;
-                println!("\nseed: {}, distance: {}", settings.seed, highest_distance);
-                print_system_bodies(i, system);
-            };
+                .find(|o| o.id == system.main_star_id)
+                .cloned()
+                .unwrap()
+                .object;
+
+            print_system_bodies(i, system);
         }
     }
 

@@ -208,7 +208,7 @@ pub enum StarPeculiarity {
     /// Around this star, there is no or only a negligible amount of elements that are heavier than
     /// Helium. (AKA metals)
     NoMetals,
-    /// Around this star, the element  is more or less present by the amount
+    /// Around this star, the element is more or less present by the amount
     UnusualElementPresence((ChemicalComponent, ElementPresenceOccurrence)),
 }
 

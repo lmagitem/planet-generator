@@ -26,6 +26,8 @@ pub enum CelestialBodySpecialTrait {
     SubSurfaceOceans(ChemicalComponent),
     Oceans(ChemicalComponent),
     Lakes(ChemicalComponent),
+    /// In this body, the element is more or less present by the amount
+    UnusualElementPresence((ChemicalComponent, ElementPresenceOccurrence)),
 }
 
 impl Display for CelestialBodySpecialTrait {
@@ -45,6 +47,9 @@ impl Display for CelestialBodySpecialTrait {
             CelestialBodySpecialTrait::SubSurfaceOceans(s) => write!(f, "{} Sub-Surface Oceans", s),
             CelestialBodySpecialTrait::Oceans(s) => write!(f, "{} Oceans", s),
             CelestialBodySpecialTrait::Lakes(s) => write!(f, "{} Lakes", s),
+            CelestialBodySpecialTrait::UnusualElementPresence(difference) => {
+                write!(f, "{} of {}", difference.1, difference.0)
+            }
         }
     }
 }

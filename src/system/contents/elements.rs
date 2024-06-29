@@ -15,6 +15,33 @@ use crate::prelude::*;
     Deserialize,
     EnumIter,
 )]
+pub enum ChemicalComponentPresence {
+    /// More than 50%
+    #[default]
+    Dominant,
+    /// 50% to 10%
+    Significant,
+    /// 10% to 1%
+    Notable,
+    /// 1% to 0.1%
+    Minor,
+    /// 0.1% or less
+    Traces,
+}
+#[derive(
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    Debug,
+    SmartDefault,
+    Serialize,
+    Deserialize,
+    EnumIter,
+)]
 pub enum ChemicalComponent {
     #[default]
     Hydrogen,
@@ -33,6 +60,7 @@ pub enum ChemicalComponent {
     Phosphorus,
     Chlorine,
     Argon,
+    Neon,
     Titanium,
     Chromium,
     Manganese,
@@ -44,11 +72,32 @@ pub enum ChemicalComponent {
     Ammonia,
     HydrogenSulfide,
     SulfurDioxide,
-    Hydroxyl,
+    SiliconDioxide,
+    AluminiumOxide,
+    IronOxide,
+    IronSulfide,
+    CalciumOxide,
+    SodiumChloride,
+    SodiumOxide,
+    PotassiumChloride,
+    PotassiumOxide,
+    MagnesiumOxide,
+    TitaniumDioxide,
+    TitaniumTetrachloride,
+    PhosphorusPentoxide,
+    ChromiumOxide,
+    ChromiumChloride,
+    ManganeseDioxide,
+    ManganeseOxide,
+    NickelOxide,
+    NickelSulfide,
     NitricOxide,
     NitrogenDioxide,
-    Formaldehyde,
+    NitricAcid,
+    SulfuricAcid,
     Methanol,
+    Hydroxyl,
+    Formaldehyde,
     Ethylene,
     Ethane,
     Acetylene,
@@ -77,9 +126,33 @@ impl ChemicalComponent {
             ChemicalComponent::Potassium => 39.10,
             ChemicalComponent::Calcium => 40.08,
             ChemicalComponent::Aluminum => 26.98,
+            ChemicalComponent::SiliconDioxide => 60.084,
+            ChemicalComponent::AluminiumOxide => 101.96,
+            ChemicalComponent::IronOxide => 159.69,
+            ChemicalComponent::IronSulfide => 87.91,
+            ChemicalComponent::CalciumOxide => 56.08,
+            ChemicalComponent::SodiumChloride => 58.44,
+            ChemicalComponent::SodiumOxide => 61.98,
+            ChemicalComponent::PotassiumChloride => 74.55,
+            ChemicalComponent::PotassiumOxide => 94.20,
+            ChemicalComponent::MagnesiumOxide => 40.30,
+            ChemicalComponent::TitaniumDioxide => 79.87,
+            ChemicalComponent::TitaniumTetrachloride => 189.71,
+            ChemicalComponent::PhosphorusPentoxide => 141.94,
+            ChemicalComponent::ChromiumOxide => 151.99,
+            ChemicalComponent::ChromiumChloride => 158.36,
+            ChemicalComponent::ManganeseDioxide => 86.94,
+            ChemicalComponent::ManganeseOxide => 70.94,
+            ChemicalComponent::NickelOxide => 74.69,
+            ChemicalComponent::NickelSulfide => 90.76,
+            ChemicalComponent::NitricOxide => 30.006,
+            ChemicalComponent::NitrogenDioxide => 46.0055,
+            ChemicalComponent::NitricAcid => 63.01,
+            ChemicalComponent::SulfuricAcid => 98.08,
             ChemicalComponent::Phosphorus => 30.97,
             ChemicalComponent::Chlorine => 35.45,
             ChemicalComponent::Argon => 39.95,
+            ChemicalComponent::Neon => 20.18,
             ChemicalComponent::Titanium => 47.867,
             ChemicalComponent::Chromium => 51.996,
             ChemicalComponent::Manganese => 54.938,
@@ -127,10 +200,34 @@ impl ChemicalComponent {
             ChemicalComponent::Phosphorus => None, // Phosphorus does not have a standard triple point
             ChemicalComponent::Chlorine => Some((172.2, 0.4)),
             ChemicalComponent::Argon => Some((83.81, 0.687)),
+            ChemicalComponent::Neon => Some((24.56, 0.43)),
             ChemicalComponent::Titanium => None, // Titanium does not have a standard triple point
             ChemicalComponent::Chromium => None, // Chromium does not have a standard triple point
             ChemicalComponent::Manganese => None, // Manganese does not have a standard triple point
             ChemicalComponent::Nickel => None,   // Nickel does not have a standard triple point
+            ChemicalComponent::SiliconDioxide => None,
+            ChemicalComponent::AluminiumOxide => None,
+            ChemicalComponent::IronOxide => None,
+            ChemicalComponent::IronSulfide => None,
+            ChemicalComponent::CalciumOxide => None,
+            ChemicalComponent::SodiumChloride => None,
+            ChemicalComponent::SodiumOxide => None,
+            ChemicalComponent::PotassiumChloride => None,
+            ChemicalComponent::PotassiumOxide => None,
+            ChemicalComponent::MagnesiumOxide => None,
+            ChemicalComponent::TitaniumDioxide => None,
+            ChemicalComponent::TitaniumTetrachloride => None,
+            ChemicalComponent::PhosphorusPentoxide => None,
+            ChemicalComponent::ChromiumOxide => None,
+            ChemicalComponent::ChromiumChloride => None,
+            ChemicalComponent::ManganeseDioxide => None,
+            ChemicalComponent::ManganeseOxide => None,
+            ChemicalComponent::NickelOxide => None,
+            ChemicalComponent::NickelSulfide => None,
+            ChemicalComponent::NitricOxide => Some((109.5, 0.00015)),
+            ChemicalComponent::NitrogenDioxide => Some((261.93, 0.001)),
+            ChemicalComponent::NitricAcid => None,
+            ChemicalComponent::SulfuricAcid => None,
             ChemicalComponent::Water => Some((273.16, 0.00604)),
             ChemicalComponent::CarbonMonoxide => Some((68.15, 0.00015)),
             ChemicalComponent::CarbonDioxide => Some((216.55, 5.11)),
@@ -181,8 +278,32 @@ impl ChemicalComponent {
             ChemicalComponent::Water => Some(373.16),
             ChemicalComponent::CarbonMonoxide => Some(82.9),
             ChemicalComponent::CarbonDioxide => Some(304.25),
+            ChemicalComponent::SiliconDioxide => Some(2950.0),
+            ChemicalComponent::AluminiumOxide => Some(3250.0),
+            ChemicalComponent::IronOxide => Some(3200.0),
+            ChemicalComponent::IronSulfide => None, // Decomposes before boiling
+            ChemicalComponent::CalciumOxide => Some(3500.0),
+            ChemicalComponent::SodiumChloride => Some(1413.0),
+            ChemicalComponent::SodiumOxide => Some(1950.0),
+            ChemicalComponent::PotassiumChloride => Some(1420.0),
+            ChemicalComponent::PotassiumOxide => None, // Decomposes before boiling
+            ChemicalComponent::MagnesiumOxide => Some(3600.0),
+            ChemicalComponent::TitaniumDioxide => Some(3200.0),
+            ChemicalComponent::TitaniumTetrachloride => Some(409.0),
+            ChemicalComponent::PhosphorusPentoxide => Some(613.0),
+            ChemicalComponent::ChromiumOxide => Some(2973.0),
+            ChemicalComponent::ChromiumChloride => Some(1307.0),
+            ChemicalComponent::ManganeseDioxide => None, // Decomposes before boiling
+            ChemicalComponent::ManganeseOxide => Some(2700.0),
+            ChemicalComponent::NickelOxide => Some(2973.0),
+            ChemicalComponent::NickelSulfide => None, // Decomposes before boiling
+            ChemicalComponent::NitricOxide => Some(121.36),
+            ChemicalComponent::NitrogenDioxide => None, // Decomposes before boiling
+            ChemicalComponent::NitricAcid => Some(359.0),
+            ChemicalComponent::SulfuricAcid => Some(611.0),
             ChemicalComponent::Methane => Some(111.66),
             ChemicalComponent::Ammonia => Some(239.81),
+            ChemicalComponent::Neon => Some(27.07),
             ChemicalComponent::HydrogenSulfide => Some(212.9),
             ChemicalComponent::SulfurDioxide => Some(263.05),
             ChemicalComponent::Hydroxyl => None, // Hydroxyl radical does not have a standard boiling point
@@ -201,6 +322,257 @@ impl ChemicalComponent {
             ChemicalComponent::Silicates => None, // Silicates as a group do not have a standard boiling point
             ChemicalComponent::PolycyclicAromaticHydrocarbons => None, // PAHs do not have a standard boiling point
         }
+    }
+
+    pub fn is_chemically_stable(&self, temperature: f64, pressure: f64) -> bool {
+        match self {
+            ChemicalComponent::Hydrogen => temperature < 100.0 && pressure < 10.0,
+            ChemicalComponent::Helium => true, // Helium is generally stable under all conditions
+            ChemicalComponent::Carbon => true, // Carbon is stable in most conditions
+            ChemicalComponent::Nitrogen => temperature < 500.0 && pressure < 50.0,
+            ChemicalComponent::Oxygen => temperature < 500.0 && pressure < 50.0,
+            ChemicalComponent::Silicon => true, // Silicon is stable in most conditions
+            ChemicalComponent::Magnesium => temperature < 650.0 && pressure < 50.0,
+            ChemicalComponent::Iron => temperature < 1500.0 && pressure < 100.0,
+            ChemicalComponent::Sulfur => temperature < 200.0 && pressure < 20.0,
+            ChemicalComponent::Sodium => temperature < 1000.0 && pressure < 50.0,
+            ChemicalComponent::Potassium => temperature < 800.0 && pressure < 50.0,
+            ChemicalComponent::Calcium => temperature < 1000.0 && pressure < 50.0,
+            ChemicalComponent::Aluminum => temperature < 1500.0 && pressure < 100.0,
+            ChemicalComponent::Phosphorus => temperature < 400.0 && pressure < 20.0,
+            ChemicalComponent::Chlorine => temperature < 400.0 && pressure < 50.0,
+            ChemicalComponent::Argon => true, // Argon is stable under most conditions
+            ChemicalComponent::Neon => true,  // Neon is stable under most conditions
+            ChemicalComponent::Titanium => temperature < 2000.0 && pressure < 100.0,
+            ChemicalComponent::Chromium => temperature < 2000.0 && pressure < 100.0,
+            ChemicalComponent::Manganese => temperature < 1500.0 && pressure < 100.0,
+            ChemicalComponent::Nickel => temperature < 2000.0 && pressure < 100.0,
+            ChemicalComponent::Water => temperature < 100.0 && pressure < 10.0,
+            ChemicalComponent::CarbonMonoxide => temperature < 500.0 && pressure < 50.0,
+            ChemicalComponent::CarbonDioxide => temperature < 500.0 && pressure < 50.0,
+            ChemicalComponent::Methane => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Ammonia => temperature < 400.0 && pressure < 50.0,
+            ChemicalComponent::SiliconDioxide => true,
+            ChemicalComponent::AluminiumOxide => true,
+            ChemicalComponent::IronOxide => true,
+            ChemicalComponent::IronSulfide => temperature < 1200.0 && pressure < 100.0,
+            ChemicalComponent::CalciumOxide => true,
+            ChemicalComponent::SodiumChloride => true,
+            ChemicalComponent::SodiumOxide => temperature < 1500.0 && pressure < 100.0,
+            ChemicalComponent::PotassiumChloride => true,
+            ChemicalComponent::PotassiumOxide => temperature < 1500.0 && pressure < 100.0,
+            ChemicalComponent::MagnesiumOxide => true,
+            ChemicalComponent::TitaniumDioxide => true,
+            ChemicalComponent::TitaniumTetrachloride => temperature < 500.0 && pressure < 100.0,
+            ChemicalComponent::PhosphorusPentoxide => true,
+            ChemicalComponent::ChromiumOxide => true,
+            ChemicalComponent::ChromiumChloride => temperature < 1500.0 && pressure < 100.0,
+            ChemicalComponent::ManganeseDioxide => temperature < 1200.0 && pressure < 100.0,
+            ChemicalComponent::ManganeseOxide => temperature < 1500.0 && pressure < 100.0,
+            ChemicalComponent::NickelOxide => true,
+            ChemicalComponent::NickelSulfide => temperature < 1200.0 && pressure < 100.0,
+            ChemicalComponent::NitricOxide => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::NitrogenDioxide => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::NitricAcid => temperature < 400.0 && pressure < 50.0,
+            ChemicalComponent::SulfuricAcid => temperature < 500.0 && pressure < 50.0,
+            ChemicalComponent::HydrogenSulfide => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::SulfurDioxide => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Hydroxyl => temperature < 100.0 && pressure < 10.0,
+            ChemicalComponent::NitricOxide => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::NitrogenDioxide => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Formaldehyde => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Methanol => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Ethylene => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Ethane => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Acetylene => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Benzene => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Acetonitrile => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Methylamine => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::HydrogenCyanide => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Glycine => temperature < 300.0 && pressure < 20.0,
+            ChemicalComponent::Silicates => true, // Silicates are stable under most conditions
+            ChemicalComponent::PolycyclicAromaticHydrocarbons => {
+                temperature < 300.0 && pressure < 20.0
+            }
+        }
+    }
+
+    pub fn is_related_element(&self, other: &ChemicalComponent) -> bool {
+        let related_pairs = vec![
+            // Hydrogen compounds
+            (ChemicalComponent::Water, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Water, ChemicalComponent::Oxygen),
+            (ChemicalComponent::Methane, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Methane, ChemicalComponent::Carbon),
+            (ChemicalComponent::Ammonia, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Ammonia, ChemicalComponent::Nitrogen),
+            (
+                ChemicalComponent::HydrogenSulfide,
+                ChemicalComponent::Hydrogen,
+            ),
+            (
+                ChemicalComponent::HydrogenSulfide,
+                ChemicalComponent::Sulfur,
+            ),
+            (ChemicalComponent::Methanol, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Methanol, ChemicalComponent::Carbon),
+            (ChemicalComponent::Methanol, ChemicalComponent::Oxygen),
+            (ChemicalComponent::Formaldehyde, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Formaldehyde, ChemicalComponent::Carbon),
+            (ChemicalComponent::Formaldehyde, ChemicalComponent::Oxygen),
+            (ChemicalComponent::Ethylene, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Ethylene, ChemicalComponent::Carbon),
+            (ChemicalComponent::Ethane, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Ethane, ChemicalComponent::Carbon),
+            (ChemicalComponent::Acetylene, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Acetylene, ChemicalComponent::Carbon),
+            (ChemicalComponent::Benzene, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Benzene, ChemicalComponent::Carbon),
+            (ChemicalComponent::Acetonitrile, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Acetonitrile, ChemicalComponent::Carbon),
+            (ChemicalComponent::Acetonitrile, ChemicalComponent::Nitrogen),
+            (ChemicalComponent::Methylamine, ChemicalComponent::Hydrogen),
+            (ChemicalComponent::Methylamine, ChemicalComponent::Carbon),
+            (ChemicalComponent::Methylamine, ChemicalComponent::Nitrogen),
+            (
+                ChemicalComponent::HydrogenCyanide,
+                ChemicalComponent::Hydrogen,
+            ),
+            (
+                ChemicalComponent::HydrogenCyanide,
+                ChemicalComponent::Carbon,
+            ),
+            (
+                ChemicalComponent::HydrogenCyanide,
+                ChemicalComponent::Nitrogen,
+            ),
+            // Carbon compounds
+            (ChemicalComponent::CarbonDioxide, ChemicalComponent::Carbon),
+            (ChemicalComponent::CarbonDioxide, ChemicalComponent::Oxygen),
+            (ChemicalComponent::CarbonMonoxide, ChemicalComponent::Carbon),
+            (ChemicalComponent::CarbonMonoxide, ChemicalComponent::Oxygen),
+            (
+                ChemicalComponent::PolycyclicAromaticHydrocarbons,
+                ChemicalComponent::Carbon,
+            ),
+            (
+                ChemicalComponent::PolycyclicAromaticHydrocarbons,
+                ChemicalComponent::Hydrogen,
+            ),
+            // Sulfur compounds
+            (ChemicalComponent::SulfurDioxide, ChemicalComponent::Sulfur),
+            (ChemicalComponent::SulfurDioxide, ChemicalComponent::Oxygen),
+            (ChemicalComponent::SulfuricAcid, ChemicalComponent::Sulfur),
+            (ChemicalComponent::SulfuricAcid, ChemicalComponent::Oxygen),
+            (ChemicalComponent::SulfuricAcid, ChemicalComponent::Water),
+            (ChemicalComponent::SulfuricAcid, ChemicalComponent::Hydrogen),
+            (
+                ChemicalComponent::HydrogenSulfide,
+                ChemicalComponent::Hydrogen,
+            ),
+            (
+                ChemicalComponent::HydrogenSulfide,
+                ChemicalComponent::Sulfur,
+            ),
+            // Nitrogen compounds
+            (ChemicalComponent::NitricOxide, ChemicalComponent::Nitrogen),
+            (ChemicalComponent::NitricOxide, ChemicalComponent::Oxygen),
+            (
+                ChemicalComponent::NitrogenDioxide,
+                ChemicalComponent::Nitrogen,
+            ),
+            (
+                ChemicalComponent::NitrogenDioxide,
+                ChemicalComponent::Oxygen,
+            ),
+            (ChemicalComponent::NitricAcid, ChemicalComponent::Nitrogen),
+            (ChemicalComponent::NitricAcid, ChemicalComponent::Oxygen),
+            (ChemicalComponent::NitricAcid, ChemicalComponent::Hydrogen),
+            // Other compound relationships
+            (ChemicalComponent::CalciumOxide, ChemicalComponent::Calcium),
+            (ChemicalComponent::CalciumOxide, ChemicalComponent::Oxygen),
+            (ChemicalComponent::SodiumChloride, ChemicalComponent::Sodium),
+            (
+                ChemicalComponent::SodiumChloride,
+                ChemicalComponent::Chlorine,
+            ),
+            (ChemicalComponent::SodiumOxide, ChemicalComponent::Sodium),
+            (ChemicalComponent::SodiumOxide, ChemicalComponent::Oxygen),
+            (
+                ChemicalComponent::PotassiumChloride,
+                ChemicalComponent::Potassium,
+            ),
+            (
+                ChemicalComponent::PotassiumChloride,
+                ChemicalComponent::Chlorine,
+            ),
+            (
+                ChemicalComponent::PotassiumOxide,
+                ChemicalComponent::Potassium,
+            ),
+            (ChemicalComponent::PotassiumOxide, ChemicalComponent::Oxygen),
+            (
+                ChemicalComponent::MagnesiumOxide,
+                ChemicalComponent::Magnesium,
+            ),
+            (ChemicalComponent::MagnesiumOxide, ChemicalComponent::Oxygen),
+            (
+                ChemicalComponent::TitaniumDioxide,
+                ChemicalComponent::Titanium,
+            ),
+            (
+                ChemicalComponent::TitaniumDioxide,
+                ChemicalComponent::Oxygen,
+            ),
+            (
+                ChemicalComponent::TitaniumTetrachloride,
+                ChemicalComponent::Titanium,
+            ),
+            (
+                ChemicalComponent::TitaniumTetrachloride,
+                ChemicalComponent::Chlorine,
+            ),
+            (
+                ChemicalComponent::PhosphorusPentoxide,
+                ChemicalComponent::Phosphorus,
+            ),
+            (
+                ChemicalComponent::PhosphorusPentoxide,
+                ChemicalComponent::Oxygen,
+            ),
+            (
+                ChemicalComponent::ChromiumOxide,
+                ChemicalComponent::Chromium,
+            ),
+            (ChemicalComponent::ChromiumOxide, ChemicalComponent::Oxygen),
+            (
+                ChemicalComponent::ChromiumChloride,
+                ChemicalComponent::Chromium,
+            ),
+            (
+                ChemicalComponent::ChromiumChloride,
+                ChemicalComponent::Chlorine,
+            ),
+            (
+                ChemicalComponent::ManganeseDioxide,
+                ChemicalComponent::Manganese,
+            ),
+            (
+                ChemicalComponent::ManganeseDioxide,
+                ChemicalComponent::Oxygen,
+            ),
+            (
+                ChemicalComponent::ManganeseOxide,
+                ChemicalComponent::Manganese,
+            ),
+            (ChemicalComponent::ManganeseOxide, ChemicalComponent::Oxygen),
+            (ChemicalComponent::NickelOxide, ChemicalComponent::Nickel),
+            (ChemicalComponent::NickelOxide, ChemicalComponent::Oxygen),
+            (ChemicalComponent::NickelSulfide, ChemicalComponent::Nickel),
+            (ChemicalComponent::NickelSulfide, ChemicalComponent::Sulfur),
+        ];
+
+        related_pairs.contains(&(*self, *other)) || related_pairs.contains(&(*other, *self))
     }
 
     /// Determines if a substance can exist in liquid state at given temperature and pressure.
@@ -331,6 +703,7 @@ impl Display for ChemicalComponent {
             ChemicalComponent::Chlorine => write!(f, "Chlorine"),
             ChemicalComponent::Argon => write!(f, "Argon"),
             ChemicalComponent::Titanium => write!(f, "Titanium"),
+            ChemicalComponent::Neon => write!(f, "Neon"),
             ChemicalComponent::Chromium => write!(f, "Chromium"),
             ChemicalComponent::Manganese => write!(f, "Manganese"),
             ChemicalComponent::Nickel => write!(f, "Nickel"),
@@ -358,6 +731,27 @@ impl Display for ChemicalComponent {
             ChemicalComponent::PolycyclicAromaticHydrocarbons => {
                 write!(f, "Polycyclic Aromatic Hydrocarbons")
             }
+            ChemicalComponent::SiliconDioxide => write!(f, "Silicon Dioxide"),
+            ChemicalComponent::AluminiumOxide => write!(f, "Aluminium Oxide"),
+            ChemicalComponent::IronOxide => write!(f, "Iron Oxide"),
+            ChemicalComponent::IronSulfide => write!(f, "Iron Sulfide"),
+            ChemicalComponent::CalciumOxide => write!(f, "Calcium Oxide"),
+            ChemicalComponent::SodiumChloride => write!(f, "Sodium Chloride"),
+            ChemicalComponent::SodiumOxide => write!(f, "Sodium Oxide"),
+            ChemicalComponent::PotassiumChloride => write!(f, "Potassium Chloride"),
+            ChemicalComponent::PotassiumOxide => write!(f, "Potassium Oxide"),
+            ChemicalComponent::MagnesiumOxide => write!(f, "Magnesium Oxide"),
+            ChemicalComponent::TitaniumDioxide => write!(f, "Titanium Dioxide"),
+            ChemicalComponent::TitaniumTetrachloride => write!(f, "Titanium Tetrachloride"),
+            ChemicalComponent::PhosphorusPentoxide => write!(f, "Phosphorus Pentoxide"),
+            ChemicalComponent::ChromiumOxide => write!(f, "Chromium Oxide"),
+            ChemicalComponent::ChromiumChloride => write!(f, "Chromium Chloride"),
+            ChemicalComponent::ManganeseDioxide => write!(f, "Manganese Dioxide"),
+            ChemicalComponent::ManganeseOxide => write!(f, "Manganese Oxide"),
+            ChemicalComponent::NickelOxide => write!(f, "Nickel Oxide"),
+            ChemicalComponent::NickelSulfide => write!(f, "Nickel Sulfide"),
+            ChemicalComponent::NitricAcid => write!(f, "Nitric Acid"),
+            ChemicalComponent::SulfuricAcid => write!(f, "Sulfuric Acid"),
         }
     }
 }
@@ -365,7 +759,7 @@ impl Display for ChemicalComponent {
 pub const NON_METALS_ELEMENTS: [ChemicalComponent; 2] =
     [ChemicalComponent::Hydrogen, ChemicalComponent::Helium];
 
-pub const MOST_COMMON_ELEMENTS: [ChemicalComponent; 23] = [
+pub const MOST_COMMON_ELEMENTS: [ChemicalComponent; 24] = [
     ChemicalComponent::Hydrogen,
     ChemicalComponent::Helium,
     ChemicalComponent::Carbon,
@@ -379,6 +773,7 @@ pub const MOST_COMMON_ELEMENTS: [ChemicalComponent; 23] = [
     ChemicalComponent::Potassium,
     ChemicalComponent::Calcium,
     ChemicalComponent::Aluminum,
+    ChemicalComponent::Neon,
     ChemicalComponent::Phosphorus,
     ChemicalComponent::Chlorine,
     ChemicalComponent::Argon,
@@ -391,7 +786,7 @@ pub const MOST_COMMON_ELEMENTS: [ChemicalComponent; 23] = [
     ChemicalComponent::SulfurDioxide,
 ];
 
-pub const ALL_ELEMENTS: [ChemicalComponent; 42] = [
+pub const ALL_ELEMENTS: [ChemicalComponent; 64] = [
     ChemicalComponent::Hydrogen,
     ChemicalComponent::Helium,
     ChemicalComponent::Carbon,
@@ -417,6 +812,7 @@ pub const ALL_ELEMENTS: [ChemicalComponent; 42] = [
     ChemicalComponent::CarbonDioxide,
     ChemicalComponent::Methane,
     ChemicalComponent::Ammonia,
+    ChemicalComponent::Neon,
     ChemicalComponent::HydrogenSulfide,
     ChemicalComponent::SulfurDioxide,
     ChemicalComponent::Hydroxyl,
@@ -434,6 +830,27 @@ pub const ALL_ELEMENTS: [ChemicalComponent; 42] = [
     ChemicalComponent::Glycine,
     ChemicalComponent::Silicates,
     ChemicalComponent::PolycyclicAromaticHydrocarbons,
+    ChemicalComponent::SiliconDioxide,
+    ChemicalComponent::AluminiumOxide,
+    ChemicalComponent::IronOxide,
+    ChemicalComponent::IronSulfide,
+    ChemicalComponent::CalciumOxide,
+    ChemicalComponent::SodiumChloride,
+    ChemicalComponent::SodiumOxide,
+    ChemicalComponent::PotassiumChloride,
+    ChemicalComponent::PotassiumOxide,
+    ChemicalComponent::MagnesiumOxide,
+    ChemicalComponent::TitaniumDioxide,
+    ChemicalComponent::TitaniumTetrachloride,
+    ChemicalComponent::PhosphorusPentoxide,
+    ChemicalComponent::ChromiumOxide,
+    ChemicalComponent::ChromiumChloride,
+    ChemicalComponent::ManganeseDioxide,
+    ChemicalComponent::ManganeseOxide,
+    ChemicalComponent::NickelOxide,
+    ChemicalComponent::NickelSulfide,
+    ChemicalComponent::NitricAcid,
+    ChemicalComponent::SulfuricAcid,
 ];
 
 #[derive(
@@ -514,6 +931,7 @@ pub(crate) fn liquid_majority_composition_likelihood(
         ChemicalComponent::Methanol => 0.4,
         ChemicalComponent::Ethylene => 0.3,
         ChemicalComponent::Ethane => 0.4,
+        ChemicalComponent::Neon => 0.2,
         ChemicalComponent::Acetylene => 0.2,
         ChemicalComponent::Benzene => 0.3,
         ChemicalComponent::Acetonitrile => 0.2,
@@ -523,6 +941,27 @@ pub(crate) fn liquid_majority_composition_likelihood(
         ChemicalComponent::Silicates => 0.1,
         ChemicalComponent::PolycyclicAromaticHydrocarbons => 0.2,
         ChemicalComponent::CarbonMonoxide => 0.4,
+        ChemicalComponent::SiliconDioxide => 0.1,
+        ChemicalComponent::AluminiumOxide => 0.1,
+        ChemicalComponent::IronOxide => 0.1,
+        ChemicalComponent::IronSulfide => 0.1,
+        ChemicalComponent::CalciumOxide => 0.1,
+        ChemicalComponent::SodiumChloride => 0.1,
+        ChemicalComponent::SodiumOxide => 0.1,
+        ChemicalComponent::PotassiumChloride => 0.1,
+        ChemicalComponent::PotassiumOxide => 0.1,
+        ChemicalComponent::MagnesiumOxide => 0.1,
+        ChemicalComponent::TitaniumDioxide => 0.1,
+        ChemicalComponent::TitaniumTetrachloride => 0.2,
+        ChemicalComponent::PhosphorusPentoxide => 0.1,
+        ChemicalComponent::ChromiumOxide => 0.1,
+        ChemicalComponent::ChromiumChloride => 0.1,
+        ChemicalComponent::ManganeseDioxide => 0.1,
+        ChemicalComponent::ManganeseOxide => 0.1,
+        ChemicalComponent::NickelOxide => 0.1,
+        ChemicalComponent::NickelSulfide => 0.1,
+        ChemicalComponent::NitricAcid => 0.2,
+        ChemicalComponent::SulfuricAcid => 0.2,
     };
 
     let stability = match component {
@@ -540,6 +979,7 @@ pub(crate) fn liquid_majority_composition_likelihood(
         ChemicalComponent::Calcium => 0.6,
         ChemicalComponent::Aluminum => 0.7,
         ChemicalComponent::Phosphorus => 0.6,
+        ChemicalComponent::Neon => 1.0,
         ChemicalComponent::Chlorine => 0.6,
         ChemicalComponent::Argon => 1.0,
         ChemicalComponent::Titanium => 0.8,
@@ -568,6 +1008,27 @@ pub(crate) fn liquid_majority_composition_likelihood(
         ChemicalComponent::Glycine => 0.8,
         ChemicalComponent::Silicates => 0.9,
         ChemicalComponent::PolycyclicAromaticHydrocarbons => 0.6,
+        ChemicalComponent::SiliconDioxide => 0.1,
+        ChemicalComponent::AluminiumOxide => 0.1,
+        ChemicalComponent::IronOxide => 0.1,
+        ChemicalComponent::IronSulfide => 0.1,
+        ChemicalComponent::CalciumOxide => 0.1,
+        ChemicalComponent::SodiumChloride => 0.1,
+        ChemicalComponent::SodiumOxide => 0.1,
+        ChemicalComponent::PotassiumChloride => 0.1,
+        ChemicalComponent::PotassiumOxide => 0.1,
+        ChemicalComponent::MagnesiumOxide => 0.1,
+        ChemicalComponent::TitaniumDioxide => 0.1,
+        ChemicalComponent::TitaniumTetrachloride => 0.2,
+        ChemicalComponent::PhosphorusPentoxide => 0.1,
+        ChemicalComponent::ChromiumOxide => 0.1,
+        ChemicalComponent::ChromiumChloride => 0.1,
+        ChemicalComponent::ManganeseDioxide => 0.1,
+        ChemicalComponent::ManganeseOxide => 0.1,
+        ChemicalComponent::NickelOxide => 0.1,
+        ChemicalComponent::NickelSulfide => 0.1,
+        ChemicalComponent::NitricAcid => 0.2,
+        ChemicalComponent::SulfuricAcid => 0.2,
     };
 
     let mut adjusted_likelihood = base_likelihood * stability;

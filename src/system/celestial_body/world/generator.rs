@@ -303,54 +303,569 @@ impl WorldGenerator {
             land_area_percentage,
         );
 
-        // TODO: Atmospheric composition
-        let present_volatiles: Vec<ChemicalComponent> = Vec::new();
-        let atmospheric_composition = {
-            let system_wide_elements_abundance: Vec<ChemicalComponent> = {
-                let mut rng = SeededDiceRoller::new(
-                    &settings.seed,
-                    &format!("sys_{}_{}_elem_abnd", coord, system_index),
-                );
-                let mut elements = Vec::new();
-                let mut roll = rng.gen_u8();
-                while roll >= 7 {
-                    if rng.gen_u8() >= 7 {
-                        &elements.push(ALL_ELEMENTS[rng.gen_range(0..ALL_ELEMENTS.len())]);
-                    } else {
-                        elements.push(
-                            MOST_COMMON_ELEMENTS[rng.gen_range(0..MOST_COMMON_ELEMENTS.len())],
-                        )
-                    }
-                    roll = rng.gen_u8();
-                }
-                elements
-            };
-            let system_wide_elements_lack: Vec<ChemicalComponent> = {
-                let mut rng = SeededDiceRoller::new(
-                    &settings.seed,
-                    &format!("sys_{}_{}_elem_lack", coord, system_index),
-                );
-                let mut elements = Vec::new();
-                let mut roll = rng.gen_u8();
-                while roll >= 7 {
-                    if rng.gen_u8() >= 7 {
-                        let element = ALL_ELEMENTS[rng.gen_range(0..ALL_ELEMENTS.len())];
-                        if !system_wide_elements_abundance.contains(&element) {
-                            elements.push(element);
-                        }
-                    } else {
-                        let element =
-                            MOST_COMMON_ELEMENTS[rng.gen_range(0..MOST_COMMON_ELEMENTS.len())];
-                        if !system_wide_elements_abundance.contains(&element) {
-                            elements.push(element);
-                        }
-                    }
-                    roll = rng.gen_u8();
-                }
-                elements
-            };
+        // TODO: Planetary imbalances
+        {
+            // Use is_stable_element
+            // Take system imbalances into account, either aggravating them or assuaging them
+            // Add occurences
+        }
 
-            let composition: Vec<ChemicalComponent>;
+        // TODO: Atmospheric composition
+        let atmospheric_composition = {
+            let mut composition: Vec<(ChemicalComponentPresence, ChemicalComponent)> = Vec::new();
+            if atmospheric_pressure > 0.0 {
+                let mut rng = SeededDiceRoller::new(
+                    &settings.seed,
+                    &format!(
+                        "sys_{}_{}_str_{}_bdy{}_atcmp",
+                        coord, system_index, star_id, orbital_point_id
+                    ),
+                );
+                let mut carbon_system = false;
+                for special_trait in system_traits {
+                    if special_trait == &SystemPeculiarity::CarbonRich {
+                        carbon_system = true;
+                    }
+                }
+
+                /// Rocky Planets can have an imbalance in
+                /// Oxygen (O₂) > Sulfur Dioxide, Carbon Dioxide, Water Vapor (depending on other elements present)
+                /// Silicon (Si) > Silicon Dioxide
+                /// Aluminum (Al) > Aluminium Oxide, Aluminium Silicates
+                /// Carbon (C) > Carbon Dioxide, Methane
+                /// Iron (Fe) > Iron Oxide, Iron Sulfides if Sulfur
+                /// Calcium (Ca) > Calcium Oxide, Calcium Carbonate
+                /// Sodium (Na) > Sodium Chloride, Sodium Oxide
+                /// Potassium (K) > Potassium Chloride, Potassium Oxide
+                /// Magnesium (Mg) > Magnesium Oxide
+                /// Sulfur (S) > Sulfur Dioxide, Hydrogen Sulfide
+                /// Titanium (Ti) > Titanium Dioxide, Titanium Tetrachloride if Chlorine too
+                /// Phosphorus (P) > Phosphorus Pentoxide
+                ///
+                /// Chromium (Cr) > Chromium Oxide, Chromium Chloride if Chlorine
+                /// Manganese (Mn) > Manganese Dioxide, Manganese Oxide
+                /// Argon (Ar) > Argon
+                /// Nickel (Ni) > Nickel Oxide, Nickel Sulfide if Sulfur
+                /// Helium (H) > Helium
+                /// Neon (Ne) > Neon
+                ///
+                /// Ice Planets can have an imbalance in
+                /// Water (H₂O) > Water Vapor
+                /// Carbon Dioxide (CO₂) > Carbon dioxide
+                /// Carbon Monoxide (CO) > Carbon dioxide and a bit of Methane
+                /// Methane (CH₄) > Methane and a bit of Ethane
+                /// Ammonia (NH₃) > Nitric Oxide and Nitrogen Dioxide
+                /// Nitrogen (N₂) > Nitrogen Dioxide, Nitric Oxide if no Water, Nitric Acid otherwise
+                /// Sulfur Dioxide (SO₂) > Sulfur Dioxide and a bit of Sulfuric Acid
+                /// Hydrogen (H₂) > Hydrogen Sulfide, Water Vapor
+                /// Hydrogen Sulfide (H₂S) > Sulfur Dioxide and a bit of Sulfuric Acid
+                /// Methanol (CH₃OH) > A bit of Methane, Methanol a bit, Carbon Dioxide and Water
+
+                /// Around M dwarves, possible to have Methane and Oxygen as primary with Ammonia and Water Vapor as traces
+
+                let modifier = if mass > 1.0 {
+                    (mass * 5.0) as i32
+                } else if mass != 0.0 {
+                    -(1.0 / mass) as i32
+                } else {
+                    0
+                };
+                let roll = rng.roll(1, 100, modifier);
+
+                let mut add_other = false;
+                if carbon_system {
+                    if roll <= 10 {
+                        // Negligible
+                    } else if roll <= 11 {
+                        // Carbon dioxide with oxygen
+                        Self::add_gas_carbon_dioxide_and_oxygen(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 12 {
+                        // Carbon dioxide
+                        Self::add_gas_carbon_dioxide(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 15 {
+                        // Carbon dioxide and nitrogen
+                        Self::add_gas_carbon_dioxide_and_nitrogen(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 16 {
+                        // Carbon dioxide, water and nitrogen
+                        Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 17 {
+                        // Water with oxygen
+                        Self::add_gas_water_and_oxygen(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 18 {
+                        // Water, carbon dioxide, nitrogen
+                        Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 19 {
+                        // Nitrogen with water
+                        Self::add_gas_nitrogen_and_water(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 39 {
+                        // Nitrogen
+                        Self::add_gas_nitrogen(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 59 {
+                        // Nitrogen with carbon monoxide
+                        Self::add_gas_nitrogen_and_carbon_monoxide(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 79 {
+                        // Carbon monoxide
+                        Self::add_gas_carbon_monoxide(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 84 {
+                        // Neon
+                        Self::add_gas_neon(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else if roll <= 94 {
+                        // Helium
+                        Self::add_gas_helium(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            &mut rng,
+                            &mut add_other,
+                        );
+                    } else {
+                        // Hydrogen and helium
+                        Self::add_gas_hydrogen_and_helium(
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            &mut composition,
+                            rng,
+                            &mut add_other,
+                        );
+                    }
+                } else {
+                    match body_type {
+                        TelluricBodyComposition::Metallic => {
+                            if roll <= 4 {
+                                // Negligible
+                            } else if roll <= 14 {
+                                // Carbon dioxide with oxygen
+                                Self::add_gas_carbon_dioxide_and_oxygen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 39 {
+                                // Carbon dioxide
+                                Self::add_gas_carbon_dioxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 59 {
+                                // Carbon dioxide and nitrogen
+                                Self::add_gas_carbon_dioxide_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 62 {
+                                // Carbon dioxide, water and nitrogen
+                                Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 63 {
+                                // Water with oxygen
+                                Self::add_gas_water_and_oxygen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 64 {
+                                // Water, carbon dioxide, nitrogen
+                                Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 69 {
+                                // Nitrogen with water
+                                Self::add_gas_nitrogen_and_water(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 89 {
+                                // Nitrogen
+                                Self::add_gas_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 92 {
+                                // Nitrogen with carbon monoxide
+                                Self::add_gas_nitrogen_and_carbon_monoxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 94 {
+                                // Carbon monoxide
+                                Self::add_gas_carbon_monoxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 95 {
+                                // Neon
+                                Self::add_gas_neon(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 99 {
+                                // Helium
+                                Self::add_gas_helium(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else {
+                                // Hydrogen and helium
+                                Self::add_gas_hydrogen_and_helium(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    rng,
+                                    &mut add_other,
+                                );
+                            }
+                        }
+                        TelluricBodyComposition::Rocky => {
+                            if roll <= 9 {
+                                // Negligible
+                            } else if roll <= 14 {
+                                // Carbon dioxide with oxygen
+                                Self::add_gas_carbon_dioxide_and_oxygen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 44 {
+                                // Carbon dioxide
+                                Self::add_gas_carbon_dioxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 54 {
+                                // Carbon dioxide and nitrogen
+                                Self::add_gas_carbon_dioxide_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 59 {
+                                // Carbon dioxide, water and nitrogen 
+                                Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 64 {
+                                // Water with oxygen
+                                Self::add_gas_water_and_oxygen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 69 {
+                                // Water, carbon dioxide, nitrogen
+                                Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 74 {
+                                // Nitrogen with water
+                                Self::add_gas_nitrogen_and_water(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 84 {
+                                // Nitrogen
+                                Self::add_gas_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 87 {
+                                // Nitrogen with carbon monoxide
+                                Self::add_gas_nitrogen_and_carbon_monoxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 89 {
+                                // Carbon monoxide
+                                Self::add_gas_carbon_monoxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 90 {
+                                // Neon
+                                Self::add_gas_neon(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 94 {
+                                // Helium
+                                Self::add_gas_helium(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else {
+                                // Hydrogen and helium
+                                Self::add_gas_hydrogen_and_helium(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    rng,
+                                    &mut add_other,
+                                );
+                            }
+                        }
+                        TelluricBodyComposition::Icy => {
+                            if roll <= 1 {
+                                // Negligible
+                            } else if roll <= 5 {
+                                // Carbon dioxide with oxygen
+                                Self::add_gas_carbon_dioxide_and_oxygen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 9 {
+                                // Carbon dioxide
+                                Self::add_gas_carbon_dioxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 14 {
+                                // Carbon dioxide and nitrogen
+                                Self::add_gas_carbon_dioxide_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 19 {
+                                // Carbon dioxide, water and nitrogen 
+                                Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 29 {
+                                // Water with oxygen
+                                Self::add_gas_water_and_oxygen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 39 {
+                                // Water, carbon dioxide, nitrogen
+                                Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 49 {
+                                // Nitrogen with water
+                                Self::add_gas_nitrogen_and_water(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 64 {
+                                // Nitrogen
+                                Self::add_gas_nitrogen(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 72 {
+                                // Nitrogen with carbon monoxide
+                                Self::add_gas_nitrogen_and_carbon_monoxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 80 {
+                                // Carbon monoxide
+                                Self::add_gas_carbon_monoxide(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 85 {
+                                // Neon
+                                Self::add_gas_neon(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else if roll <= 89 {
+                                // Helium
+                                Self::add_gas_helium(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    &mut rng,
+                                    &mut add_other,
+                                );
+                            } else {
+                                // Hydrogen and helium
+                                Self::add_gas_hydrogen_and_helium(
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut composition,
+                                    rng,
+                                    &mut add_other,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            composition
         };
 
         // TODO: Life
@@ -411,6 +926,545 @@ impl WorldGenerator {
             )),
             orbits.clone(),
         )
+    }
+
+    fn add_gas_carbon_dioxide_and_oxygen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Oxygen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll <= 2 {
+            Self::add_gas_as(
+                ChemicalComponent::SulfurDioxide,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_carbon_dioxide(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            ChemicalComponentPresence::Dominant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll <= 4 {
+            Self::add_gas_as(
+                ChemicalComponent::SulfurDioxide,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_carbon_dioxide_and_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_carbon_dioxide_and_water_and_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            if rng.roll(1, 4, 0) == 1 {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 5 && roll <= 6 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 7 && roll <= 8 {
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_water_and_oxygen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Oxygen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 7 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Nitrogen,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_water_and_carbon_dioxide_and_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            if rng.roll(1, 4, 0) == 1 {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_nitrogen_and_water(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 7 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Dominant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 4 && roll <= 7 {
+            Self::add_gas_as(
+                ChemicalComponent::Water,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Water,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_nitrogen_and_carbon_monoxide(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::CarbonMonoxide,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_carbon_monoxide(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonMonoxide,
+            ChemicalComponentPresence::Dominant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_neon(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Neon,
+            ChemicalComponentPresence::Dominant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 2 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Helium,
+                if rng.gen_bool() {
+                    ChemicalComponentPresence::Notable
+                } else {
+                    ChemicalComponentPresence::Significant
+                },
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+            Self::add_gas_as(
+                ChemicalComponent::Hydrogen,
+                if rng.gen_bool() {
+                    ChemicalComponentPresence::Notable
+                } else {
+                    ChemicalComponentPresence::Significant
+                },
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_helium(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Helium,
+            ChemicalComponentPresence::Dominant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 2 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Hydrogen,
+                if rng.gen_bool() {
+                    ChemicalComponentPresence::Notable
+                } else {
+                    ChemicalComponentPresence::Significant
+                },
+                blackbody_temperature,
+                atmospheric_pressure,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_hydrogen_and_helium(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Hydrogen,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Helium,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            &mut composition,
+        );
+
+        if rng.roll(1, 10, 0) >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_as(
+        gas: ChemicalComponent,
+        presence: ChemicalComponentPresence,
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+    ) {
+        if gas.can_exist_as_gas(blackbody_temperature, atmospheric_pressure) {
+            composition.push((presence, gas));
+        }
     }
 
     fn set_as_geoactive_if_extreme(
