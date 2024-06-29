@@ -500,7 +500,7 @@ impl WorldGenerator {
                             /// Hydrogen (H₂) > Hydrogen Sulfide, Water Vapor
                             /// Hydrogen Sulfide (H₂S) > Sulfur Dioxide and a bit of Sulfuric Acid
                             /// Methanol (CH₃OH) > A bit of Methane, Methanol a bit, Carbon Dioxide and Water
-                            ///
+
                             for component_to_add in components_to_add {
                                 Self::add_gas_as(
                                     component_to_add,
