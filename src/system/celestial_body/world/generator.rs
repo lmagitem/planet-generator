@@ -382,7 +382,7 @@ impl WorldGenerator {
                 }
 
                 if volcanism >= 25.0 {
-                    for special_trait in special_traits {
+                    for special_trait in &special_traits {
                         if let CelestialBodySpecialTrait::UnusualElementPresence(
                             component_and_occurrence,
                         ) = special_trait
@@ -425,101 +425,251 @@ impl WorldGenerator {
                             };
 
                             let mut components_to_add = None;
-                            let possible_components_produced = &[
-                                (ChemicalComponent::Sulfur, vec![(ChemicalComponent::SulfurDioxide, None), (ChemicalComponent::HydrogenSulfide, None)]),
-                                ChemicalComponent::Oxygen,
-                                ChemicalComponent::Silicon,
-                                ChemicalComponent::Aluminum,
-                                ChemicalComponent::Carbon,
-                                ChemicalComponent::Iron,
-                                ChemicalComponent::Calcium,
-                                ChemicalComponent::Sodium,
-                                ChemicalComponent::Potassium,
-                                ChemicalComponent::Magnesium,
-                                ChemicalComponent::Titanium,
-                                ChemicalComponent::Phosphorus,
-                                ChemicalComponent::Chromium,
-                                ChemicalComponent::Manganese,
-                                ChemicalComponent::Argon,
-                                ChemicalComponent::Nickel,
-                                ChemicalComponent::Helium,
-                                ChemicalComponent::Neon,
-                                ChemicalComponent::Water,
-                                ChemicalComponent::CarbonDioxide,
-                                ChemicalComponent::Methane,
-                                ChemicalComponent::Ammonia,
-                                ChemicalComponent::CarbonMonoxide,
-                                ChemicalComponent::Hydrogen,
-                                ChemicalComponent::Nitrogen,
-                                ChemicalComponent::SulfurDioxide,
-                                ChemicalComponent::HydrogenSulfide,
-                                ChemicalComponent::Methanol,
+                            let possible_components_produced: Vec<(
+                                ChemicalComponent,
+                                Vec<(ChemicalComponent, Option<ChemicalComponent>)>,
+                            )> = vec![
+                                (
+                                    ChemicalComponent::Sulfur,
+                                    vec![
+                                        (ChemicalComponent::SulfurDioxide, None),
+                                        (ChemicalComponent::HydrogenSulfide, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Oxygen,
+                                    vec![
+                                        (ChemicalComponent::SulfurDioxide, None),
+                                        (ChemicalComponent::CarbonDioxide, None),
+                                        (ChemicalComponent::Water, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Silicon,
+                                    vec![(ChemicalComponent::SiliconDioxide, None)],
+                                ),
+                                (
+                                    ChemicalComponent::Aluminum,
+                                    vec![
+                                        (ChemicalComponent::AluminiumOxide, None),
+                                        (ChemicalComponent::Silicates, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Carbon,
+                                    vec![
+                                        (ChemicalComponent::CarbonDioxide, None),
+                                        (ChemicalComponent::Methane, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Iron,
+                                    vec![
+                                        (ChemicalComponent::IronOxide, None),
+                                        (
+                                            ChemicalComponent::IronSulfide,
+                                            Some(ChemicalComponent::Sulfur),
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Calcium,
+                                    vec![(ChemicalComponent::CalciumOxide, None)],
+                                ),
+                                (
+                                    ChemicalComponent::Sodium,
+                                    vec![
+                                        (ChemicalComponent::SodiumChloride, None),
+                                        (ChemicalComponent::SodiumOxide, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Potassium,
+                                    vec![
+                                        (ChemicalComponent::PotassiumChloride, None),
+                                        (ChemicalComponent::PotassiumOxide, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Magnesium,
+                                    vec![(ChemicalComponent::MagnesiumOxide, None)],
+                                ),
+                                (
+                                    ChemicalComponent::Titanium,
+                                    vec![
+                                        (ChemicalComponent::TitaniumDioxide, None),
+                                        (
+                                            ChemicalComponent::TitaniumTetrachloride,
+                                            Some(ChemicalComponent::Chlorine),
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Phosphorus,
+                                    vec![(ChemicalComponent::PhosphorusPentoxide, None)],
+                                ),
+                                (
+                                    ChemicalComponent::Chromium,
+                                    vec![
+                                        (ChemicalComponent::ChromiumOxide, None),
+                                        (
+                                            ChemicalComponent::ChromiumChloride,
+                                            Some(ChemicalComponent::Chlorine),
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Manganese,
+                                    vec![
+                                        (ChemicalComponent::ManganeseDioxide, None),
+                                        (ChemicalComponent::ManganeseOxide, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Argon,
+                                    vec![(ChemicalComponent::Argon, None)],
+                                ),
+                                (
+                                    ChemicalComponent::Nickel,
+                                    vec![
+                                        (ChemicalComponent::NickelOxide, None),
+                                        (
+                                            ChemicalComponent::NickelSulfide,
+                                            Some(ChemicalComponent::Sulfur),
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Helium,
+                                    vec![(ChemicalComponent::Helium, None)],
+                                ),
+                                (
+                                    ChemicalComponent::Neon,
+                                    vec![(ChemicalComponent::Neon, None)],
+                                ),
+                                // Ice Planet Elements
+                                (
+                                    ChemicalComponent::Water,
+                                    vec![(ChemicalComponent::Water, None)],
+                                ),
+                                (
+                                    ChemicalComponent::CarbonDioxide,
+                                    vec![(ChemicalComponent::CarbonDioxide, None)],
+                                ),
+                                (
+                                    ChemicalComponent::Methane,
+                                    vec![
+                                        (ChemicalComponent::Methane, None),
+                                        (ChemicalComponent::Ethane, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Ammonia,
+                                    vec![
+                                        (ChemicalComponent::NitricOxide, None),
+                                        (ChemicalComponent::NitrogenDioxide, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::CarbonMonoxide,
+                                    vec![
+                                        (ChemicalComponent::CarbonDioxide, None),
+                                        (ChemicalComponent::Methane, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Hydrogen,
+                                    vec![
+                                        (ChemicalComponent::HydrogenSulfide, None),
+                                        (ChemicalComponent::Water, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Nitrogen,
+                                    vec![
+                                        (ChemicalComponent::NitrogenDioxide, None),
+                                        (
+                                            ChemicalComponent::NitricAcid,
+                                            Some(ChemicalComponent::Water),
+                                        ),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::SulfurDioxide,
+                                    vec![
+                                        (ChemicalComponent::SulfurDioxide, None),
+                                        (ChemicalComponent::SulfuricAcid, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::HydrogenSulfide,
+                                    vec![
+                                        (ChemicalComponent::SulfurDioxide, None),
+                                        (ChemicalComponent::SulfuricAcid, None),
+                                    ],
+                                ),
+                                (
+                                    ChemicalComponent::Methanol,
+                                    vec![
+                                        (ChemicalComponent::CarbonDioxide, None),
+                                        (ChemicalComponent::Water, None),
+                                        (ChemicalComponent::Methane, None),
+                                        (ChemicalComponent::Methanol, None),
+                                    ],
+                                ),
                             ];
-                            for component_and_produced in possible_components_produced {
+                            for component_and_produced in &possible_components_produced {
                                 if component_present == component_and_produced.0 {
-                                    components_to_add = Some(*component_and_produced.1);
+                                    components_to_add = Some(component_and_produced.1.clone());
                                 }
                             }
-                            if (components_to_add.is_none()) {
-                                for component_and_produced in possible_components_produced {
-                                    if component_present.is_related_element(*component_and_produced.0) {
-                                        components_to_add = Some(*component_and_produced.1);
+                            if components_to_add.is_none() {
+                                for component_and_produced in &possible_components_produced {
+                                    if component_present
+                                        .is_related_element(&component_and_produced.0)
+                                    {
+                                        components_to_add = Some(component_and_produced.1.clone());
                                     }
                                 }
                             }
 
-                            /// Rocky Planets can have an imbalance in
-                            /// Oxygen (O₂) > Sulfur Dioxide, Carbon Dioxide, Water Vapor (depending on other elements present)
-                            /// Silicon (Si) > Silicon Dioxide
-                            /// Aluminum (Al) > Aluminium Oxide, Aluminium Silicates
-                            /// Carbon (C) > Carbon Dioxide, Methane
-                            /// Iron (Fe) > Iron Oxide, Iron Sulfides if Sulfur
-                            /// Calcium (Ca) > Calcium Oxide, Calcium Carbonate
-                            /// Sodium (Na) > Sodium Chloride, Sodium Oxide
-                            /// Potassium (K) > Potassium Chloride, Potassium Oxide
-                            /// Magnesium (Mg) > Magnesium Oxide
-                            /// Sulfur (S) > Sulfur Dioxide, Hydrogen Sulfide
-                            /// Titanium (Ti) > Titanium Dioxide, Titanium Tetrachloride if Chlorine too
-                            /// Phosphorus (P) > Phosphorus Pentoxide
-                            ///
-                            /// Chromium (Cr) > Chromium Oxide, Chromium Chloride if Chlorine
-                            /// Manganese (Mn) > Manganese Dioxide, Manganese Oxide
-                            /// Argon (Ar) > Argon
-                            /// Nickel (Ni) > Nickel Oxide, Nickel Sulfide if Sulfur
-                            /// Helium (H) > Helium
-                            /// Neon (Ne) > Neon
-                            ///
-                            /// Ice Planets can have an imbalance in
-                            /// Water (H₂O) > Water Vapor
-                            /// Carbon Dioxide (CO₂) > Carbon dioxide
-                            /// Carbon Monoxide (CO) > Carbon dioxide and a bit of Methane
-                            /// Methane (CH₄) > Methane and a bit of Ethane
-                            /// Ammonia (NH₃) > Nitric Oxide and Nitrogen Dioxide
-                            /// Nitrogen (N₂) > Nitrogen Dioxide, Nitric Oxide if no Water, Nitric Acid otherwise
-                            /// Sulfur Dioxide (SO₂) > Sulfur Dioxide and a bit of Sulfuric Acid
-                            /// Hydrogen (H₂) > Hydrogen Sulfide, Water Vapor
-                            /// Hydrogen Sulfide (H₂S) > Sulfur Dioxide and a bit of Sulfuric Acid
-                            /// Methanol (CH₃OH) > A bit of Methane, Methanol a bit, Carbon Dioxide and Water
-
-                            for component_to_add in components_to_add {
-                                Self::add_gas_as(
-                                    component_to_add,
-                                    presence,
-                                    blackbody_temperature,
-                                    atmospheric_pressure,
-                                    &mut guess_composition,
-                                );
-                                presence = match presence {
-                                    ChemicalComponentPresence::Dominant => ChemicalComponentPresence::Notable,
-                                    ChemicalComponentPresence::Significant => ChemicalComponentPresence::Minor,
-                                    _ => ChemicalComponentPresence::Traces
-                                };
+                            if let Some(components) = components_to_add {
+                                for component_to_add in components {
+                                    if component_to_add.1.is_none() || special_traits.iter().any(|c| {
+                                        if let CelestialBodySpecialTrait::UnusualElementPresence(
+                                            component_and_occurrence,
+                                        ) = c
+                                        {
+                                            if component_and_occurrence.0 == component_to_add.1.unwrap() {
+                                                return true;
+                                            }
+                                        }
+                                        false
+                                    }) {
+                                    Self::add_gas_as(
+                                        component_to_add.0,
+                                        presence,
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        &mut guess_composition,
+                                    );
+                                    presence = match presence {
+                                        ChemicalComponentPresence::Dominant => {
+                                            ChemicalComponentPresence::Notable
+                                        }
+                                        ChemicalComponentPresence::Significant => {
+                                            ChemicalComponentPresence::Minor
+                                        }
+                                        _ => ChemicalComponentPresence::Traces,
+                                    };
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
-                /// Around M dwarves, possible to have Methane and Oxygen as primary with Ammonia and Water Vapor as traces
+                // TODO: Around M dwarves, possible to have Methane and Oxygen as primary with Ammonia and Water Vapor as traces
                 let modifier = if mass > 1.0 {
                     (mass * 5.0) as i32
                 } else if mass != 0.0 {
@@ -1022,6 +1172,22 @@ impl WorldGenerator {
                     }
                 }
             }
+            guess_composition.iter().for_each(|composition| {
+                final_composition.push((
+                    if composition.0 == ChemicalComponentPresence::Dominant {
+                        70.0
+                    } else if composition.0 == ChemicalComponentPresence::Significant {
+                        30.0
+                    } else if composition.0 == ChemicalComponentPresence::Notable {
+                        10.0
+                    } else if composition.0 == ChemicalComponentPresence::Minor {
+                        1.0
+                    } else {
+                        0.01
+                    },
+                    composition.1,
+                ))
+            });
             final_composition
         };
 
@@ -1620,10 +1786,16 @@ impl WorldGenerator {
         atmospheric_pressure: f32,
         composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
     ) {
-        let final_presence = if presence == ChemicalComponentPresence::Dominant &&
-            composition.iter().find(|c| c.0 == ChemicalComponentPresence::Dominant).is_some() {
+        let final_presence = if presence == ChemicalComponentPresence::Dominant
+            && composition
+                .iter()
+                .find(|c| c.0 == ChemicalComponentPresence::Dominant)
+                .is_some()
+        {
             ChemicalComponentPresence::Significant
-        } else { presence };
+        } else {
+            presence
+        };
         if gas.can_exist_as_gas(blackbody_temperature, atmospheric_pressure) {
             composition.push((presence, gas));
         }

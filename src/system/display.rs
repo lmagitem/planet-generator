@@ -1,7 +1,7 @@
 use crate::internal::{ConversionUtils, MathUtils, StringUtils};
 use crate::prelude::{AstronomicalObject, CelestialBodyDetails, StarSpectralType};
 use std::fmt;
-use std::fmt::Display;
+use std::fmt::{format, Display};
 use std::mem::discriminant;
 
 impl Display for AstronomicalObject {
@@ -28,7 +28,7 @@ impl Display for AstronomicalObject {
                     &star.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "[{}], {} {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm (of {}), {}, {}, hydro: {}%, cryo: {}%, volcanism: {}, tectonics: {}, humidity: {}, traits: [{}]",
+                    "[{}], {} {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm{}, {}, {}, hydro: {}%, cryo: {}%, volcanism: {}, tectonics: {}, humidity: {}, traits: [{}]",
                     body.name,
                     body.size,
                     match &body.details {
@@ -55,8 +55,16 @@ impl Display for AstronomicalObject {
                         _ => "WRONG-TYPE".to_string(),
                     },
                     match &body.details {
-                        CelestialBodyDetails::Telluric(details) =>
-                            details.atmospheric_composition.iter().map(|&x| format!("{} ({}%)", x.1, MathUtils::round_f32_to_precision(x.0, 2))).collect::<Vec<_>>().join(", "),
+                        CelestialBodyDetails::Telluric(details) => {
+                            if details.atmospheric_composition.len() > 0 {
+                                let composition_string = details.atmospheric_composition.iter().map(|(percentage, component)| {
+                                    format!("{} ({}%)", component, MathUtils::round_f32_to_precision(*percentage, 2))
+                                }).collect::<Vec<_>>().join(", ");
+                                format!(" (of {})", composition_string)
+                            } else {
+                                String::from("")
+                            }
+                        },
                         _ => "WRONG-TYPE".to_string(),
                     },
                     match &body.details {
