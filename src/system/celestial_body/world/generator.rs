@@ -52,6 +52,7 @@ impl WorldGenerator {
                     CelestialBodyCoreHeat::ActiveCore,
                     MagneticFieldStrength::None,
                     0.0,
+                    Vec::new(),
                     0.0,
                     0.0,
                     0.0,
@@ -312,7 +313,9 @@ impl WorldGenerator {
 
         // TODO: Atmospheric composition
         let atmospheric_composition = {
-            let mut composition: Vec<(ChemicalComponentPresence, ChemicalComponent)> = Vec::new();
+            let mut guess_composition: Vec<(ChemicalComponentPresence, ChemicalComponent)> =
+                Vec::new();
+            let mut final_composition: Vec<(f32, ChemicalComponent)> = Vec::new();
             if atmospheric_pressure > 0.0 {
                 let mut rng = SeededDiceRoller::new(
                     &settings.seed,
@@ -362,7 +365,6 @@ impl WorldGenerator {
                 /// Methanol (CH₃OH) > A bit of Methane, Methanol a bit, Carbon Dioxide and Water
 
                 /// Around M dwarves, possible to have Methane and Oxygen as primary with Ammonia and Water Vapor as traces
-
                 let modifier = if mass > 1.0 {
                     (mass * 5.0) as i32
                 } else if mass != 0.0 {
@@ -381,7 +383,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide_and_oxygen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -390,7 +392,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -399,7 +401,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide_and_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -408,7 +410,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -417,7 +419,7 @@ impl WorldGenerator {
                         Self::add_gas_water_and_oxygen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -426,7 +428,7 @@ impl WorldGenerator {
                         Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -435,7 +437,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen_and_water(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -444,7 +446,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -453,7 +455,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen_and_carbon_monoxide(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -462,7 +464,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_monoxide(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -471,7 +473,7 @@ impl WorldGenerator {
                         Self::add_gas_neon(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -480,7 +482,7 @@ impl WorldGenerator {
                         Self::add_gas_helium(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             &mut rng,
                             &mut add_other,
                         );
@@ -489,7 +491,7 @@ impl WorldGenerator {
                         Self::add_gas_hydrogen_and_helium(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            &mut composition,
+                            &mut guess_composition,
                             rng,
                             &mut add_other,
                         );
@@ -504,7 +506,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -513,7 +515,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -522,7 +524,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -531,7 +533,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -540,7 +542,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -549,7 +551,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -558,7 +560,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -567,7 +569,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -576,7 +578,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -585,7 +587,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -594,7 +596,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -603,7 +605,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -612,7 +614,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     rng,
                                     &mut add_other,
                                 );
@@ -626,7 +628,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -635,7 +637,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -644,16 +646,16 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
                             } else if roll <= 59 {
-                                // Carbon dioxide, water and nitrogen 
+                                // Carbon dioxide, water and nitrogen
                                 Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -662,7 +664,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -671,7 +673,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -680,7 +682,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -689,7 +691,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -698,7 +700,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -707,7 +709,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -716,7 +718,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -725,7 +727,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -734,7 +736,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     rng,
                                     &mut add_other,
                                 );
@@ -748,7 +750,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -757,7 +759,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -766,16 +768,16 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
                             } else if roll <= 19 {
-                                // Carbon dioxide, water and nitrogen 
+                                // Carbon dioxide, water and nitrogen
                                 Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -784,7 +786,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -793,7 +795,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -802,7 +804,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -811,7 +813,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -820,7 +822,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -829,7 +831,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -838,7 +840,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -847,7 +849,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     &mut rng,
                                     &mut add_other,
                                 );
@@ -856,7 +858,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    &mut composition,
+                                    &mut guess_composition,
                                     rng,
                                     &mut add_other,
                                 );
@@ -865,7 +867,7 @@ impl WorldGenerator {
                     }
                 }
             }
-            composition
+            final_composition
         };
 
         // TODO: Life
@@ -913,6 +915,7 @@ impl WorldGenerator {
                     core_heat,
                     magnetic_field,
                     atmospheric_pressure,
+                    atmospheric_composition,
                     hydrosphere,
                     ice_over_water,
                     land_area_percentage,

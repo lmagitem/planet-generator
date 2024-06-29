@@ -17,6 +17,8 @@ pub struct TelluricBodyDetails {
     pub magnetic_field: MagneticFieldStrength,
     /// This body's atmospheric pressure, in atm, with 1 atm being equal to the average sea-level air pressure on Earth.
     pub atmospheric_pressure: f32,
+    /// What is the atmosphere composed of.
+    pub atmospheric_composition: Vec<(f32, ChemicalComponent)>,
     /// Percentage of this world that is covered by some kind of liquid.
     pub hydrosphere: f32,
     /// Percentage of water on this world that is covered by some kind of ice.
@@ -50,6 +52,7 @@ impl TelluricBodyDetails {
         core_heat: CelestialBodyCoreHeat,
         magnetic_field: MagneticFieldStrength,
         atmospheric_pressure: f32,
+        atmospheric_composition: Vec<(f32, ChemicalComponent)>,
         hydrosphere: f32,
         ice_over_water: f32,
         land_area_percentage: f32,
@@ -67,6 +70,7 @@ impl TelluricBodyDetails {
             core_heat,
             magnetic_field,
             atmospheric_pressure,
+            atmospheric_composition,
             hydrosphere,
             ice_over_water,
             land_area_percentage,

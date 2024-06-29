@@ -1,4 +1,4 @@
-use crate::internal::{ConversionUtils, StringUtils};
+use crate::internal::{ConversionUtils, MathUtils, StringUtils};
 use crate::prelude::{AstronomicalObject, CelestialBodyDetails, StarSpectralType};
 use std::fmt;
 use std::fmt::Display;
@@ -28,7 +28,7 @@ impl Display for AstronomicalObject {
                     &star.special_traits.iter().map(|&x| x.to_string()).collect::<Vec<_>>().join(", "),
                 ),
                 AstronomicalObject::TelluricBody(body) => format!(
-                    "[{}], {} {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm, {}, {}, hydro: {}%, cryo: {}%, volcanism: {}, tectonics: {}, humidity: {}, traits: [{}]",
+                    "[{}], {} {} {}, mass: {} M⊕, rds: {} R⊕ ({} km of diam.), dsity: {} g/cm³, grvty: {} g, temp: {} K ({}° C), tidal: {}, atm: {} atm (of {}), {}, {}, hydro: {}%, cryo: {}%, volcanism: {}, tectonics: {}, humidity: {}, traits: [{}]",
                     body.name,
                     body.size,
                     match &body.details {
@@ -47,11 +47,16 @@ impl Display for AstronomicalObject {
                     StringUtils::to_significant_decimals(body.density as f64),
                     StringUtils::to_significant_decimals(body.gravity as f64),
                     body.blackbody_temperature,
-                    ConversionUtils::kelvin_to_celsius( body.blackbody_temperature),
+                    ConversionUtils::kelvin_to_celsius(body.blackbody_temperature),
                     body.tidal_heating,
                     match &body.details {
                         CelestialBodyDetails::Telluric(details) =>
                             StringUtils::to_significant_decimals(details.atmospheric_pressure as f64),
+                        _ => "WRONG-TYPE".to_string(),
+                    },
+                    match &body.details {
+                        CelestialBodyDetails::Telluric(details) =>
+                            details.atmospheric_composition.iter().map(|&x| format!("{} ({}%)", x.1, MathUtils::round_f32_to_precision(x.0, 2))).collect::<Vec<_>>().join(", "),
                         _ => "WRONG-TYPE".to_string(),
                     },
                     match &body.details {
