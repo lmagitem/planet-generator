@@ -306,9 +306,59 @@ impl WorldGenerator {
 
         // TODO: Planetary imbalances
         {
-            // Use is_stable_element
-            // Take system imbalances into account, either aggravating them or assuaging them
-            // Add occurences
+            let mut rng = SeededDiceRoller::new(
+                &settings.seed,
+                &format!(
+                    "sys_{}_{}_str_{}_bdy{}_cmp",
+                    coord, system_index, star_id, orbital_point_id
+                ),
+            );
+            for special_trait in star_traits {
+                if let StarPeculiarity::UnusualElementPresence(component_and_occurrence) =
+                    special_trait
+                {
+                    let component = component_and_occurrence.0;
+                    let roll = rng.roll(
+                        6,
+                        10,
+                        match component_and_occurrence.1 {
+                            ElementPresenceOccurrence::Absence => -40,
+                            ElementPresenceOccurrence::VeryLow => -30,
+                            ElementPresenceOccurrence::Low => -15,
+                            ElementPresenceOccurrence::Normal => 0,
+                            ElementPresenceOccurrence::High => 15,
+                            ElementPresenceOccurrence::VeryHigh => 30,
+                            ElementPresenceOccurrence::Omnipresence => 40,
+                        },
+                    );
+
+                    let new_occurence = if roll <= 3 {
+                        ElementPresenceOccurrence::Absence
+                    } else if roll <= 13 {
+                        ElementPresenceOccurrence::VeryLow
+                    } else if roll <= 23 {
+                        ElementPresenceOccurrence::Low
+                    } else if roll <= 43 {
+                        ElementPresenceOccurrence::Normal
+                    } else if roll <= 53 {
+                        ElementPresenceOccurrence::High
+                    } else if roll <= 63 {
+                        ElementPresenceOccurrence::VeryHigh
+                    } else {
+                        ElementPresenceOccurrence::Omnipresence
+                    };
+
+                    if new_occurence != ElementPresenceOccurrence::Normal
+                        && component
+                            .is_chemically_stable(blackbody_temperature, atmospheric_pressure)
+                    {
+                        special_traits.push(CelestialBodySpecialTrait::UnusualElementPresence((
+                            component,
+                            new_occurence,
+                        )));
+                    }
+                }
+            }
         }
 
         // TODO: Atmospheric composition
@@ -331,38 +381,143 @@ impl WorldGenerator {
                     }
                 }
 
-                /// Rocky Planets can have an imbalance in
-                /// Oxygen (O₂) > Sulfur Dioxide, Carbon Dioxide, Water Vapor (depending on other elements present)
-                /// Silicon (Si) > Silicon Dioxide
-                /// Aluminum (Al) > Aluminium Oxide, Aluminium Silicates
-                /// Carbon (C) > Carbon Dioxide, Methane
-                /// Iron (Fe) > Iron Oxide, Iron Sulfides if Sulfur
-                /// Calcium (Ca) > Calcium Oxide, Calcium Carbonate
-                /// Sodium (Na) > Sodium Chloride, Sodium Oxide
-                /// Potassium (K) > Potassium Chloride, Potassium Oxide
-                /// Magnesium (Mg) > Magnesium Oxide
-                /// Sulfur (S) > Sulfur Dioxide, Hydrogen Sulfide
-                /// Titanium (Ti) > Titanium Dioxide, Titanium Tetrachloride if Chlorine too
-                /// Phosphorus (P) > Phosphorus Pentoxide
-                ///
-                /// Chromium (Cr) > Chromium Oxide, Chromium Chloride if Chlorine
-                /// Manganese (Mn) > Manganese Dioxide, Manganese Oxide
-                /// Argon (Ar) > Argon
-                /// Nickel (Ni) > Nickel Oxide, Nickel Sulfide if Sulfur
-                /// Helium (H) > Helium
-                /// Neon (Ne) > Neon
-                ///
-                /// Ice Planets can have an imbalance in
-                /// Water (H₂O) > Water Vapor
-                /// Carbon Dioxide (CO₂) > Carbon dioxide
-                /// Carbon Monoxide (CO) > Carbon dioxide and a bit of Methane
-                /// Methane (CH₄) > Methane and a bit of Ethane
-                /// Ammonia (NH₃) > Nitric Oxide and Nitrogen Dioxide
-                /// Nitrogen (N₂) > Nitrogen Dioxide, Nitric Oxide if no Water, Nitric Acid otherwise
-                /// Sulfur Dioxide (SO₂) > Sulfur Dioxide and a bit of Sulfuric Acid
-                /// Hydrogen (H₂) > Hydrogen Sulfide, Water Vapor
-                /// Hydrogen Sulfide (H₂S) > Sulfur Dioxide and a bit of Sulfuric Acid
-                /// Methanol (CH₃OH) > A bit of Methane, Methanol a bit, Carbon Dioxide and Water
+                if volcanism >= 25.0 {
+                    for special_trait in special_traits {
+                        if let CelestialBodySpecialTrait::UnusualElementPresence(
+                            component_and_occurrence,
+                        ) = special_trait
+                        {
+                            let component_present = component_and_occurrence.0;
+                            let mut add_atmospheric_component = false;
+                            let mut presence_modifier = if volcanism <= 30.0 {
+                                1
+                            } else if volcanism <= 55.0 {
+                                2
+                            } else if volcanism <= 75.0 {
+                                3
+                            } else {
+                                4
+                            };
+                            match component_and_occurrence.1 {
+                                ElementPresenceOccurrence::High => {
+                                    add_atmospheric_component = true;
+                                }
+                                ElementPresenceOccurrence::VeryHigh => {
+                                    add_atmospheric_component = true;
+                                    presence_modifier *= 2;
+                                }
+                                ElementPresenceOccurrence::Omnipresence => {
+                                    add_atmospheric_component = true;
+                                    presence_modifier *= 3;
+                                }
+                                _ => (),
+                            };
+                            let mut presence = if presence_modifier >= 5 {
+                                ChemicalComponentPresence::Dominant
+                            } else if presence_modifier >= 4 {
+                                ChemicalComponentPresence::Significant
+                            } else if presence_modifier >= 3 {
+                                ChemicalComponentPresence::Notable
+                            } else if presence_modifier >= 2 {
+                                ChemicalComponentPresence::Minor
+                            } else {
+                                ChemicalComponentPresence::Traces
+                            };
+
+                            let mut components_to_add = None;
+                            let possible_components_produced = &[
+                                (ChemicalComponent::Sulfur, vec![(ChemicalComponent::SulfurDioxide, None), (ChemicalComponent::HydrogenSulfide, None)]),
+                                ChemicalComponent::Oxygen,
+                                ChemicalComponent::Silicon,
+                                ChemicalComponent::Aluminum,
+                                ChemicalComponent::Carbon,
+                                ChemicalComponent::Iron,
+                                ChemicalComponent::Calcium,
+                                ChemicalComponent::Sodium,
+                                ChemicalComponent::Potassium,
+                                ChemicalComponent::Magnesium,
+                                ChemicalComponent::Titanium,
+                                ChemicalComponent::Phosphorus,
+                                ChemicalComponent::Chromium,
+                                ChemicalComponent::Manganese,
+                                ChemicalComponent::Argon,
+                                ChemicalComponent::Nickel,
+                                ChemicalComponent::Helium,
+                                ChemicalComponent::Neon,
+                                ChemicalComponent::Water,
+                                ChemicalComponent::CarbonDioxide,
+                                ChemicalComponent::Methane,
+                                ChemicalComponent::Ammonia,
+                                ChemicalComponent::CarbonMonoxide,
+                                ChemicalComponent::Hydrogen,
+                                ChemicalComponent::Nitrogen,
+                                ChemicalComponent::SulfurDioxide,
+                                ChemicalComponent::HydrogenSulfide,
+                                ChemicalComponent::Methanol,
+                            ];
+                            for component_and_produced in possible_components_produced {
+                                if component_present == component_and_produced.0 {
+                                    components_to_add = Some(*component_and_produced.1);
+                                }
+                            }
+                            if (components_to_add.is_none()) {
+                                for component_and_produced in possible_components_produced {
+                                    if component_present.is_related_element(*component_and_produced.0) {
+                                        components_to_add = Some(*component_and_produced.1);
+                                    }
+                                }
+                            }
+
+                            /// Rocky Planets can have an imbalance in
+                            /// Oxygen (O₂) > Sulfur Dioxide, Carbon Dioxide, Water Vapor (depending on other elements present)
+                            /// Silicon (Si) > Silicon Dioxide
+                            /// Aluminum (Al) > Aluminium Oxide, Aluminium Silicates
+                            /// Carbon (C) > Carbon Dioxide, Methane
+                            /// Iron (Fe) > Iron Oxide, Iron Sulfides if Sulfur
+                            /// Calcium (Ca) > Calcium Oxide, Calcium Carbonate
+                            /// Sodium (Na) > Sodium Chloride, Sodium Oxide
+                            /// Potassium (K) > Potassium Chloride, Potassium Oxide
+                            /// Magnesium (Mg) > Magnesium Oxide
+                            /// Sulfur (S) > Sulfur Dioxide, Hydrogen Sulfide
+                            /// Titanium (Ti) > Titanium Dioxide, Titanium Tetrachloride if Chlorine too
+                            /// Phosphorus (P) > Phosphorus Pentoxide
+                            ///
+                            /// Chromium (Cr) > Chromium Oxide, Chromium Chloride if Chlorine
+                            /// Manganese (Mn) > Manganese Dioxide, Manganese Oxide
+                            /// Argon (Ar) > Argon
+                            /// Nickel (Ni) > Nickel Oxide, Nickel Sulfide if Sulfur
+                            /// Helium (H) > Helium
+                            /// Neon (Ne) > Neon
+                            ///
+                            /// Ice Planets can have an imbalance in
+                            /// Water (H₂O) > Water Vapor
+                            /// Carbon Dioxide (CO₂) > Carbon dioxide
+                            /// Carbon Monoxide (CO) > Carbon dioxide and a bit of Methane
+                            /// Methane (CH₄) > Methane and a bit of Ethane
+                            /// Ammonia (NH₃) > Nitric Oxide and Nitrogen Dioxide
+                            /// Nitrogen (N₂) > Nitrogen Dioxide, Nitric Oxide if no Water, Nitric Acid otherwise
+                            /// Sulfur Dioxide (SO₂) > Sulfur Dioxide and a bit of Sulfuric Acid
+                            /// Hydrogen (H₂) > Hydrogen Sulfide, Water Vapor
+                            /// Hydrogen Sulfide (H₂S) > Sulfur Dioxide and a bit of Sulfuric Acid
+                            /// Methanol (CH₃OH) > A bit of Methane, Methanol a bit, Carbon Dioxide and Water
+                            ///
+                            for component_to_add in components_to_add {
+                                Self::add_gas_as(
+                                    component_to_add,
+                                    presence,
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    &mut guess_composition,
+                                );
+                                presence = match presence {
+                                    ChemicalComponentPresence::Dominant => ChemicalComponentPresence::Notable,
+                                    ChemicalComponentPresence::Significant => ChemicalComponentPresence::Minor,
+                                    _ => ChemicalComponentPresence::Traces
+                                };
+                            }
+                        }
+                    }
+                }
 
                 /// Around M dwarves, possible to have Methane and Oxygen as primary with Ammonia and Water Vapor as traces
                 let modifier = if mass > 1.0 {
@@ -1465,6 +1620,10 @@ impl WorldGenerator {
         atmospheric_pressure: f32,
         composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
     ) {
+        let final_presence = if presence == ChemicalComponentPresence::Dominant &&
+            composition.iter().find(|c| c.0 == ChemicalComponentPresence::Dominant).is_some() {
+            ChemicalComponentPresence::Significant
+        } else { presence };
         if gas.can_exist_as_gas(blackbody_temperature, atmospheric_pressure) {
             composition.push((presence, gas));
         }

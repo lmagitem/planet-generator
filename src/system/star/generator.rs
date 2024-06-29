@@ -159,12 +159,11 @@ impl Star {
 
         // TODO: Did you add the special traits or is it just an empty array?
         let mut special_traits = Vec::new();
-
-        // TODO: Here generate elements scarcity or abundance using population, metallicity and
-        // randomness
         if population == StellarEvolution::Paleodwarf {
             special_traits.push(StarPeculiarity::NoMetals);
         }
+
+        // TODO: Still have to take into account metallicity
         let elements_abundance: Vec<ChemicalComponent> = {
             let mut rng = SeededDiceRoller::new(
                 &settings.seed,
