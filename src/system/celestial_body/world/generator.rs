@@ -1192,7 +1192,31 @@ impl WorldGenerator {
         };
 
         // TODO: Life
-        let mut life_level = LifeLevel::Sentient;
+        let mut life_level = {
+            /// Bonii:
+            ///
+            /// Age of system
+            /// Liquid water (scale with quantity)
+            /// Yellow/orange/red star
+            ///
+            /// Malii:
+            ///
+            /// Not moderate zone
+            /// Not main sequence
+            /// No oxygen/carbon dioxide/methane in atmosphere
+            /// No mangetosphere
+            /// No atmosphere (scale)
+            /// Carbon system
+            /// Planet younger than 100 million years old/500 million years old/2 billion years old/4 billion years old
+            /// Star population II or III
+            /// Adjacent to belt?
+            /// Variable/flare star
+            /// High debris
+            /// Is gas planet
+            ///
+
+            LifeLevel::Sentient
+        };
 
         let climate = Self::generate_climate(
             coord,
