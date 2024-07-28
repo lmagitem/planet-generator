@@ -5,6 +5,7 @@ use crate::system::celestial_body::world::utils::get_category_from_temperature;
 use crate::system::contents::elements::ALL_ELEMENTS;
 use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
 use crate::system::contents::zones::get_orbit_with_updated_zone;
+use std::cmp::Ordering;
 
 impl WorldGenerator {
     pub(crate) fn bundle_world_first_pass(
@@ -679,7 +680,7 @@ impl WorldGenerator {
                 };
                 let roll = rng.roll(1, 100, modifier);
 
-                let mut add_other = false;
+                let mut add_other_flavor_components = false;
                 if carbon_system {
                     if roll <= 10 {
                         // Negligible
@@ -690,7 +691,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 12 {
                         // Carbon dioxide
@@ -699,7 +700,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 15 {
                         // Carbon dioxide and nitrogen
@@ -708,7 +709,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 16 {
                         // Carbon dioxide, water and nitrogen
@@ -717,7 +718,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 17 {
                         // Water with oxygen
@@ -726,7 +727,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 18 {
                         // Water, carbon dioxide, nitrogen
@@ -735,7 +736,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 19 {
                         // Nitrogen with water
@@ -744,7 +745,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 39 {
                         // Nitrogen
@@ -753,7 +754,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 59 {
                         // Nitrogen with carbon monoxide
@@ -762,7 +763,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 79 {
                         // Carbon monoxide
@@ -771,7 +772,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 84 {
                         // Neon
@@ -780,7 +781,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else if roll <= 94 {
                         // Helium
@@ -789,7 +790,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             &mut rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     } else {
                         // Hydrogen and helium
@@ -798,7 +799,7 @@ impl WorldGenerator {
                             atmospheric_pressure,
                             &mut guess_composition,
                             rng,
-                            &mut add_other,
+                            &mut add_other_flavor_components,
                         );
                     }
                 } else {
@@ -813,7 +814,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 39 {
                                 // Carbon dioxide
@@ -822,7 +823,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 59 {
                                 // Carbon dioxide and nitrogen
@@ -831,7 +832,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 62 {
                                 // Carbon dioxide, water and nitrogen
@@ -840,7 +841,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 63 {
                                 // Water with oxygen
@@ -849,7 +850,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 64 {
                                 // Water, carbon dioxide, nitrogen
@@ -858,7 +859,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 69 {
                                 // Nitrogen with water
@@ -867,7 +868,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 89 {
                                 // Nitrogen
@@ -876,7 +877,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 92 {
                                 // Nitrogen with carbon monoxide
@@ -885,7 +886,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 94 {
                                 // Carbon monoxide
@@ -894,7 +895,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 95 {
                                 // Neon
@@ -903,7 +904,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 99 {
                                 // Helium
@@ -912,7 +913,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else {
                                 // Hydrogen and helium
@@ -921,7 +922,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             }
                         }
@@ -935,7 +936,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 44 {
                                 // Carbon dioxide
@@ -944,7 +945,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 54 {
                                 // Carbon dioxide and nitrogen
@@ -953,7 +954,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 59 {
                                 // Carbon dioxide, water and nitrogen
@@ -962,7 +963,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 64 {
                                 // Water with oxygen
@@ -971,7 +972,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 69 {
                                 // Water, carbon dioxide, nitrogen
@@ -980,7 +981,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 74 {
                                 // Nitrogen with water
@@ -989,7 +990,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 84 {
                                 // Nitrogen
@@ -998,7 +999,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 87 {
                                 // Nitrogen with carbon monoxide
@@ -1007,7 +1008,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 89 {
                                 // Carbon monoxide
@@ -1016,7 +1017,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 90 {
                                 // Neon
@@ -1025,7 +1026,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 94 {
                                 // Helium
@@ -1034,7 +1035,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else {
                                 // Hydrogen and helium
@@ -1043,7 +1044,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             }
                         }
@@ -1057,7 +1058,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 9 {
                                 // Carbon dioxide
@@ -1066,7 +1067,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 14 {
                                 // Carbon dioxide and nitrogen
@@ -1075,7 +1076,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 19 {
                                 // Carbon dioxide, water and nitrogen
@@ -1084,7 +1085,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 29 {
                                 // Water with oxygen
@@ -1093,7 +1094,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 39 {
                                 // Water, carbon dioxide, nitrogen
@@ -1102,7 +1103,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 49 {
                                 // Nitrogen with water
@@ -1111,7 +1112,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 64 {
                                 // Nitrogen
@@ -1120,7 +1121,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 72 {
                                 // Nitrogen with carbon monoxide
@@ -1129,7 +1130,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 80 {
                                 // Carbon monoxide
@@ -1138,7 +1139,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 85 {
                                 // Neon
@@ -1147,7 +1148,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else if roll <= 89 {
                                 // Helium
@@ -1156,7 +1157,7 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     &mut rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             } else {
                                 // Hydrogen and helium
@@ -1165,29 +1166,105 @@ impl WorldGenerator {
                                     atmospheric_pressure,
                                     &mut guess_composition,
                                     rng,
-                                    &mut add_other,
+                                    &mut add_other_flavor_components,
                                 );
                             }
                         }
                     }
                 }
             }
-            guess_composition.iter().for_each(|composition| {
-                final_composition.push((
-                    if composition.0 == ChemicalComponentPresence::Dominant {
-                        70.0
-                    } else if composition.0 == ChemicalComponentPresence::Significant {
-                        30.0
-                    } else if composition.0 == ChemicalComponentPresence::Notable {
-                        10.0
-                    } else if composition.0 == ChemicalComponentPresence::Minor {
-                        1.0
-                    } else {
-                        0.01
-                    },
-                    composition.1,
-                ))
+
+            let mut rng = SeededDiceRoller::new(
+                &settings.seed,
+                &format!(
+                    "sys_{}_{}_str_{}_bdy{}_atcmp_perct",
+                    coord, system_index, star_id, orbital_point_id
+                ),
+            );
+
+            guess_composition.sort_by(|a, b| {
+                let ordering = match (a.0, b.0) {
+                    (ChemicalComponentPresence::Traces, ChemicalComponentPresence::Traces) => {
+                        Ordering::Equal
+                    }
+                    (ChemicalComponentPresence::Traces, _) => Ordering::Less,
+                    (_, ChemicalComponentPresence::Traces) => Ordering::Greater,
+                    (ChemicalComponentPresence::Minor, ChemicalComponentPresence::Minor) => {
+                        Ordering::Equal
+                    }
+                    (ChemicalComponentPresence::Minor, _) => Ordering::Less,
+                    (_, ChemicalComponentPresence::Minor) => Ordering::Greater,
+                    (ChemicalComponentPresence::Notable, ChemicalComponentPresence::Notable) => {
+                        Ordering::Equal
+                    }
+                    (ChemicalComponentPresence::Notable, _) => Ordering::Less,
+                    (_, ChemicalComponentPresence::Notable) => Ordering::Greater,
+                    (ChemicalComponentPresence::Dominant, ChemicalComponentPresence::Dominant) => {
+                        Ordering::Equal
+                    }
+                    (ChemicalComponentPresence::Dominant, _) => Ordering::Less,
+                    (_, ChemicalComponentPresence::Dominant) => Ordering::Greater,
+                    (
+                        ChemicalComponentPresence::Significant,
+                        ChemicalComponentPresence::Significant,
+                    ) => Ordering::Equal,
+                };
+                ordering
             });
+
+            let mut total_composition = rng.roll(1, 7, -1) as f32 / 100.0;
+            let mut highest_percentage_index = None;
+            let mut highest_percentage_value = 0.0;
+
+            println!("Looking at the atmosphere of planet with id {}", orbital_point_id);
+            guess_composition.iter().for_each(|composition| {
+                println!(
+                    "total: {}, highest index: {:?}, highest value: {}",
+                    total_composition, highest_percentage_index, highest_percentage_value
+                );
+
+                let mut percentage = if composition.0 == ChemicalComponentPresence::Dominant {
+                    rng.roll(1, 3010, 4000) as f32 / 100.0
+                } else if composition.0 == ChemicalComponentPresence::Significant {
+                    rng.roll(1, 2010, 1000) as f32 / 100.0
+                } else if composition.0 == ChemicalComponentPresence::Notable {
+                    rng.roll(1, 910, 100) as f32 / 100.0
+                } else if composition.0 == ChemicalComponentPresence::Minor {
+                    rng.roll(1, 100, 10) as f32 / 100.0
+                } else {
+                    rng.roll(1, 15, 0) as f32 / 100.0
+                };
+
+                println!("looking at {:?}, I rolled {}", composition.0, percentage);
+
+                if (100.0 - total_composition - percentage < 0.0) {
+                    if 100.0 - total_composition <= 0.001 {
+                        percentage = -1.0;
+                    } else {
+                        percentage = 100.0 - total_composition;
+                    }
+                }
+                println!("I then edit it so that it becomes {}", percentage);
+
+                if percentage != -1.0 {
+                    if percentage > highest_percentage_value {
+                        highest_percentage_value = percentage;
+                        highest_percentage_index = Some(final_composition.len());
+                    }
+
+                    total_composition += percentage;
+                    final_composition.push((percentage, composition.1));
+                }
+            });
+
+            println!("before last edit: {:?}", final_composition);
+
+            if let Some(index) = highest_percentage_index {
+                final_composition[index].0 += 100.0 - total_composition;
+            }
+
+            println!("after last edit: {:?}", final_composition);
+
             final_composition
         };
 
@@ -1214,7 +1291,6 @@ impl WorldGenerator {
             /// High debris
             /// Is gas planet
             ///
-
             LifeLevel::Sentient
         };
 
@@ -2237,7 +2313,7 @@ impl WorldGenerator {
         cryosphere -= cryosphere / 2.0;
         cryosphere += cryosphere * (hydrosphere / 75.0);
 
-        if is_ribbon_world && cryosphere <= 30.0 {
+        if is_ribbon_world && cryosphere <= 30.0 && cryosphere > 0.001 {
             cryosphere += rng.roll(1, 2000, 0) as f32 / 100.0;
         } else if is_ribbon_world && cryosphere >= 50.0 {
             cryosphere -= rng.roll(1, 2000, 0) as f32 / 100.0;

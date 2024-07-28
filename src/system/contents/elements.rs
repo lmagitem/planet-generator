@@ -575,6 +575,72 @@ impl ChemicalComponent {
         related_pairs.contains(&(*self, *other)) || related_pairs.contains(&(*other, *self))
     }
 
+    pub fn photodissociation_products(&self) -> Vec<ChemicalComponent> {
+        match self {
+            ChemicalComponent::Water => {
+                vec![ChemicalComponent::Hydrogen, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::Methane => {
+                vec![ChemicalComponent::Carbon, ChemicalComponent::Hydrogen]
+            }
+            ChemicalComponent::Ammonia => {
+                vec![ChemicalComponent::Nitrogen, ChemicalComponent::Hydrogen]
+            }
+            ChemicalComponent::HydrogenSulfide => {
+                vec![ChemicalComponent::Sulfur, ChemicalComponent::Hydrogen]
+            }
+            ChemicalComponent::CarbonMonoxide => {
+                vec![ChemicalComponent::Carbon, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::Methanol => {
+                vec![ChemicalComponent::Methane, ChemicalComponent::Water]
+            }
+            ChemicalComponent::Formaldehyde => vec![
+                ChemicalComponent::CarbonMonoxide,
+                ChemicalComponent::Hydrogen,
+            ],
+            ChemicalComponent::Ethylene => {
+                vec![ChemicalComponent::Carbon, ChemicalComponent::Hydrogen]
+            }
+            ChemicalComponent::Ethane => {
+                vec![ChemicalComponent::Ethylene, ChemicalComponent::Hydrogen]
+            }
+            ChemicalComponent::Acetylene => {
+                vec![ChemicalComponent::Carbon, ChemicalComponent::Hydrogen]
+            }
+            ChemicalComponent::Methylamine => {
+                vec![ChemicalComponent::Methane, ChemicalComponent::Ammonia]
+            }
+            ChemicalComponent::HydrogenCyanide => vec![
+                ChemicalComponent::Carbon,
+                ChemicalComponent::Nitrogen,
+                ChemicalComponent::Hydrogen,
+            ],
+            ChemicalComponent::NitricOxide => {
+                vec![ChemicalComponent::Nitrogen, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::NitrogenDioxide => {
+                vec![ChemicalComponent::NitricOxide, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::NitricAcid => {
+                vec![ChemicalComponent::NitrogenDioxide, ChemicalComponent::Water]
+            }
+            ChemicalComponent::SulfurDioxide => {
+                vec![ChemicalComponent::Sulfur, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::SulfuricAcid => {
+                vec![ChemicalComponent::SulfurDioxide, ChemicalComponent::Water]
+            }
+            ChemicalComponent::Hydroxyl => {
+                vec![ChemicalComponent::Hydrogen, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::CarbonDioxide => {
+                vec![ChemicalComponent::Carbon, ChemicalComponent::Oxygen]
+            }
+            _ => vec![],
+        }
+    }
+
     /// Determines if a substance can exist in liquid state at given temperature and pressure.
     ///
     /// # Parameters
