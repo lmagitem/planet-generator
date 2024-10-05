@@ -1,11 +1,14 @@
 use crate::internal::generator::get_major_moons;
 use crate::internal::*;
 use crate::prelude::*;
-use crate::system::celestial_body::world::utils::get_category_from_temperature;
+use crate::system::celestial_body::world::utils::{
+    get_category_from_temperature, has_element_in_normal_amount_or_more,
+};
 use crate::system::contents::elements::ALL_ELEMENTS;
 use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
 use crate::system::contents::zones::get_orbit_with_updated_zone;
 use std::cmp::Ordering;
+use std::collections::HashMap;
 
 impl WorldGenerator {
     pub(crate) fn bundle_world_first_pass(
@@ -364,6 +367,40 @@ impl WorldGenerator {
 
         // TODO: Atmospheric composition
         let atmospheric_composition = {
+            let magnetic_field = {
+                let mut strength = match magnetic_field {
+                    MagneticFieldStrength::None => 0,
+                    MagneticFieldStrength::Weak => 1,
+                    MagneticFieldStrength::Moderate => 2,
+                    MagneticFieldStrength::Strong => 3,
+                    MagneticFieldStrength::VeryStrong => 4,
+                    MagneticFieldStrength::Extreme => 5,
+                };
+                strength += match own_orbit.zone {
+                    ZoneType::Corona => -3,
+                    ZoneType::InnerLimit => -2,
+                    ZoneType::InnerZone => -1,
+                    _ => 0,
+                } * match star_type {
+                    StarSpectralType::WR(_) | StarSpectralType::O(_) | StarSpectralType::B(_) => 3,
+                    StarSpectralType::A(_) | StarSpectralType::F(_) => 2,
+                    _ => 1,
+                };
+
+                if strength <= 0 {
+                    MagneticFieldStrength::None
+                } else if strength <= 1 {
+                    MagneticFieldStrength::Weak
+                } else if strength <= 2 {
+                    MagneticFieldStrength::Moderate
+                } else if strength <= 3 {
+                    MagneticFieldStrength::Strong
+                } else if strength <= 4 {
+                    MagneticFieldStrength::VeryStrong
+                } else {
+                    MagneticFieldStrength::Extreme
+                }
+            };
             let mut guess_composition: Vec<(ChemicalComponentPresence, ChemicalComponent)> =
                 Vec::new();
             let mut final_composition: Vec<(f32, ChemicalComponent)> = Vec::new();
@@ -382,7 +419,13 @@ impl WorldGenerator {
                     }
                 }
 
-                if volcanism >= 25.0 {
+                if volcanism >= 5.0 {
+                    let mut ejected_by_volcanism: Vec<(
+                        Vec<(ChemicalComponent, Option<ChemicalComponent>)>,
+                        ChemicalComponentPresence,
+                    )> = Vec::new();
+
+                    // For a start, if there is an abundance of specific elements in the system, add them if applicable
                     for special_trait in &special_traits {
                         if let CelestialBodySpecialTrait::UnusualElementPresence(
                             component_and_occurrence,
@@ -413,264 +456,308 @@ impl WorldGenerator {
                                 }
                                 _ => (),
                             };
-                            let mut presence = if presence_modifier >= 5 {
-                                ChemicalComponentPresence::Dominant
-                            } else if presence_modifier >= 4 {
-                                ChemicalComponentPresence::Significant
-                            } else if presence_modifier >= 3 {
-                                ChemicalComponentPresence::Notable
-                            } else if presence_modifier >= 2 {
-                                ChemicalComponentPresence::Minor
-                            } else {
-                                ChemicalComponentPresence::Traces
-                            };
+                            if add_atmospheric_component {
+                                let mut presence = if presence_modifier >= 5 {
+                                    ChemicalComponentPresence::Dominant
+                                } else if presence_modifier >= 4 {
+                                    ChemicalComponentPresence::Significant
+                                } else if presence_modifier >= 3 {
+                                    ChemicalComponentPresence::Notable
+                                } else if presence_modifier >= 2 {
+                                    ChemicalComponentPresence::Minor
+                                } else {
+                                    ChemicalComponentPresence::Traces
+                                };
 
-                            let mut components_to_add = None;
-                            let possible_components_produced: Vec<(
-                                ChemicalComponent,
-                                Vec<(ChemicalComponent, Option<ChemicalComponent>)>,
-                            )> = vec![
-                                (
-                                    ChemicalComponent::Sulfur,
-                                    vec![
-                                        (ChemicalComponent::SulfurDioxide, None),
-                                        (ChemicalComponent::HydrogenSulfide, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Oxygen,
-                                    vec![
-                                        (ChemicalComponent::SulfurDioxide, None),
-                                        (ChemicalComponent::CarbonDioxide, None),
-                                        (ChemicalComponent::Water, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Silicon,
-                                    vec![(ChemicalComponent::SiliconDioxide, None)],
-                                ),
-                                (
-                                    ChemicalComponent::Aluminum,
-                                    vec![
-                                        (ChemicalComponent::AluminiumOxide, None),
-                                        (ChemicalComponent::Silicates, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Carbon,
-                                    vec![
-                                        (ChemicalComponent::CarbonDioxide, None),
-                                        (ChemicalComponent::Methane, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Iron,
-                                    vec![
-                                        (ChemicalComponent::IronOxide, None),
-                                        (
-                                            ChemicalComponent::IronSulfide,
-                                            Some(ChemicalComponent::Sulfur),
-                                        ),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Calcium,
-                                    vec![(ChemicalComponent::CalciumOxide, None)],
-                                ),
-                                (
-                                    ChemicalComponent::Sodium,
-                                    vec![
-                                        (ChemicalComponent::SodiumChloride, None),
-                                        (ChemicalComponent::SodiumOxide, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Potassium,
-                                    vec![
-                                        (ChemicalComponent::PotassiumChloride, None),
-                                        (ChemicalComponent::PotassiumOxide, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Magnesium,
-                                    vec![(ChemicalComponent::MagnesiumOxide, None)],
-                                ),
-                                (
-                                    ChemicalComponent::Titanium,
-                                    vec![
-                                        (ChemicalComponent::TitaniumDioxide, None),
-                                        (
-                                            ChemicalComponent::TitaniumTetrachloride,
-                                            Some(ChemicalComponent::Chlorine),
-                                        ),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Phosphorus,
-                                    vec![(ChemicalComponent::PhosphorusPentoxide, None)],
-                                ),
-                                (
-                                    ChemicalComponent::Chromium,
-                                    vec![
-                                        (ChemicalComponent::ChromiumOxide, None),
-                                        (
-                                            ChemicalComponent::ChromiumChloride,
-                                            Some(ChemicalComponent::Chlorine),
-                                        ),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Manganese,
-                                    vec![
-                                        (ChemicalComponent::ManganeseDioxide, None),
-                                        (ChemicalComponent::ManganeseOxide, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Argon,
-                                    vec![(ChemicalComponent::Argon, None)],
-                                ),
-                                (
-                                    ChemicalComponent::Nickel,
-                                    vec![
-                                        (ChemicalComponent::NickelOxide, None),
-                                        (
-                                            ChemicalComponent::NickelSulfide,
-                                            Some(ChemicalComponent::Sulfur),
-                                        ),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Helium,
-                                    vec![(ChemicalComponent::Helium, None)],
-                                ),
-                                (
-                                    ChemicalComponent::Neon,
-                                    vec![(ChemicalComponent::Neon, None)],
-                                ),
-                                // Ice Planet Elements
-                                (
-                                    ChemicalComponent::Water,
-                                    vec![(ChemicalComponent::Water, None)],
-                                ),
-                                (
-                                    ChemicalComponent::CarbonDioxide,
-                                    vec![(ChemicalComponent::CarbonDioxide, None)],
-                                ),
-                                (
-                                    ChemicalComponent::Methane,
-                                    vec![
-                                        (ChemicalComponent::Methane, None),
-                                        (ChemicalComponent::Ethane, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Ammonia,
-                                    vec![
-                                        (ChemicalComponent::NitricOxide, None),
-                                        (ChemicalComponent::NitrogenDioxide, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::CarbonMonoxide,
-                                    vec![
-                                        (ChemicalComponent::CarbonDioxide, None),
-                                        (ChemicalComponent::Methane, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Hydrogen,
-                                    vec![
-                                        (ChemicalComponent::HydrogenSulfide, None),
-                                        (ChemicalComponent::Water, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Nitrogen,
-                                    vec![
-                                        (ChemicalComponent::NitrogenDioxide, None),
-                                        (
-                                            ChemicalComponent::NitricAcid,
-                                            Some(ChemicalComponent::Water),
-                                        ),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::SulfurDioxide,
-                                    vec![
-                                        (ChemicalComponent::SulfurDioxide, None),
-                                        (ChemicalComponent::SulfuricAcid, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::HydrogenSulfide,
-                                    vec![
-                                        (ChemicalComponent::SulfurDioxide, None),
-                                        (ChemicalComponent::SulfuricAcid, None),
-                                    ],
-                                ),
-                                (
-                                    ChemicalComponent::Methanol,
-                                    vec![
-                                        (ChemicalComponent::CarbonDioxide, None),
-                                        (ChemicalComponent::Water, None),
-                                        (ChemicalComponent::Methane, None),
-                                        (ChemicalComponent::Methanol, None),
-                                    ],
-                                ),
-                            ];
-                            for component_and_produced in &possible_components_produced {
-                                if component_present == component_and_produced.0 {
-                                    components_to_add = Some(component_and_produced.1.clone());
-                                }
-                            }
-                            if components_to_add.is_none() {
+                                let mut add_one_of_those_possible_components = None;
+                                // If first element is present, the vec of possible elements can be produced.
+                                // If there is an optional element in the pair representing the produced element, then the element can only be produced if the optional element is present.
+                                let possible_components_produced: Vec<(
+                                    ChemicalComponent,
+                                    Vec<(ChemicalComponent, Option<ChemicalComponent>)>,
+                                )> = vec![
+                                    (
+                                        ChemicalComponent::Sulfur,
+                                        vec![
+                                            (ChemicalComponent::SulfurDioxide, None),
+                                            (ChemicalComponent::HydrogenSulfide, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Carbon,
+                                        vec![
+                                            (ChemicalComponent::CarbonDioxide, None),
+                                            (ChemicalComponent::Methane, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Oxygen,
+                                        vec![
+                                            (ChemicalComponent::SulfurDioxide, None),
+                                            (ChemicalComponent::CarbonDioxide, None),
+                                            (ChemicalComponent::Water, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Iron,
+                                        vec![
+                                            (ChemicalComponent::IronOxide, None),
+                                            (
+                                                ChemicalComponent::IronSulfide,
+                                                Some(ChemicalComponent::Sulfur),
+                                            ),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Silicon,
+                                        vec![(ChemicalComponent::SiliconDioxide, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::Aluminum,
+                                        vec![
+                                            (ChemicalComponent::AluminiumOxide, None),
+                                            (ChemicalComponent::Silicates, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Calcium,
+                                        vec![(ChemicalComponent::CalciumOxide, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::Magnesium,
+                                        vec![(ChemicalComponent::MagnesiumOxide, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::Sodium,
+                                        vec![
+                                            (ChemicalComponent::SodiumChloride, None),
+                                            (ChemicalComponent::SodiumOxide, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Potassium,
+                                        vec![
+                                            (ChemicalComponent::PotassiumChloride, None),
+                                            (ChemicalComponent::PotassiumOxide, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Titanium,
+                                        vec![
+                                            (ChemicalComponent::TitaniumDioxide, None),
+                                            (
+                                                ChemicalComponent::TitaniumTetrachloride,
+                                                Some(ChemicalComponent::Chlorine),
+                                            ),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Phosphorus,
+                                        vec![(ChemicalComponent::PhosphorusPentoxide, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::Manganese,
+                                        vec![
+                                            (ChemicalComponent::ManganeseDioxide, None),
+                                            (ChemicalComponent::ManganeseOxide, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Nickel,
+                                        vec![
+                                            (ChemicalComponent::NickelOxide, None),
+                                            (
+                                                ChemicalComponent::NickelSulfide,
+                                                Some(ChemicalComponent::Sulfur),
+                                            ),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Chromium,
+                                        vec![
+                                            (ChemicalComponent::ChromiumOxide, None),
+                                            (
+                                                ChemicalComponent::ChromiumChloride,
+                                                Some(ChemicalComponent::Chlorine),
+                                            ),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Argon,
+                                        vec![(ChemicalComponent::Argon, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::Helium,
+                                        vec![(ChemicalComponent::Helium, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::Neon,
+                                        vec![(ChemicalComponent::Neon, None)],
+                                    ),
+                                    // Ice Planet Elements
+                                    (
+                                        ChemicalComponent::Water,
+                                        vec![(ChemicalComponent::Water, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::CarbonDioxide,
+                                        vec![(ChemicalComponent::CarbonDioxide, None)],
+                                    ),
+                                    (
+                                        ChemicalComponent::Methane,
+                                        vec![
+                                            (ChemicalComponent::Methane, None),
+                                            (ChemicalComponent::Ethane, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Ammonia,
+                                        vec![
+                                            (ChemicalComponent::NitricOxide, None),
+                                            (ChemicalComponent::NitrogenDioxide, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::CarbonMonoxide,
+                                        vec![
+                                            (ChemicalComponent::CarbonDioxide, None),
+                                            (ChemicalComponent::Methane, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Hydrogen,
+                                        vec![
+                                            (ChemicalComponent::HydrogenSulfide, None),
+                                            (ChemicalComponent::Water, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Nitrogen,
+                                        vec![
+                                            (ChemicalComponent::NitrogenDioxide, None),
+                                            (
+                                                ChemicalComponent::NitricAcid,
+                                                Some(ChemicalComponent::Water),
+                                            ),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::SulfurDioxide,
+                                        vec![
+                                            (ChemicalComponent::SulfurDioxide, None),
+                                            (ChemicalComponent::SulfuricAcid, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::HydrogenSulfide,
+                                        vec![
+                                            (ChemicalComponent::SulfurDioxide, None),
+                                            (ChemicalComponent::SulfuricAcid, None),
+                                        ],
+                                    ),
+                                    (
+                                        ChemicalComponent::Methanol,
+                                        vec![
+                                            (ChemicalComponent::CarbonDioxide, None),
+                                            (ChemicalComponent::Water, None),
+                                            (ChemicalComponent::Methane, None),
+                                            (ChemicalComponent::Methanol, None),
+                                        ],
+                                    ),
+                                ];
                                 for component_and_produced in &possible_components_produced {
-                                    if component_present
-                                        .is_related_element(&component_and_produced.0)
-                                    {
-                                        components_to_add = Some(component_and_produced.1.clone());
+                                    if component_present == component_and_produced.0 {
+                                        add_one_of_those_possible_components =
+                                            Some(component_and_produced.1.clone());
                                     }
+                                }
+                                if add_one_of_those_possible_components.is_none() {
+                                    for component_and_produced in &possible_components_produced {
+                                        if component_present
+                                            .is_related_element(&component_and_produced.0)
+                                        {
+                                            add_one_of_those_possible_components =
+                                                Some(component_and_produced.1.clone());
+                                        }
+                                    }
+                                }
+
+                                if let Some(components) = add_one_of_those_possible_components {
+                                    ejected_by_volcanism.push((components, presence));
                                 }
                             }
+                        }
+                    }
 
-                            if let Some(components) = components_to_add {
-                                for component_to_add in components {
-                                    if component_to_add.1.is_none() || special_traits.iter().any(|c| {
-                                        if let CelestialBodySpecialTrait::UnusualElementPresence(
-                                            component_and_occurrence,
-                                        ) = c
-                                        {
-                                            if component_and_occurrence.0 == component_to_add.1.unwrap() {
-                                                return true;
-                                            }
-                                        }
-                                        false
-                                    }) {
-                                    Self::add_gas_as(
-                                        component_to_add.0,
-                                        presence,
-                                        blackbody_temperature,
-                                        atmospheric_pressure,
-                                        &mut guess_composition,
-                                    );
-                                    presence = match presence {
-                                        ChemicalComponentPresence::Dominant => {
-                                            ChemicalComponentPresence::Notable
-                                        }
-                                        ChemicalComponentPresence::Significant => {
-                                            ChemicalComponentPresence::Minor
-                                        }
-                                        _ => ChemicalComponentPresence::Traces,
-                                    };
+                    // Sorting by ChemicalComponentPresence value (biggest ones first)
+                    ejected_by_volcanism.sort_by(|a, b| a.1.cmp(&b.1));
+                    let mut presence = ChemicalComponentPresence::Dominant;
+
+                    // Add default compounds ejected by volcanism if the list was empty
+                    if ejected_by_volcanism.len() < 1 {
+                        if body_type == TelluricBodyComposition::Icy
+                            && rng.roll(1, 3, 0) < 3
+                            && has_element_in_normal_amount_or_more(
+                                &special_traits,
+                                ChemicalComponent::Water,
+                            )
+                        {
+                            ejected_by_volcanism
+                                .push((vec![(ChemicalComponent::Water, None)], presence));
+                        } else if rng.roll(1, 3, 0) < 3
+                            && tidal_heating > 3
+                            && has_element_in_normal_amount_or_more(
+                                &special_traits,
+                                ChemicalComponent::Sulfur,
+                            )
+                        {
+                            ejected_by_volcanism.push((
+                                vec![
+                                    (ChemicalComponent::SulfurDioxide, None),
+                                    (ChemicalComponent::HydrogenSulfide, None),
+                                ],
+                                presence,
+                            ));
+                        } else if has_element_in_normal_amount_or_more(
+                            &special_traits,
+                            ChemicalComponent::CarbonDioxide,
+                        ) {
+                            ejected_by_volcanism
+                                .push((vec![(ChemicalComponent::CarbonDioxide, None)], presence));
+                        }
+                    }
+
+                    for components_and_presence in ejected_by_volcanism {
+                        let mut presence = components_and_presence.1;
+                        for component_to_add in components_and_presence.0 {
+                            // If there is no element presence condition
+                            if component_to_add.1.is_none() ||
+                                // Or the needed element is found
+                                has_element_in_normal_amount_or_more(&special_traits, component_to_add.1.unwrap())
+                            {
+                                Self::add_gas_as(
+                                    component_to_add.0,
+                                    presence,
+                                    blackbody_temperature,
+                                    atmospheric_pressure,
+                                    magnetic_field,
+                                    &mut guess_composition,
+                                );
+                                // Reduce the presence for the next turn
+                                presence = match presence {
+                                    ChemicalComponentPresence::Dominant => {
+                                        ChemicalComponentPresence::Notable
                                     }
-                                }
+                                    ChemicalComponentPresence::Significant => {
+                                        ChemicalComponentPresence::Minor
+                                    }
+                                    _ => ChemicalComponentPresence::Traces,
+                                };
                             }
                         }
                     }
                 }
 
-                // TODO: Around M dwarves, possible to have Methane and Oxygen as primary with Ammonia and Water Vapor as traces
                 let modifier = if mass > 1.0 {
                     (mass * 5.0) as i32
                 } else if mass != 0.0 {
@@ -689,6 +776,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide_and_oxygen(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -698,33 +786,71 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
                         );
                     } else if roll <= 15 {
-                        // Carbon dioxide and nitrogen
-                        Self::add_gas_carbon_dioxide_and_nitrogen(
-                            blackbody_temperature,
-                            atmospheric_pressure,
-                            &mut guess_composition,
-                            &mut rng,
-                            &mut add_other_flavor_components,
-                        );
+                        if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                            || discriminant(star_type) == discriminant(&StarSpectralType::L(0))
+                            || discriminant(star_type) == discriminant(&StarSpectralType::T(0))
+                            || discriminant(star_type) == discriminant(&StarSpectralType::Y(0))
+                                && rng.roll(1, 3, 0) != 3
+                        {
+                            // Methane and oxygen
+                            Self::add_gas_methane_and_oxygen(
+                                blackbody_temperature,
+                                atmospheric_pressure,
+                                magnetic_field,
+                                &mut guess_composition,
+                                &mut rng,
+                                &mut add_other_flavor_components,
+                            );
+                        } else {
+                            // Carbon dioxide and nitrogen
+                            Self::add_gas_carbon_dioxide_and_nitrogen(
+                                blackbody_temperature,
+                                atmospheric_pressure,
+                                magnetic_field,
+                                &mut guess_composition,
+                                &mut rng,
+                                &mut add_other_flavor_components,
+                            );
+                        }
                     } else if roll <= 16 {
-                        // Carbon dioxide, water and nitrogen
-                        Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
-                            blackbody_temperature,
-                            atmospheric_pressure,
-                            &mut guess_composition,
-                            &mut rng,
-                            &mut add_other_flavor_components,
-                        );
+                        if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                            || discriminant(star_type) == discriminant(&StarSpectralType::L(0))
+                            || discriminant(star_type) == discriminant(&StarSpectralType::T(0))
+                            || discriminant(star_type) == discriminant(&StarSpectralType::Y(0))
+                                && rng.roll(1, 3, 0) != 3
+                        {
+                            // Methane and oxygen
+                            Self::add_gas_methane_and_oxygen(
+                                blackbody_temperature,
+                                atmospheric_pressure,
+                                magnetic_field,
+                                &mut guess_composition,
+                                &mut rng,
+                                &mut add_other_flavor_components,
+                            );
+                        } else {
+                            // Carbon dioxide, water and nitrogen
+                            Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                                blackbody_temperature,
+                                atmospheric_pressure,
+                                magnetic_field,
+                                &mut guess_composition,
+                                &mut rng,
+                                &mut add_other_flavor_components,
+                            );
+                        }
                     } else if roll <= 17 {
                         // Water with oxygen
                         Self::add_gas_water_and_oxygen(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -734,6 +860,7 @@ impl WorldGenerator {
                         Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -743,6 +870,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen_and_water(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -752,6 +880,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -761,6 +890,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen_and_carbon_monoxide(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -770,6 +900,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_monoxide(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -779,6 +910,7 @@ impl WorldGenerator {
                         Self::add_gas_neon(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -788,6 +920,7 @@ impl WorldGenerator {
                         Self::add_gas_helium(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -797,6 +930,7 @@ impl WorldGenerator {
                         Self::add_gas_hydrogen_and_helium(
                             blackbody_temperature,
                             atmospheric_pressure,
+                            magnetic_field,
                             &mut guess_composition,
                             rng,
                             &mut add_other_flavor_components,
@@ -812,6 +946,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -821,33 +956,77 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
                                 );
                             } else if roll <= 59 {
-                                // Carbon dioxide and nitrogen
-                                Self::add_gas_carbon_dioxide_and_nitrogen(
-                                    blackbody_temperature,
-                                    atmospheric_pressure,
-                                    &mut guess_composition,
-                                    &mut rng,
-                                    &mut add_other_flavor_components,
-                                );
+                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::L(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::T(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::Y(0))
+                                        && rng.roll(1, 2, 0) != 2
+                                {
+                                    // Methane and oxygen
+                                    Self::add_gas_methane_and_oxygen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                } else {
+                                    // Carbon dioxide and nitrogen
+                                    Self::add_gas_carbon_dioxide_and_nitrogen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                }
                             } else if roll <= 62 {
-                                // Carbon dioxide, water and nitrogen
-                                Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
-                                    blackbody_temperature,
-                                    atmospheric_pressure,
-                                    &mut guess_composition,
-                                    &mut rng,
-                                    &mut add_other_flavor_components,
-                                );
+                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::L(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::T(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::Y(0))
+                                        && rng.roll(1, 2, 0) != 2
+                                {
+                                    // Methane and oxygen
+                                    Self::add_gas_methane_and_oxygen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                } else {
+                                    // Carbon dioxide, water and nitrogen
+                                    Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                }
                             } else if roll <= 63 {
                                 // Water with oxygen
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -857,6 +1036,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -866,6 +1046,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -875,6 +1056,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -884,6 +1066,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -893,6 +1076,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -902,6 +1086,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -911,6 +1096,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -920,6 +1106,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     rng,
                                     &mut add_other_flavor_components,
@@ -934,6 +1121,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -943,33 +1131,77 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
                                 );
                             } else if roll <= 54 {
-                                // Carbon dioxide and nitrogen
-                                Self::add_gas_carbon_dioxide_and_nitrogen(
-                                    blackbody_temperature,
-                                    atmospheric_pressure,
-                                    &mut guess_composition,
-                                    &mut rng,
-                                    &mut add_other_flavor_components,
-                                );
+                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::L(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::T(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::Y(0))
+                                        && rng.roll(1, 2, 0) != 2
+                                {
+                                    // Methane and oxygen
+                                    Self::add_gas_methane_and_oxygen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                } else {
+                                    // Carbon dioxide and nitrogen
+                                    Self::add_gas_carbon_dioxide_and_nitrogen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                }
                             } else if roll <= 59 {
-                                // Carbon dioxide, water and nitrogen
-                                Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
-                                    blackbody_temperature,
-                                    atmospheric_pressure,
-                                    &mut guess_composition,
-                                    &mut rng,
-                                    &mut add_other_flavor_components,
-                                );
+                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::L(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::T(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::Y(0))
+                                        && rng.roll(1, 2, 0) != 2
+                                {
+                                    // Methane and oxygen
+                                    Self::add_gas_methane_and_oxygen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                } else {
+                                    // Carbon dioxide, water and nitrogen
+                                    Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                }
                             } else if roll <= 64 {
                                 // Water with oxygen
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -979,6 +1211,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -988,6 +1221,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -997,6 +1231,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1006,6 +1241,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1015,6 +1251,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1024,6 +1261,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1033,6 +1271,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1042,6 +1281,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     rng,
                                     &mut add_other_flavor_components,
@@ -1056,6 +1296,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1065,33 +1306,77 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
                                 );
                             } else if roll <= 14 {
-                                // Carbon dioxide and nitrogen
-                                Self::add_gas_carbon_dioxide_and_nitrogen(
-                                    blackbody_temperature,
-                                    atmospheric_pressure,
-                                    &mut guess_composition,
-                                    &mut rng,
-                                    &mut add_other_flavor_components,
-                                );
+                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::L(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::T(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::Y(0))
+                                        && rng.roll(1, 2, 0) != 2
+                                {
+                                    // Methane and oxygen
+                                    Self::add_gas_methane_and_oxygen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                } else {
+                                    // Carbon dioxide and nitrogen
+                                    Self::add_gas_carbon_dioxide_and_nitrogen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                }
                             } else if roll <= 19 {
-                                // Carbon dioxide, water and nitrogen
-                                Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
-                                    blackbody_temperature,
-                                    atmospheric_pressure,
-                                    &mut guess_composition,
-                                    &mut rng,
-                                    &mut add_other_flavor_components,
-                                );
+                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::L(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::T(0))
+                                    || discriminant(star_type)
+                                        == discriminant(&StarSpectralType::Y(0))
+                                        && rng.roll(1, 2, 0) != 2
+                                {
+                                    // Methane and oxygen
+                                    Self::add_gas_methane_and_oxygen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                } else {
+                                    // Carbon dioxide, water and nitrogen
+                                    Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
+                                        blackbody_temperature,
+                                        atmospheric_pressure,
+                                        magnetic_field,
+                                        &mut guess_composition,
+                                        &mut rng,
+                                        &mut add_other_flavor_components,
+                                    );
+                                }
                             } else if roll <= 29 {
                                 // Water with oxygen
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1101,6 +1386,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1110,6 +1396,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1119,6 +1406,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1128,6 +1416,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1137,6 +1426,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1146,6 +1436,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1155,6 +1446,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1164,6 +1456,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
+                                    magnetic_field,
                                     &mut guess_composition,
                                     rng,
                                     &mut add_other_flavor_components,
@@ -1172,6 +1465,86 @@ impl WorldGenerator {
                         }
                     }
                 }
+
+                // Flavor components
+                if add_other_flavor_components {
+                    let mut rng = SeededDiceRoller::new(
+                        &settings.seed,
+                        &format!(
+                            "sys_{}_{}_str_{}_bdy{}_atcmp_flavor",
+                            coord, system_index, star_id, orbital_point_id
+                        ),
+                    );
+                    let number_of_elements = rng.roll(1, 3, 0);
+                    for number_of_element in 0..number_of_elements {
+                        let picked_element = MOST_COMMON_ELEMENTS
+                            [rng.roll(1, MOST_COMMON_ELEMENTS.len() as u32, -1) as usize];
+                        let picked_presence = {
+                            let result = rng.roll(1, 2, 0);
+                            match result {
+                                1 => ChemicalComponentPresence::Minor,
+                                _ => ChemicalComponentPresence::Traces,
+                            }
+                        };
+                        Self::add_gas_as(
+                            picked_element,
+                            picked_presence,
+                            blackbody_temperature,
+                            atmospheric_pressure,
+                            magnetic_field,
+                            &mut guess_composition,
+                        );
+                    }
+                }
+            }
+
+            // TODO: If oceans/water, add the component in atmosphere
+
+            // Consolidate duplicate entries
+            let mut counts: HashMap<ChemicalComponent, usize> = HashMap::new();
+            // Iterate over components to find the counts of each ChemicalComponent
+            for &(_, component) in &guess_composition {
+                *counts.entry(component).or_insert(0) += 1;
+            }
+
+            // Iterate over the counts and increase the presence for duplicates
+            let mut index = 0;
+            while index < guess_composition.len() {
+                let (presence, component) = guess_composition[index];
+
+                if let Some(&count) = counts.get(&component) {
+                    if count > 1 {
+                        // Increase the presence and remove the duplicate
+                        if let Some(already_present) =
+                            guess_composition.iter().position(|e| e.1 == component)
+                        {
+                            if already_present != index {
+                                let updated_presence = match guess_composition[already_present].0 {
+                                    ChemicalComponentPresence::Traces => {
+                                        ChemicalComponentPresence::Minor
+                                    }
+                                    ChemicalComponentPresence::Minor => {
+                                        ChemicalComponentPresence::Notable
+                                    }
+                                    ChemicalComponentPresence::Notable => {
+                                        ChemicalComponentPresence::Significant
+                                    }
+                                    _ => ChemicalComponentPresence::Dominant,
+                                };
+
+                                guess_composition[already_present] = (updated_presence, component);
+                                guess_composition.remove(index);
+                                // Reduce index since we removed an element
+                                if index > 0 {
+                                    index -= 1;
+                                }
+                                continue;
+                            }
+                        }
+                    }
+                }
+
+                index += 1;
             }
 
             let mut rng = SeededDiceRoller::new(
@@ -1182,88 +1555,36 @@ impl WorldGenerator {
                 ),
             );
 
-            guess_composition.sort_by(|a, b| {
-                let ordering = match (a.0, b.0) {
-                    (ChemicalComponentPresence::Traces, ChemicalComponentPresence::Traces) => {
-                        Ordering::Equal
-                    }
-                    (ChemicalComponentPresence::Traces, _) => Ordering::Less,
-                    (_, ChemicalComponentPresence::Traces) => Ordering::Greater,
-                    (ChemicalComponentPresence::Minor, ChemicalComponentPresence::Minor) => {
-                        Ordering::Equal
-                    }
-                    (ChemicalComponentPresence::Minor, _) => Ordering::Less,
-                    (_, ChemicalComponentPresence::Minor) => Ordering::Greater,
-                    (ChemicalComponentPresence::Notable, ChemicalComponentPresence::Notable) => {
-                        Ordering::Equal
-                    }
-                    (ChemicalComponentPresence::Notable, _) => Ordering::Less,
-                    (_, ChemicalComponentPresence::Notable) => Ordering::Greater,
-                    (ChemicalComponentPresence::Dominant, ChemicalComponentPresence::Dominant) => {
-                        Ordering::Equal
-                    }
-                    (ChemicalComponentPresence::Dominant, _) => Ordering::Less,
-                    (_, ChemicalComponentPresence::Dominant) => Ordering::Greater,
-                    (
-                        ChemicalComponentPresence::Significant,
-                        ChemicalComponentPresence::Significant,
-                    ) => Ordering::Equal,
-                };
-                ordering
-            });
+            guess_composition.sort_by(|a, b| a.0.cmp(&b.0));
+            let mut rolled_composition: Vec<(f32, ChemicalComponent)> = vec![];
 
-            let mut total_composition = rng.roll(1, 7, -1) as f32 / 100.0;
-            let mut highest_percentage_index = None;
-            let mut highest_percentage_value = 0.0;
-
-            println!("Looking at the atmosphere of planet with id {}", orbital_point_id);
             guess_composition.iter().for_each(|composition| {
-                println!(
-                    "total: {}, highest index: {:?}, highest value: {}",
-                    total_composition, highest_percentage_index, highest_percentage_value
-                );
-
-                let mut percentage = if composition.0 == ChemicalComponentPresence::Dominant {
-                    rng.roll(1, 3010, 4000) as f32 / 100.0
-                } else if composition.0 == ChemicalComponentPresence::Significant {
-                    rng.roll(1, 2010, 1000) as f32 / 100.0
-                } else if composition.0 == ChemicalComponentPresence::Notable {
-                    rng.roll(1, 910, 100) as f32 / 100.0
-                } else if composition.0 == ChemicalComponentPresence::Minor {
-                    rng.roll(1, 100, 10) as f32 / 100.0
-                } else {
-                    rng.roll(1, 15, 0) as f32 / 100.0
+                let percentage = match composition.0 {
+                    ChemicalComponentPresence::Dominant => rng.roll(1, 3010, 4000) as f32 / 100.0,
+                    ChemicalComponentPresence::Significant => {
+                        rng.roll(1, 2010, 1000) as f32 / 100.0
+                    }
+                    ChemicalComponentPresence::Notable => rng.roll(1, 910, 100) as f32 / 100.0,
+                    ChemicalComponentPresence::Minor => rng.roll(1, 100, 10) as f32 / 100.0,
+                    ChemicalComponentPresence::Traces => rng.roll(1, 15, 0) as f32 / 100.0,
                 };
 
-                println!("looking at {:?}, I rolled {}", composition.0, percentage);
-
-                if (100.0 - total_composition - percentage < 0.0) {
-                    if 100.0 - total_composition <= 0.001 {
-                        percentage = -1.0;
-                    } else {
-                        percentage = 100.0 - total_composition;
-                    }
-                }
-                println!("I then edit it so that it becomes {}", percentage);
-
-                if percentage != -1.0 {
-                    if percentage > highest_percentage_value {
-                        highest_percentage_value = percentage;
-                        highest_percentage_index = Some(final_composition.len());
-                    }
-
-                    total_composition += percentage;
-                    final_composition.push((percentage, composition.1));
-                }
+                rolled_composition.push((percentage, composition.1));
             });
 
-            println!("before last edit: {:?}", final_composition);
+            // Calculate the total rolled percentage sum
+            let total_sum: f32 = rolled_composition.iter().map(|(p, _)| *p).sum();
 
-            if let Some(index) = highest_percentage_index {
-                final_composition[index].0 += 100.0 - total_composition;
-            }
+            // Scale percentages to make the total sum 100.0
+            let scaling_factor = 99.99 / total_sum;
 
-            println!("after last edit: {:?}", final_composition);
+            let mut final_composition: Vec<(f32, ChemicalComponent)> = rolled_composition
+                .iter()
+                .map(|(p, component)| (p * scaling_factor, *component))
+                .collect();
+
+            // Sort by descending percentage
+            final_composition.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(Ordering::Equal));
 
             final_composition
         };
@@ -1290,7 +1611,6 @@ impl WorldGenerator {
             /// Variable/flare star
             /// High debris
             /// Is gas planet
-            ///
             LifeLevel::Sentient
         };
 
@@ -1352,15 +1672,16 @@ impl WorldGenerator {
         )
     }
 
-    fn add_gas_carbon_dioxide_and_oxygen(
+    fn add_gas_methane_and_oxygen(
         blackbody_temperature: u32,
         atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
         mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
         mut rng: &mut SeededDiceRoller,
         add_other: &mut bool,
     ) {
         Self::add_gas_as(
-            ChemicalComponent::CarbonDioxide,
+            ChemicalComponent::Methane,
             if rng.gen_bool() {
                 ChemicalComponentPresence::Dominant
             } else {
@@ -1368,6 +1689,7 @@ impl WorldGenerator {
             },
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
         Self::add_gas_as(
@@ -1375,301 +1697,7 @@ impl WorldGenerator {
             ChemicalComponentPresence::Significant,
             blackbody_temperature,
             atmospheric_pressure,
-            &mut composition,
-        );
-
-        let roll = rng.roll(1, 10, 0);
-        if roll <= 2 {
-            Self::add_gas_as(
-                ChemicalComponent::SulfurDioxide,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 10 {
-            *add_other = true;
-        }
-    }
-
-    fn add_gas_carbon_dioxide(
-        blackbody_temperature: u32,
-        atmospheric_pressure: f32,
-        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
-        rng: &mut SeededDiceRoller,
-        add_other: &mut bool,
-    ) {
-        Self::add_gas_as(
-            ChemicalComponent::CarbonDioxide,
-            ChemicalComponentPresence::Dominant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-
-        let roll = rng.roll(1, 10, 0);
-        if roll <= 4 {
-            Self::add_gas_as(
-                ChemicalComponent::SulfurDioxide,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 10 {
-            *add_other = true;
-        }
-    }
-
-    fn add_gas_carbon_dioxide_and_nitrogen(
-        blackbody_temperature: u32,
-        atmospheric_pressure: f32,
-        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
-        mut rng: &mut SeededDiceRoller,
-        add_other: &mut bool,
-    ) {
-        Self::add_gas_as(
-            ChemicalComponent::CarbonDioxide,
-            if rng.gen_bool() {
-                ChemicalComponentPresence::Dominant
-            } else {
-                ChemicalComponentPresence::Significant
-            },
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-        Self::add_gas_as(
-            ChemicalComponent::Nitrogen,
-            ChemicalComponentPresence::Significant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-
-        let roll = rng.roll(1, 10, 0);
-        if roll >= 8 && roll <= 9 {
-            Self::add_gas_as(
-                ChemicalComponent::Methane,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 10 {
-            *add_other = true;
-        }
-    }
-
-    fn add_gas_carbon_dioxide_and_water_and_nitrogen(
-        blackbody_temperature: u32,
-        atmospheric_pressure: f32,
-        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
-        mut rng: &mut SeededDiceRoller,
-        add_other: &mut bool,
-    ) {
-        Self::add_gas_as(
-            ChemicalComponent::CarbonDioxide,
-            if rng.roll(1, 4, 0) == 1 {
-                ChemicalComponentPresence::Dominant
-            } else {
-                ChemicalComponentPresence::Significant
-            },
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-        Self::add_gas_as(
-            ChemicalComponent::Water,
-            ChemicalComponentPresence::Significant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-        Self::add_gas_as(
-            ChemicalComponent::Nitrogen,
-            ChemicalComponentPresence::Significant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-
-        let roll = rng.roll(1, 10, 0);
-        if roll >= 5 && roll <= 6 {
-            Self::add_gas_as(
-                ChemicalComponent::Methane,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 7 && roll <= 8 {
-            Self::add_gas_as(
-                ChemicalComponent::Ammonia,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll <= 9 {
-            Self::add_gas_as(
-                ChemicalComponent::Methane,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-            Self::add_gas_as(
-                ChemicalComponent::Ammonia,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 10 {
-            *add_other = true;
-        }
-    }
-
-    fn add_gas_water_and_oxygen(
-        blackbody_temperature: u32,
-        atmospheric_pressure: f32,
-        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
-        mut rng: &mut SeededDiceRoller,
-        add_other: &mut bool,
-    ) {
-        Self::add_gas_as(
-            ChemicalComponent::Water,
-            if rng.gen_bool() {
-                ChemicalComponentPresence::Dominant
-            } else {
-                ChemicalComponentPresence::Significant
-            },
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-        Self::add_gas_as(
-            ChemicalComponent::Oxygen,
-            ChemicalComponentPresence::Significant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-
-        let roll = rng.roll(1, 10, 0);
-        if roll >= 7 && roll <= 9 {
-            Self::add_gas_as(
-                ChemicalComponent::Nitrogen,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 10 {
-            *add_other = true;
-        }
-    }
-
-    fn add_gas_water_and_carbon_dioxide_and_nitrogen(
-        blackbody_temperature: u32,
-        atmospheric_pressure: f32,
-        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
-        mut rng: &mut SeededDiceRoller,
-        add_other: &mut bool,
-    ) {
-        Self::add_gas_as(
-            ChemicalComponent::Water,
-            if rng.roll(1, 4, 0) == 1 {
-                ChemicalComponentPresence::Dominant
-            } else {
-                ChemicalComponentPresence::Significant
-            },
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-        Self::add_gas_as(
-            ChemicalComponent::CarbonDioxide,
-            ChemicalComponentPresence::Significant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-        Self::add_gas_as(
-            ChemicalComponent::Nitrogen,
-            ChemicalComponentPresence::Significant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-
-        let roll = rng.roll(1, 10, 0);
-        if roll >= 8 && roll <= 9 {
-            Self::add_gas_as(
-                ChemicalComponent::Methane,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 10 {
-            *add_other = true;
-        }
-    }
-
-    fn add_gas_nitrogen_and_water(
-        blackbody_temperature: u32,
-        atmospheric_pressure: f32,
-        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
-        mut rng: &mut SeededDiceRoller,
-        add_other: &mut bool,
-    ) {
-        Self::add_gas_as(
-            ChemicalComponent::Nitrogen,
-            if rng.gen_bool() {
-                ChemicalComponentPresence::Dominant
-            } else {
-                ChemicalComponentPresence::Significant
-            },
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-        Self::add_gas_as(
-            ChemicalComponent::Water,
-            ChemicalComponentPresence::Significant,
-            blackbody_temperature,
-            atmospheric_pressure,
-            &mut composition,
-        );
-
-        let roll = rng.roll(1, 10, 0);
-        if roll >= 7 && roll <= 9 {
-            Self::add_gas_as(
-                ChemicalComponent::Ammonia,
-                ChemicalComponentPresence::Minor,
-                blackbody_temperature,
-                atmospheric_pressure,
-                &mut composition,
-            );
-        } else if roll >= 10 {
-            *add_other = true;
-        }
-    }
-
-    fn add_gas_nitrogen(
-        blackbody_temperature: u32,
-        atmospheric_pressure: f32,
-        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
-        rng: &mut SeededDiceRoller,
-        add_other: &mut bool,
-    ) {
-        Self::add_gas_as(
-            ChemicalComponent::Nitrogen,
-            ChemicalComponentPresence::Dominant,
-            blackbody_temperature,
-            atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
 
@@ -1680,6 +1708,7 @@ impl WorldGenerator {
                 ChemicalComponentPresence::Minor,
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
         } else if roll >= 8 && roll <= 9 {
@@ -1688,6 +1717,7 @@ impl WorldGenerator {
                 ChemicalComponentPresence::Minor,
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
             Self::add_gas_as(
@@ -1695,6 +1725,7 @@ impl WorldGenerator {
                 ChemicalComponentPresence::Minor,
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
         } else if roll >= 10 {
@@ -1702,9 +1733,304 @@ impl WorldGenerator {
         }
     }
 
-    fn add_gas_nitrogen_and_carbon_monoxide(
+    fn add_gas_carbon_dioxide_and_oxygen(
         blackbody_temperature: u32,
         atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Oxygen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll <= 2 {
+            Self::add_gas_as(
+                ChemicalComponent::SulfurDioxide,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_carbon_dioxide(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            ChemicalComponentPresence::Dominant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll <= 4 {
+            Self::add_gas_as(
+                ChemicalComponent::SulfurDioxide,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_carbon_dioxide_and_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_carbon_dioxide_and_water_and_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            if rng.roll(1, 4, 0) == 1 {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 5 && roll <= 6 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 7 && roll <= 8 {
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_water_and_oxygen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Oxygen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 7 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Nitrogen,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_water_and_carbon_dioxide_and_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            if rng.roll(1, 4, 0) == 1 {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::CarbonDioxide,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Methane,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_nitrogen_and_water(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
         mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
         mut rng: &mut SeededDiceRoller,
         add_other: &mut bool,
@@ -1718,6 +2044,100 @@ impl WorldGenerator {
             },
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+        Self::add_gas_as(
+            ChemicalComponent::Water,
+            ChemicalComponentPresence::Significant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 7 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_nitrogen(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            ChemicalComponentPresence::Dominant,
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+            &mut composition,
+        );
+
+        let roll = rng.roll(1, 10, 0);
+        if roll >= 4 && roll <= 7 {
+            Self::add_gas_as(
+                ChemicalComponent::Water,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 8 && roll <= 9 {
+            Self::add_gas_as(
+                ChemicalComponent::Water,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+            Self::add_gas_as(
+                ChemicalComponent::Ammonia,
+                ChemicalComponentPresence::Minor,
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+                &mut composition,
+            );
+        } else if roll >= 10 {
+            *add_other = true;
+        }
+    }
+
+    fn add_gas_nitrogen_and_carbon_monoxide(
+        blackbody_temperature: u32,
+        atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+        mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
+        mut rng: &mut SeededDiceRoller,
+        add_other: &mut bool,
+    ) {
+        Self::add_gas_as(
+            ChemicalComponent::Nitrogen,
+            if rng.gen_bool() {
+                ChemicalComponentPresence::Dominant
+            } else {
+                ChemicalComponentPresence::Significant
+            },
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
         Self::add_gas_as(
@@ -1725,6 +2145,7 @@ impl WorldGenerator {
             ChemicalComponentPresence::Significant,
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
 
@@ -1735,6 +2156,7 @@ impl WorldGenerator {
                 ChemicalComponentPresence::Minor,
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
         } else if roll >= 10 {
@@ -1745,6 +2167,7 @@ impl WorldGenerator {
     fn add_gas_carbon_monoxide(
         blackbody_temperature: u32,
         atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
         mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
         rng: &mut SeededDiceRoller,
         add_other: &mut bool,
@@ -1754,6 +2177,7 @@ impl WorldGenerator {
             ChemicalComponentPresence::Dominant,
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
 
@@ -1764,6 +2188,7 @@ impl WorldGenerator {
                 ChemicalComponentPresence::Minor,
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
         } else if roll >= 10 {
@@ -1774,6 +2199,7 @@ impl WorldGenerator {
     fn add_gas_neon(
         blackbody_temperature: u32,
         atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
         mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
         mut rng: &mut SeededDiceRoller,
         add_other: &mut bool,
@@ -1783,6 +2209,7 @@ impl WorldGenerator {
             ChemicalComponentPresence::Dominant,
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
 
@@ -1797,6 +2224,7 @@ impl WorldGenerator {
                 },
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
             Self::add_gas_as(
@@ -1808,6 +2236,7 @@ impl WorldGenerator {
                 },
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
         } else if roll >= 10 {
@@ -1818,6 +2247,7 @@ impl WorldGenerator {
     fn add_gas_helium(
         blackbody_temperature: u32,
         atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
         mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
         mut rng: &mut SeededDiceRoller,
         add_other: &mut bool,
@@ -1827,6 +2257,7 @@ impl WorldGenerator {
             ChemicalComponentPresence::Dominant,
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
 
@@ -1841,6 +2272,7 @@ impl WorldGenerator {
                 },
                 blackbody_temperature,
                 atmospheric_pressure,
+                magnetic_field,
                 &mut composition,
             );
         } else if roll >= 10 {
@@ -1851,6 +2283,7 @@ impl WorldGenerator {
     fn add_gas_hydrogen_and_helium(
         blackbody_temperature: u32,
         atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
         mut composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
         mut rng: SeededDiceRoller,
         add_other: &mut bool,
@@ -1864,6 +2297,7 @@ impl WorldGenerator {
             },
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
         Self::add_gas_as(
@@ -1871,6 +2305,7 @@ impl WorldGenerator {
             ChemicalComponentPresence::Significant,
             blackbody_temperature,
             atmospheric_pressure,
+            magnetic_field,
             &mut composition,
         );
 
@@ -1884,20 +2319,66 @@ impl WorldGenerator {
         presence: ChemicalComponentPresence,
         blackbody_temperature: u32,
         atmospheric_pressure: f32,
+        magnetic_field: MagneticFieldStrength,
         composition: &mut Vec<(ChemicalComponentPresence, ChemicalComponent)>,
     ) {
-        let final_presence = if presence == ChemicalComponentPresence::Dominant
+        let presence = if composition.iter().any(|c| c.1 == gas) {
+            // If entry already exists, increase its presence
+            match composition
+                .remove(
+                    composition
+                        .iter()
+                        .position(|c| c.1 == gas)
+                        .expect("A gas should have been found!"),
+                )
+                .0
+            {
+                ChemicalComponentPresence::Traces => ChemicalComponentPresence::Minor,
+                ChemicalComponentPresence::Minor => ChemicalComponentPresence::Notable,
+                ChemicalComponentPresence::Notable => ChemicalComponentPresence::Significant,
+                _ => ChemicalComponentPresence::Dominant,
+            }
+        } else if presence == ChemicalComponentPresence::Dominant
             && composition
                 .iter()
                 .find(|c| c.0 == ChemicalComponentPresence::Dominant)
                 .is_some()
         {
+            // Otherwise if there is already a dominant element, downgrade the presence level
             ChemicalComponentPresence::Significant
         } else {
             presence
         };
-        if gas.can_exist_as_gas(blackbody_temperature, atmospheric_pressure) {
+
+        if gas.can_be_retained_as_atmospheric_gas(
+            blackbody_temperature,
+            atmospheric_pressure,
+            magnetic_field,
+        ) {
+            // If the element itself can exist as gas, add it
             composition.push((presence, gas));
+        } else if gas.dissociation_products().iter().any(|c| {
+            c.can_be_retained_as_atmospheric_gas(
+                blackbody_temperature,
+                atmospheric_pressure,
+                magnetic_field,
+            )
+        }) {
+            // Otherwise if its byproducts can exist as gas, add them
+            let new_presence = match presence {
+                ChemicalComponentPresence::Dominant => ChemicalComponentPresence::Notable,
+                ChemicalComponentPresence::Significant => ChemicalComponentPresence::Minor,
+                _ => ChemicalComponentPresence::Traces,
+            };
+            for new_gas in gas.dissociation_products() {
+                if new_gas.can_be_retained_as_atmospheric_gas(
+                    blackbody_temperature,
+                    atmospheric_pressure,
+                    magnetic_field,
+                ) {
+                    composition.push((new_presence, new_gas));
+                }
+            }
         }
     }
 

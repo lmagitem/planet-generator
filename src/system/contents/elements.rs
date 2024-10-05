@@ -397,6 +397,86 @@ impl ChemicalComponent {
         }
     }
 
+    pub fn can_exist_in_atmosphere(&self, magnetic_field: MagneticFieldStrength) -> bool {
+        match (self, magnetic_field) {
+            // None
+            (_, MagneticFieldStrength::None) => match self {
+                ChemicalComponent::Water
+                | ChemicalComponent::Methane
+                | ChemicalComponent::Ammonia
+                | ChemicalComponent::HydrogenSulfide
+                | ChemicalComponent::CarbonMonoxide
+                | ChemicalComponent::Formaldehyde
+                | ChemicalComponent::Methanol
+                | ChemicalComponent::Ethylene
+                | ChemicalComponent::Ethane
+                | ChemicalComponent::Acetylene
+                | ChemicalComponent::Methylamine
+                | ChemicalComponent::HydrogenCyanide
+                | ChemicalComponent::NitricOxide
+                | ChemicalComponent::NitrogenDioxide
+                | ChemicalComponent::NitricAcid
+                | ChemicalComponent::SulfurDioxide
+                | ChemicalComponent::SulfuricAcid => false,
+                _ => true,
+            },
+            // Weak
+            (_, MagneticFieldStrength::Weak) => match self {
+                ChemicalComponent::Methane
+                | ChemicalComponent::Ammonia
+                | ChemicalComponent::HydrogenSulfide
+                | ChemicalComponent::Formaldehyde
+                | ChemicalComponent::Ethylene
+                | ChemicalComponent::Ethane
+                | ChemicalComponent::Acetylene
+                | ChemicalComponent::Methylamine
+                | ChemicalComponent::HydrogenCyanide
+                | ChemicalComponent::NitricOxide
+                | ChemicalComponent::NitrogenDioxide
+                | ChemicalComponent::NitricAcid
+                | ChemicalComponent::SulfurDioxide
+                | ChemicalComponent::SulfuricAcid => false,
+                _ => true,
+            },
+            // Moderate
+            (_, MagneticFieldStrength::Moderate) => match self {
+                ChemicalComponent::Ammonia
+                | ChemicalComponent::HydrogenSulfide
+                | ChemicalComponent::Formaldehyde
+                | ChemicalComponent::Ethylene
+                | ChemicalComponent::Acetylene
+                | ChemicalComponent::HydrogenCyanide
+                | ChemicalComponent::NitricOxide
+                | ChemicalComponent::NitrogenDioxide
+                | ChemicalComponent::NitricAcid
+                | ChemicalComponent::SulfuricAcid => false,
+                _ => true,
+            },
+            // Strong
+            (_, MagneticFieldStrength::Strong) => match self {
+                ChemicalComponent::HydrogenSulfide
+                | ChemicalComponent::Formaldehyde
+                | ChemicalComponent::Acetylene
+                | ChemicalComponent::NitricOxide
+                | ChemicalComponent::NitrogenDioxide
+                | ChemicalComponent::SulfuricAcid => false,
+                _ => true,
+            },
+            // Very Strong
+            (_, MagneticFieldStrength::VeryStrong) => match self {
+                ChemicalComponent::Formaldehyde
+                | ChemicalComponent::NitricOxide
+                | ChemicalComponent::NitrogenDioxide => false,
+                _ => true,
+            },
+            // Extreme
+            (_, MagneticFieldStrength::Extreme) => match self {
+                ChemicalComponent::Formaldehyde => false,
+                _ => true,
+            },
+        }
+    }
+
     pub fn is_related_element(&self, other: &ChemicalComponent) -> bool {
         let related_pairs = vec![
             // Hydrogen compounds
@@ -575,7 +655,64 @@ impl ChemicalComponent {
         related_pairs.contains(&(*self, *other)) || related_pairs.contains(&(*other, *self))
     }
 
-    pub fn photodissociation_products(&self) -> Vec<ChemicalComponent> {
+    pub fn thermal_decomposition_temperature(&self) -> Option<u32> {
+        match self {
+            ChemicalComponent::Water => Some(2000),
+            ChemicalComponent::CarbonMonoxide => Some(1200),
+            ChemicalComponent::CarbonDioxide => Some(2000),
+            ChemicalComponent::SiliconDioxide => Some(2500),
+            ChemicalComponent::AluminiumOxide => Some(2980),
+            ChemicalComponent::IronOxide => Some(3000),
+            ChemicalComponent::IronSulfide => Some(1100),
+            ChemicalComponent::CalciumOxide => Some(2850),
+            ChemicalComponent::SodiumChloride => Some(1465),
+            ChemicalComponent::SodiumOxide => Some(1250),
+            ChemicalComponent::PotassiumChloride => Some(1500),
+            ChemicalComponent::PotassiumOxide => Some(1100),
+            ChemicalComponent::MagnesiumOxide => Some(2800),
+            ChemicalComponent::TitaniumDioxide => Some(2900),
+            ChemicalComponent::TitaniumTetrachloride => Some(200),
+            ChemicalComponent::PhosphorusPentoxide => Some(550),
+            ChemicalComponent::ChromiumOxide => Some(3000),
+            ChemicalComponent::ChromiumChloride => Some(1800),
+            ChemicalComponent::ManganeseDioxide => Some(535),
+            ChemicalComponent::ManganeseOxide => Some(1780),
+            ChemicalComponent::NickelOxide => Some(2100),
+            ChemicalComponent::NickelSulfide => Some(1000),
+            ChemicalComponent::NitricOxide => Some(800),
+            ChemicalComponent::NitrogenDioxide => Some(700),
+            ChemicalComponent::NitricAcid => Some(500),
+            ChemicalComponent::SulfuricAcid => Some(500),
+            ChemicalComponent::Methane => Some(1000),
+            ChemicalComponent::Ammonia => Some(700),
+            ChemicalComponent::HydrogenSulfide => Some(600),
+            ChemicalComponent::SulfurDioxide => Some(600),
+            ChemicalComponent::Hydroxyl => Some(500),
+            ChemicalComponent::Formaldehyde => Some(600),
+            ChemicalComponent::Methanol => Some(700),
+            ChemicalComponent::Ethylene => Some(800),
+            ChemicalComponent::Ethane => Some(600),
+            ChemicalComponent::Acetylene => Some(700),
+            ChemicalComponent::Benzene => Some(1100),
+            ChemicalComponent::Acetonitrile => Some(850),
+            ChemicalComponent::Methylamine => Some(500),
+            ChemicalComponent::HydrogenCyanide => Some(800),
+            ChemicalComponent::Glycine => Some(900),
+            ChemicalComponent::Silicates => Some(1700),
+            ChemicalComponent::PolycyclicAromaticHydrocarbons => Some(1200),
+            _ => None,
+        }
+    }
+
+    pub fn can_stay_stable_at_temperature(&self, temperature: u32) -> bool {
+        if let Some(decomposition_temp) = self.thermal_decomposition_temperature() {
+            temperature < decomposition_temp
+        } else {
+            true // Assume stable if no decomposition temperature is listed
+        }
+    }
+
+    pub fn dissociation_products(&self) -> Vec<ChemicalComponent> {
         match self {
             ChemicalComponent::Water => {
                 vec![ChemicalComponent::Hydrogen, ChemicalComponent::Oxygen]
@@ -636,6 +773,57 @@ impl ChemicalComponent {
             }
             ChemicalComponent::CarbonDioxide => {
                 vec![ChemicalComponent::Carbon, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::IronOxide => {
+                vec![ChemicalComponent::Iron, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::IronSulfide => {
+                vec![ChemicalComponent::Iron, ChemicalComponent::Sulfur]
+            }
+            ChemicalComponent::CalciumOxide => {
+                vec![ChemicalComponent::Calcium, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::SodiumChloride => {
+                vec![ChemicalComponent::Sodium, ChemicalComponent::Chlorine]
+            }
+            ChemicalComponent::SodiumOxide => {
+                vec![ChemicalComponent::Sodium, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::PotassiumChloride => {
+                vec![ChemicalComponent::Potassium, ChemicalComponent::Chlorine]
+            }
+            ChemicalComponent::PotassiumOxide => {
+                vec![ChemicalComponent::Potassium, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::MagnesiumOxide => {
+                vec![ChemicalComponent::Magnesium, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::TitaniumDioxide => {
+                vec![ChemicalComponent::Titanium, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::TitaniumTetrachloride => {
+                vec![ChemicalComponent::Titanium, ChemicalComponent::Chlorine]
+            }
+            ChemicalComponent::PhosphorusPentoxide => {
+                vec![ChemicalComponent::Phosphorus, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::ChromiumOxide => {
+                vec![ChemicalComponent::Chromium, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::ChromiumChloride => {
+                vec![ChemicalComponent::Chromium, ChemicalComponent::Chlorine]
+            }
+            ChemicalComponent::ManganeseDioxide => {
+                vec![ChemicalComponent::Manganese, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::ManganeseOxide => {
+                vec![ChemicalComponent::Manganese, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::NickelOxide => {
+                vec![ChemicalComponent::Nickel, ChemicalComponent::Oxygen]
+            }
+            ChemicalComponent::NickelSulfide => {
+                vec![ChemicalComponent::Nickel, ChemicalComponent::Sulfur]
             }
             _ => vec![],
         }
@@ -706,6 +894,17 @@ impl ChemicalComponent {
             }
         }
         false
+    }
+
+    pub fn can_be_retained_as_atmospheric_gas(
+        &self,
+        temperature: u32,
+        pressure: f32,
+        magnetic_field: MagneticFieldStrength,
+    ) -> bool {
+        self.can_exist_as_gas(temperature, pressure)
+            && self.can_exist_in_atmosphere(magnetic_field)
+            && self.can_stay_stable_at_temperature(temperature)
     }
 
     pub fn components_liquid_at(temperature: u32, pressure: f32) -> Option<Vec<ChemicalComponent>> {

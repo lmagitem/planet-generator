@@ -1,4 +1,7 @@
-use crate::prelude::WorldTemperatureCategory;
+use crate::prelude::{
+    CelestialBodySpecialTrait, ChemicalComponent, ElementPresenceOccurrence,
+    WorldTemperatureCategory,
+};
 
 pub fn get_category_from_temperature(blackbody_temperature: u32) -> WorldTemperatureCategory {
     let climate = {
@@ -27,4 +30,30 @@ pub fn get_category_from_temperature(blackbody_temperature: u32) -> WorldTempera
         }
     };
     climate
+}
+
+pub fn has_element_in_normal_amount_or_more(
+    special_traits: &Vec<CelestialBodySpecialTrait>,
+    element: ChemicalComponent,
+) -> bool {
+    special_traits.iter().any(|c| {
+        if let CelestialBodySpecialTrait::UnusualElementPresence(component_and_occurrence) = c {
+            if component_and_occurrence.0 == element
+                && (component_and_occurrence.1 == ElementPresenceOccurrence::Normal
+                    || component_and_occurrence.1 == ElementPresenceOccurrence::High
+                    || component_and_occurrence.1 == ElementPresenceOccurrence::VeryHigh
+                    || component_and_occurrence.1 == ElementPresenceOccurrence::Omnipresence)
+            {
+                return true;
+            }
+        }
+        false
+    }) || !special_traits.iter().any(|c| {
+        if let CelestialBodySpecialTrait::UnusualElementPresence(component_and_occurrence) = c {
+            if component_and_occurrence.0 == element {
+                return true;
+            }
+        }
+        false
+    })
 }
