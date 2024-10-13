@@ -367,14 +367,15 @@ impl WorldGenerator {
 
         // TODO: Atmospheric composition
         let atmospheric_composition = {
-            let magnetic_field = {
+            // Adjust planet magnetic field with strength of radiation from the star
+            let adjusted_magnetic_field = {
                 let mut strength = match magnetic_field {
                     MagneticFieldStrength::None => 0,
                     MagneticFieldStrength::Weak => 1,
-                    MagneticFieldStrength::Moderate => 2,
-                    MagneticFieldStrength::Strong => 3,
-                    MagneticFieldStrength::VeryStrong => 4,
-                    MagneticFieldStrength::Extreme => 5,
+                    MagneticFieldStrength::Moderate => 3,
+                    MagneticFieldStrength::Strong => 6,
+                    MagneticFieldStrength::VeryStrong => 8,
+                    MagneticFieldStrength::Extreme => 10,
                 };
                 strength += match own_orbit.zone {
                     ZoneType::Corona => -3,
@@ -391,11 +392,11 @@ impl WorldGenerator {
                     MagneticFieldStrength::None
                 } else if strength <= 1 {
                     MagneticFieldStrength::Weak
-                } else if strength <= 2 {
-                    MagneticFieldStrength::Moderate
                 } else if strength <= 3 {
+                    MagneticFieldStrength::Moderate
+                } else if strength <= 6 {
                     MagneticFieldStrength::Strong
-                } else if strength <= 4 {
+                } else if strength <= 8 {
                     MagneticFieldStrength::VeryStrong
                 } else {
                     MagneticFieldStrength::Extreme
@@ -740,7 +741,7 @@ impl WorldGenerator {
                                     presence,
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                 );
                                 // Reduce the presence for the next turn
@@ -776,7 +777,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide_and_oxygen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -786,7 +787,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_dioxide(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -802,7 +803,7 @@ impl WorldGenerator {
                             Self::add_gas_methane_and_oxygen(
                                 blackbody_temperature,
                                 atmospheric_pressure,
-                                magnetic_field,
+                                adjusted_magnetic_field,
                                 &mut guess_composition,
                                 &mut rng,
                                 &mut add_other_flavor_components,
@@ -812,7 +813,7 @@ impl WorldGenerator {
                             Self::add_gas_carbon_dioxide_and_nitrogen(
                                 blackbody_temperature,
                                 atmospheric_pressure,
-                                magnetic_field,
+                                adjusted_magnetic_field,
                                 &mut guess_composition,
                                 &mut rng,
                                 &mut add_other_flavor_components,
@@ -829,7 +830,7 @@ impl WorldGenerator {
                             Self::add_gas_methane_and_oxygen(
                                 blackbody_temperature,
                                 atmospheric_pressure,
-                                magnetic_field,
+                                adjusted_magnetic_field,
                                 &mut guess_composition,
                                 &mut rng,
                                 &mut add_other_flavor_components,
@@ -839,7 +840,7 @@ impl WorldGenerator {
                             Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                                 blackbody_temperature,
                                 atmospheric_pressure,
-                                magnetic_field,
+                                adjusted_magnetic_field,
                                 &mut guess_composition,
                                 &mut rng,
                                 &mut add_other_flavor_components,
@@ -850,7 +851,7 @@ impl WorldGenerator {
                         Self::add_gas_water_and_oxygen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -860,7 +861,7 @@ impl WorldGenerator {
                         Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -870,7 +871,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen_and_water(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -880,7 +881,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -890,7 +891,7 @@ impl WorldGenerator {
                         Self::add_gas_nitrogen_and_carbon_monoxide(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -900,7 +901,7 @@ impl WorldGenerator {
                         Self::add_gas_carbon_monoxide(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -910,7 +911,7 @@ impl WorldGenerator {
                         Self::add_gas_neon(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -920,7 +921,7 @@ impl WorldGenerator {
                         Self::add_gas_helium(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             &mut rng,
                             &mut add_other_flavor_components,
@@ -930,7 +931,7 @@ impl WorldGenerator {
                         Self::add_gas_hydrogen_and_helium(
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                             rng,
                             &mut add_other_flavor_components,
@@ -946,7 +947,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -956,7 +957,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -975,7 +976,7 @@ impl WorldGenerator {
                                     Self::add_gas_methane_and_oxygen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -985,7 +986,7 @@ impl WorldGenerator {
                                     Self::add_gas_carbon_dioxide_and_nitrogen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1005,7 +1006,7 @@ impl WorldGenerator {
                                     Self::add_gas_methane_and_oxygen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1015,7 +1016,7 @@ impl WorldGenerator {
                                     Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1026,7 +1027,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1036,7 +1037,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1046,7 +1047,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1056,7 +1057,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1066,7 +1067,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1076,7 +1077,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1086,7 +1087,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1096,7 +1097,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1106,7 +1107,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     rng,
                                     &mut add_other_flavor_components,
@@ -1121,7 +1122,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1131,7 +1132,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1150,7 +1151,7 @@ impl WorldGenerator {
                                     Self::add_gas_methane_and_oxygen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1160,7 +1161,7 @@ impl WorldGenerator {
                                     Self::add_gas_carbon_dioxide_and_nitrogen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1180,7 +1181,7 @@ impl WorldGenerator {
                                     Self::add_gas_methane_and_oxygen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1190,7 +1191,7 @@ impl WorldGenerator {
                                     Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1201,7 +1202,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1211,7 +1212,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1221,7 +1222,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1231,7 +1232,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1241,7 +1242,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1251,7 +1252,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1261,7 +1262,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1271,7 +1272,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1281,7 +1282,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     rng,
                                     &mut add_other_flavor_components,
@@ -1296,7 +1297,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1306,7 +1307,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_dioxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1325,7 +1326,7 @@ impl WorldGenerator {
                                     Self::add_gas_methane_and_oxygen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1335,7 +1336,7 @@ impl WorldGenerator {
                                     Self::add_gas_carbon_dioxide_and_nitrogen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1355,7 +1356,7 @@ impl WorldGenerator {
                                     Self::add_gas_methane_and_oxygen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1365,7 +1366,7 @@ impl WorldGenerator {
                                     Self::add_gas_carbon_dioxide_and_water_and_nitrogen(
                                         blackbody_temperature,
                                         atmospheric_pressure,
-                                        magnetic_field,
+                                        adjusted_magnetic_field,
                                         &mut guess_composition,
                                         &mut rng,
                                         &mut add_other_flavor_components,
@@ -1376,7 +1377,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_oxygen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1386,7 +1387,7 @@ impl WorldGenerator {
                                 Self::add_gas_water_and_carbon_dioxide_and_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1396,7 +1397,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_water(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1406,7 +1407,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1416,7 +1417,7 @@ impl WorldGenerator {
                                 Self::add_gas_nitrogen_and_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1426,7 +1427,7 @@ impl WorldGenerator {
                                 Self::add_gas_carbon_monoxide(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1436,7 +1437,7 @@ impl WorldGenerator {
                                 Self::add_gas_neon(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1446,7 +1447,7 @@ impl WorldGenerator {
                                 Self::add_gas_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     &mut rng,
                                     &mut add_other_flavor_components,
@@ -1456,7 +1457,7 @@ impl WorldGenerator {
                                 Self::add_gas_hydrogen_and_helium(
                                     blackbody_temperature,
                                     atmospheric_pressure,
-                                    magnetic_field,
+                                    adjusted_magnetic_field,
                                     &mut guess_composition,
                                     rng,
                                     &mut add_other_flavor_components,
@@ -1491,14 +1492,49 @@ impl WorldGenerator {
                             picked_presence,
                             blackbody_temperature,
                             atmospheric_pressure,
-                            magnetic_field,
+                            adjusted_magnetic_field,
                             &mut guess_composition,
                         );
                     }
                 }
             }
 
-            // TODO: If oceans/water, add the component in atmosphere
+            // If oceans/water, add the component in atmosphere
+            let mut surface_volatiles: Vec<(ChemicalComponent, f32)> = Vec::new();
+            for special_trait in special_traits.clone() {
+                if let CelestialBodySpecialTrait::Oceans(peculiar_component)
+                | CelestialBodySpecialTrait::Lakes(peculiar_component)
+                | CelestialBodySpecialTrait::SubSurfaceOceans(peculiar_component) = special_trait
+                {
+                    match special_trait {
+                        CelestialBodySpecialTrait::SubSurfaceOceans(_) => {
+                            surface_volatiles.push((peculiar_component, 10.0));
+                        }
+                        CelestialBodySpecialTrait::Oceans(_)
+                        | CelestialBodySpecialTrait::Lakes(_) => {
+                            surface_volatiles.push((peculiar_component, hydrosphere));
+                        }
+                        _ => {}
+                    }
+                }
+            }
+            surface_volatiles.iter().for_each(|entry| {
+                Self::add_gas_as(
+                    entry.0,
+                    if entry.1 < 50.0 {
+                        ChemicalComponentPresence::Traces
+                    } else {
+                        ChemicalComponentPresence::Minor
+                    },
+                    blackbody_temperature,
+                    atmospheric_pressure,
+                    magnetic_field,
+                    &mut guess_composition,
+                );
+                guess_composition.push((ChemicalComponentPresence::Traces, entry.0));
+            });
+
+            // TODO: If ice, might add the components into shallow atmospheres from sublimation
 
             // Consolidate duplicate entries
             let mut counts: HashMap<ChemicalComponent, usize> = HashMap::new();
@@ -2371,13 +2407,14 @@ impl WorldGenerator {
                 _ => ChemicalComponentPresence::Traces,
             };
             for new_gas in gas.dissociation_products() {
-                if new_gas.can_be_retained_as_atmospheric_gas(
+                Self::add_gas_as(
+                    new_gas,
+                    new_presence,
                     blackbody_temperature,
                     atmospheric_pressure,
                     magnetic_field,
-                ) {
-                    composition.push((new_presence, new_gas));
-                }
+                    composition,
+                );
             }
         }
     }
