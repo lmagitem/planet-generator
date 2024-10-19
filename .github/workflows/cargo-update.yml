@@ -3,7 +3,8 @@ on:
   schedule:
     - cron: "0 0 * * 1" # Runs every Monday at midnight
   workflow_dispatch: # Allows manual triggering of the workflow
-
+env:
+  CARGO_TERM_COLOR: always
 jobs:
   update:
     runs-on: ubuntu-latest
