@@ -40,4 +40,4 @@ jobs:
           body: "This pull request updates all dependencies."
           commit-message: 'Full cargo update'
           labels: dependencies
-          reviewers: lto
+          reviewers: lmagitem
