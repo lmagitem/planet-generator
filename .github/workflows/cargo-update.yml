@@ -10,24 +10,30 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.1
+        with:
+          ref: master
+          fetch-depth: 0 # Ensure full history is fetched for branch operations
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
 
+      - name: Generate date for branch
+        id: date
+        run: echo "DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+
       - name: Update Cargo dependencies
         run: cargo update
 
-      - name: Check if there are changes
-        run: |
-          git config --global user.name "dependabot[bot]"
-          git config --global user.email "dependabot@github.com"
-          git diff
-          if [ "$(git status --porcelain)" != "" ]; then
-            git add .
-            git commit -m "Full cargo update"
-            git push
-          else
-            echo "No changes detected"
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v7.0.5
+        with:
+          base: master
+          branch: cargo-update-${{ env.DATE }}
+          title: "Full cargo update"
+          body: "This pull request updates all dependencies."
+          commit-message: 'Full cargo update'
+          labels: dependencies
+          reviewers: lmagitem
