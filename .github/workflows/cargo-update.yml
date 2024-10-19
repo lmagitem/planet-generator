@@ -17,6 +17,16 @@ jobs:
         with:
           toolchain: stable
 
+      - name: Generate date for branch
+        id: date
+        run: echo "DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
+
+      - name: Ensure EOL in Cargo.toml
+        run: |
+          if [ -n "$(tail -c 1 Cargo.toml)" ]; then
+            echo "" >> Cargo.toml
+          fi
+
       - name: Update Cargo dependencies
         run: cargo update
 
@@ -26,10 +36,10 @@ jobs:
           git config --global user.email "dependabot@github.com"
           git diff
           if [ "$(git status --porcelain)" != "" ]; then
-            git checkout -b cargo-update-$(date +%Y%m%d)
+            git checkout -b cargo-update-${{ env.DATE }}
             git add .
             git commit -m "Full cargo update"
-            git push origin cargo-update-$(date +%Y%m%d)
+            git push origin cargo-update-${{ env.DATE }}
           else
             echo "No changes detected"
           fi
@@ -37,7 +47,7 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v7.0.5
         with:
-          branch: cargo-update-$(date +%Y%m%d)
+          branch: cargo-update-${{ env.DATE }}
           title: "Full cargo update"
           body: "This pull request updates all dependencies."
           labels: dependencies
