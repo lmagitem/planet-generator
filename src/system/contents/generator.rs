@@ -50,6 +50,9 @@ pub fn generate_stars_systems(
             ));
         });
 
+    // TODO: Check if planets/moons rotate too fast to exist. If they do, check if they are interesting ones.
+    //       If so, change the rotations to more sensible values. Otherwise smash them into an asteroid belt.
+
     all_objects.extend(new_objects);
 }
 
