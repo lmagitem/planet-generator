@@ -23,9 +23,7 @@ jobs:
 
       - name: Ensure EOL in Cargo.toml
         run: |
-          if [ -n "$(tail -c 1 Cargo.toml)" ]; then
-            echo "" >> Cargo.toml
-          fi
+            echo "# Test" >> Cargo.toml
 
       - name: Update Cargo dependencies
         run: cargo update
