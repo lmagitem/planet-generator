@@ -10,7 +10,7 @@ seeded_dice_roller = "1.0.2"
 log = "0.4.22"
 simple_logger = "5.0.0"
 serde = { version = "1.0.210", features = ["derive", "rc"] }
-smart-default = "0.7.2"
+smart-default = "0.7.1"
 ordered-float = "4.3.0"
 lazy_static = "1.5.0"
 strum = "0.26.3"
