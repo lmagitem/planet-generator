@@ -48,7 +48,7 @@ fn get_number_of_systems_to_generate(
     let turns = if galaxy.settings.sector.density_by_hex_instead_of_parsec {
         1
     } else {
-        // Number of cubir parsecs
+        // Number of cubic parsecs
         let hex_size = galaxy.settings.sector.hex_size;
         hex_size.0 * hex_size.1 * hex_size.2
     };
@@ -80,19 +80,19 @@ fn get_number_of_systems_to_generate(
         }
         GalacticRegion::Arm | GalacticRegion::OpenCluster => {
             to_roll = PreparedRoll::new(1, 4, 0);
-            success_on = 4;
+            success_on = 3;
         }
         GalacticRegion::Bar => {
             to_roll = PreparedRoll::new(1, 20, 0);
-            success_on = 20;
+            success_on = 19;
         }
         GalacticRegion::Bulge | GalacticRegion::GlobularCluster => {
             to_roll = PreparedRoll::new(1, 100, 0);
-            success_on = 100;
+            success_on = 99;
         }
         GalacticRegion::Core | GalacticRegion::Nucleus => {
             to_roll = PreparedRoll::new(1, 500, 0);
-            success_on = 500;
+            success_on = 499;
         }
     };
 
