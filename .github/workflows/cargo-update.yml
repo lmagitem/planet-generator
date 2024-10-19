@@ -10,7 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.1
+        with:
+          ref: master
+          fetch-depth: 0 # Ensure full history is fetched for branch operations
 
       - name: Set up Rust
         uses: actions-rs/toolchain@v1
@@ -21,14 +24,9 @@ jobs:
         id: date
         run: echo "DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
-      - name: Use master as base
-        run: |
-            git checkout origin/master
-            git pull
-
       - name: Ensure EOL in Cargo.toml
         run: |
-            echo "# Test" >> Cargo.toml
+          echo "# Test" >> Cargo.toml
 
       - name: Update Cargo dependencies
         run: cargo update
