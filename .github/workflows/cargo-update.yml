@@ -1,0 +1,33 @@
+name: "Cargo Update"
+on:
+  schedule:
+    - cron: "0 0 * * 1" # Runs every Monday at midnight
+  workflow_dispatch: # Allows manual triggering of the workflow
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Update Cargo dependencies
+        run: cargo update
+
+      - name: Check if there are changes
+        run: |
+          git config --global user.name "dependabot[bot]"
+          git config --global user.email "dependabot@github.com"
+          git diff
+          if [ "$(git status --porcelain)" != "" ]; then
+            git add .
+            git commit -m "Full cargo update"
+            git push
+          else
+            echo "No changes detected"
