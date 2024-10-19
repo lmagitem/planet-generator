@@ -24,10 +24,6 @@ jobs:
         id: date
         run: echo "DATE=$(date +%Y%m%d)" >> $GITHUB_ENV
 
-      - name: Ensure EOL in Cargo.toml
-        run: |
-          echo "# Test" >> Cargo.toml
-
       - name: Update Cargo dependencies
         run: cargo update
 
