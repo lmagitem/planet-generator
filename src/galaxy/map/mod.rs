@@ -233,6 +233,7 @@ mod tests {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
         };
         let start = galaxy.get_galactic_start();
         let center = galaxy.get_galactic_center();
@@ -263,6 +264,7 @@ mod tests {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
         };
         let start = galaxy.get_galactic_start();
         let center = galaxy.get_galactic_center();
@@ -327,6 +329,7 @@ mod tests {
             division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
         };
         let first_hex = galaxy
             .get_hex(SpaceCoordinates::new(-49, -2, 0))

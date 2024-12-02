@@ -88,6 +88,7 @@ impl Galaxy {
             division_levels,
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
         };
         debug!("generated: {}", galaxy);
         galaxy
