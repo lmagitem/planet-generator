@@ -37,6 +37,8 @@ pub struct Galaxy {
     pub divisions: Vec<GalacticMapDivision>,
     /// This galaxy's already generated hexagons.
     pub hexes: Vec<GalacticHex>,
+    /// This galaxy's SVG layers representing maps of the regions at multiple heights.
+    pub galactic_map_layers: Vec<String>,
 }
 
 impl Default for Galaxy {
@@ -59,6 +61,7 @@ impl Default for Galaxy {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
         }
     }
 }
@@ -111,6 +114,7 @@ impl Galaxy {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
         }
     }
 }

@@ -18,6 +18,8 @@ pub struct GalaxySettings {
     pub fixed_age: Option<f32>,
     /// Skip the galaxy generation and just uses a copy of ours.
     pub use_ours: bool,
+    /// A list of SVG strings representing maps of the regions at multiple heights from top to bottom.
+    pub galactic_map_layers: Vec<String>,
 }
 
 impl Display for GalaxySettings {

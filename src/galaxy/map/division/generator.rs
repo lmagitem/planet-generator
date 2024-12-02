@@ -1,6 +1,7 @@
 use crate::internal::*;
 use crate::prelude::*;
 use std::collections::HashMap;
+use usvg::{Tree, Options, NodeKind, OptionsRef, PathSegment, Paint};
 
 impl GalacticMapDivision {
     pub fn generate(
@@ -71,48 +72,139 @@ fn get_region(division: &mut GalacticMapDivision, galaxy: &Galaxy) -> GalacticRe
     }
 }
 
-/// Returns the proper region for a given coordinate.
-/// TODO: Generate regions properly
 fn generate_region(coord: SpaceCoordinates, galaxy: &Galaxy) -> GalacticRegion {
-    let spheroid_sizes = match galaxy.category {
-        GalaxyCategory::Spiral(r, _) | GalaxyCategory::Lenticular(r, _) => {
-            SpaceCoordinates::new(r as i64 * 2, r as i64 * 2, (r as i64 * 2) / 10)
-        }
-        GalaxyCategory::Elliptical(r) | GalaxyCategory::DominantElliptical(r) => {
-            SpaceCoordinates::new(r as i64 * 2, r as i64 * 2, r as i64 * 2)
-        }
-        _ => return GalacticRegion::Multiple,
+    if galaxy.galactic_map_layers.is_empty() {
+        return GalacticRegion::Void;
+    }
+
+    let z = coord.z;
+    let layer_count = galaxy.galactic_map_layers.len();
+    let layer_index = if layer_count == 1 {
+        0
+    } else {
+        ((z as f64 / galaxy.get_galaxy_size().z as f64) * (layer_count as f64 - 1.0)).round() as usize
     };
 
-    let abs_coord = coord.abs(galaxy.get_galactic_start());
-    if is_within_sphere_in_non_equal_planes(abs_coord, spheroid_sizes, galaxy) {
-        GalacticRegion::Ellipse
-    } else {
-        GalacticRegion::Void
+    let svg_data = &galaxy.galactic_map_layers[layer_index];
+    let tree = Tree::from_str(svg_data, &OptionsRef::default()).unwrap();
+
+    let mut color_map = HashMap::new();
+    for node in tree.root().descendants() {
+        if let NodeKind::Path(ref path) = *node.borrow() {
+            if let Some(ref fill) = path.fill {
+                if let Paint::Color(color) = fill.paint {
+                    color_map.insert(path.data.to_vec(), format!("{:06X}", color));
+                }
+            }
+        }
+    }
+
+    let x = coord.x;
+    let y = coord.y;
+    let mut closest_color = "000000".to_string();
+    let mut min_distance = f64::MAX;
+
+    for (path_data, color) in color_map {
+        for segment in path_data.windows(2) {
+            let (x1, y1) = (segment[0].x, segment[0].y);
+            let (x2, y2) = (segment[1].x, segment[1].y);
+            let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+            if distance < min_distance {
+                min_distance = distance;
+                closest_color = color.clone();
+            }
+        }
+    }
+
+    match closest_color.as_str() {
+        "000000" => GalacticRegion::Void,
+        "111111" => GalacticRegion::Aura,
+        "222222" => GalacticRegion::Exile,
+        "333333" => GalacticRegion::Stream,
+        "444444" => GalacticRegion::Association,
+        "555555" => GalacticRegion::Halo,
+        "666666" => GalacticRegion::GlobularCluster,
+        "777777" => GalacticRegion::OpenCluster,
+        "888888" => GalacticRegion::Disk,
+        "999999" => GalacticRegion::Ellipse,
+        "AAAAAA" => GalacticRegion::Multiple,
+        "BBBBBB" => GalacticRegion::Arm,
+        "CCCCCC" => GalacticRegion::Bar,
+        "DDDDDD" => GalacticRegion::Bulge,
+        "EEEEEE" => GalacticRegion::Core,
+        "FFFFFF" => GalacticRegion::Nucleus,
+        _ => GalacticRegion::Multiple,
     }
 }
 
-/// Returns true it the given point is within the area the given galaxy (that must be a spheroid).
-fn is_within_sphere_in_non_equal_planes(
-    coord: SpaceCoordinates,
-    sizes: SpaceCoordinates,
-    galaxy: &Galaxy,
-) -> bool {
-    let biggest_size = sizes.x.max(sizes.y).max(sizes.z);
-    let scaled_point = SpaceCoordinates {
-        x: coord.x * biggest_size / sizes.x,
-        y: coord.y * biggest_size / sizes.y,
-        z: coord.z * biggest_size / sizes.z,
-    };
-    let center = galaxy.get_galactic_center();
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use usvg::Tree;
 
-    is_within_sphere(scaled_point, center, biggest_size)
-}
+    #[test]
+    fn test_generate_region_with_default_svg() {
+        let galaxy = Galaxy {
+            galactic_map_layers: vec![r#"
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <rect x="0" y="0" width="100" height="100" fill="#000000" />
+                </svg>
+            "#.to_string()],
+            ..Default::default()
+        };
 
-/// Returns true if the given point is within the area of the sphere whose center and radius are given in parameters.
-fn is_within_sphere(point: SpaceCoordinates, center: SpaceCoordinates, radius: i64) -> bool {
-    i64::pow(point.x - center.x, 2)
-        + i64::pow(point.y - center.y, 2)
-        + i64::pow(point.z - center.z, 2)
-        <= i64::pow(radius, 2)
+        let coord = SpaceCoordinates::new(50, 50, 0);
+        let region = generate_region(coord, &galaxy);
+        assert_eq!(region, GalacticRegion::Void);
+    }
+
+    #[test]
+    fn test_generate_region_with_multiple_svg_layers() {
+        let galaxy = Galaxy {
+            galactic_map_layers: vec![
+                r#"
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <rect x="0" y="0" width="100" height="100" fill="#000000" />
+                </svg>
+                "#.to_string(),
+                r#"
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <rect x="0" y="0" width="100" height="100" fill="#FFFFFF" />
+                </svg>
+                "#.to_string(),
+            ],
+            ..Default::default()
+        };
+
+        let coord = SpaceCoordinates::new(50, 50, 0);
+        let region = generate_region(coord, &galaxy);
+        assert_eq!(region, GalacticRegion::Void);
+
+        let coord = SpaceCoordinates::new(50, 50, 100);
+        let region = generate_region(coord, &galaxy);
+        assert_eq!(region, GalacticRegion::Nucleus);
+    }
+
+    #[test]
+    fn test_generate_region_with_interpolation() {
+        let galaxy = Galaxy {
+            galactic_map_layers: vec![
+                r#"
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <rect x="0" y="0" width="100" height="100" fill="#000000" />
+                </svg>
+                "#.to_string(),
+                r#"
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+                    <rect x="0" y="0" width="100" height="100" fill="#FFFFFF" />
+                </svg>
+                "#.to_string(),
+            ],
+            ..Default::default()
+        };
+
+        let coord = SpaceCoordinates::new(50, 50, 50);
+        let region = generate_region(coord, &galaxy);
+        assert_eq!(region, GalacticRegion::Void);
+    }
 }
