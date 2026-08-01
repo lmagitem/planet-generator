@@ -16,9 +16,7 @@ jobs:
           fetch-depth: 0 # Ensure full history is fetched for branch operations
 
       - name: Set up Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Generate date for branch
         id: date
