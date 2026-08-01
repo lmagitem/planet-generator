@@ -2,6 +2,7 @@ use crate::internal::*;
 use crate::prelude::*;
 #[path = "./constants.rs"]
 mod constants;
+pub use constants::EXAMPLE_REGION_MAP_SVG;
 use constants::*;
 pub mod generator;
 pub mod map;
@@ -37,6 +38,15 @@ pub struct Galaxy {
     pub divisions: Vec<GalacticMapDivision>,
     /// This galaxy's already generated hexagons.
     pub hexes: Vec<GalacticHex>,
+    /// The SVG layers effectively used for this galaxy's region map (the user's, or the category's default map).
+    /// This field is the authoritative source when the region map is rebuilt.
+    #[serde(default)]
+    pub galactic_map_layers: Vec<String>,
+    /// The parsed and rasterized region-map cache. Rebuilt automatically from `galactic_map_layers` when missing.
+    /// Note that `Debug` output includes every rasterized cell, and that a deserialized galaxy (whose cache is
+    /// `None`) compares unequal to a healed one until the first map query rebuilds it.
+    #[serde(skip)]
+    pub region_map: Option<GalacticRegionMap>,
 }
 
 impl Default for Galaxy {
@@ -59,6 +69,8 @@ impl Default for Galaxy {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
+            region_map: None,
         }
     }
 }
@@ -111,6 +123,8 @@ impl Galaxy {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
+            region_map: None,
         }
     }
 }

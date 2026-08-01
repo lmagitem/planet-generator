@@ -106,7 +106,10 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
         }
         StellarNeighborhoodAge::Ancient(_) => {
             age = StellarNeighborhoodAge::Ancient(
-                (universe_age - 200).min(universe_age - rng.roll(1, 10, -1) as u64 * 1000),
+                1.max(
+                    (universe_age - 200)
+                        .min(universe_age.saturating_sub(rng.roll(1, 10, -1) as u64 * 1000)),
+                ),
             );
         }
     }

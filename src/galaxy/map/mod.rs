@@ -5,12 +5,16 @@ mod constants;
 pub mod division;
 pub mod division_level;
 pub mod hex;
+pub mod region_map;
 pub mod types;
 
 impl Galaxy {
     /// Returns the [GalacticHex] whose coordinates have been given in parameters.
     /// TODO: Add a boolean "populate" parameter that generates life in the hex if needed.
     pub fn get_hex(&mut self, coord: SpaceCoordinates) -> Result<GalacticHex, Rc<str>> {
+        if self.region_map.is_none() && !self.galactic_map_layers.is_empty() {
+            self.rebuild_region_map();
+        }
         if !self.are_coord_valid(coord) {
             return Err("Invalid coordinates.".into());
         }
@@ -64,6 +68,9 @@ impl Galaxy {
         &mut self,
         coord: SpaceCoordinates,
     ) -> Result<Vec<GalacticMapDivision>, Rc<str>> {
+        if self.region_map.is_none() && !self.galactic_map_layers.is_empty() {
+            self.rebuild_region_map();
+        }
         if !self.are_coord_valid(coord) {
             return Err("Invalid coordinates.".into());
         }
@@ -191,6 +198,29 @@ impl Galaxy {
             && coord.y <= end.y
             && coord.z <= end.z
     }
+
+    /// Rebuilds the region map from `galactic_map_layers` and clears already-generated
+    /// divisions and hexes (their cached regions would otherwise go stale). On parse
+    /// failure, falls back to the category's default map; if that also fails, clears
+    /// `galactic_map_layers` (no map will be used) and logs an error.
+    pub fn rebuild_region_map(&mut self) {
+        let start = self.get_galactic_start();
+        let end = self.get_galactic_end();
+        self.region_map = GalacticRegionMap::build(&self.galactic_map_layers, start, end);
+        if self.region_map.is_none() {
+            self.galactic_map_layers = constants::default_layers_for(self.category);
+            self.region_map = GalacticRegionMap::build(&self.galactic_map_layers, start, end);
+            if self.region_map.is_none() {
+                error!(
+                    "Failed to build any region map for galaxy {}; falling back to no map.",
+                    self.name
+                );
+                self.galactic_map_layers.clear();
+            }
+        }
+        self.divisions.clear();
+        self.hexes.clear();
+    }
 }
 
 /// Calculates the index of a [GalacticMapDivision] when iterating over division levels to determine the index of higher levels.
@@ -233,6 +263,8 @@ mod tests {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
+            region_map: None,
         };
         let start = galaxy.get_galactic_start();
         let center = galaxy.get_galactic_center();
@@ -263,6 +295,8 @@ mod tests {
             division_levels: vec![],
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
+            region_map: None,
         };
         let start = galaxy.get_galactic_start();
         let center = galaxy.get_galactic_center();
@@ -327,6 +361,8 @@ mod tests {
             division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers: vec![],
+            region_map: None,
         };
         let first_hex = galaxy
             .get_hex(SpaceCoordinates::new(-49, -2, 0))
@@ -411,5 +447,114 @@ mod tests {
             .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 2)
             .expect("Should return a div.");
         assert_eq!(last_second_level_div.index, SpaceCoordinates::new(4, 0, 0));
+    }
+
+    #[test]
+    fn rebuild_clears_caches() {
+        let settings = GenerationSettings {
+            seed: "default".into(),
+            universe: UniverseSettings {
+                ..Default::default()
+            },
+            galaxy: GalaxySettings {
+                ..Default::default()
+            },
+            sector: SectorSettings {
+                hex_size: (4, 2, 4),
+                level_1_size: (2, 2, 2),
+                level_2_size: (3, 3, 3),
+                level_3_size: (2, 2, 2),
+                flat_map: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut galaxy = Galaxy {
+            settings: settings.clone(),
+            neighborhood: GalacticNeighborhood {
+                ..Default::default()
+            },
+            index: 0,
+            name: constants::OUR_GALAXYS_NAME.into(),
+            age: constants::OUR_GALAXYS_AGE,
+            is_dominant: false,
+            is_major: true,
+            category: GalaxyCategory::Irregular(100, 5, 1),
+            sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![constants::NO_SPECIAL_TRAIT],
+            division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
+            divisions: vec![],
+            hexes: vec![],
+            galactic_map_layers: vec![],
+            region_map: None,
+        };
+        galaxy
+            .get_hex(SpaceCoordinates::new(-10, -2, 0))
+            .expect("Should return a hex.");
+        assert!(
+            !galaxy.divisions.is_empty() && !galaxy.hexes.is_empty(),
+            "Generating a hex should have populated the division and hex caches."
+        );
+
+        galaxy.rebuild_region_map();
+
+        assert!(
+            galaxy.region_map.is_some(),
+            "Rebuilding from empty layers should fall back to the category's default map."
+        );
+        assert!(
+            galaxy.divisions.is_empty() && galaxy.hexes.is_empty(),
+            "Rebuilding the region map should clear the stale division and hex caches."
+        );
+    }
+
+    #[test]
+    fn map_queries_heal_a_missing_region_map() {
+        // Simulates a freshly deserialized galaxy: layers are set but the rasterized cache is gone.
+        let settings = GenerationSettings {
+            seed: "default".into(),
+            sector: SectorSettings {
+                hex_size: (4, 2, 4),
+                level_1_size: (2, 2, 2),
+                level_2_size: (3, 3, 3),
+                level_3_size: (2, 2, 2),
+                flat_map: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let full_arm_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="#0000FF"/></svg>"##;
+        let mut galaxy = Galaxy {
+            settings: settings.clone(),
+            neighborhood: GalacticNeighborhood {
+                ..Default::default()
+            },
+            index: 0,
+            name: constants::OUR_GALAXYS_NAME.into(),
+            age: constants::OUR_GALAXYS_AGE,
+            is_dominant: false,
+            is_major: true,
+            category: GalaxyCategory::Irregular(100, 5, 1),
+            sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![constants::NO_SPECIAL_TRAIT],
+            division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
+            divisions: vec![],
+            hexes: vec![],
+            galactic_map_layers: vec![full_arm_svg.to_string()],
+            region_map: None,
+        };
+
+        galaxy
+            .get_hex(SpaceCoordinates::new(-10, -2, 0))
+            .expect("Should return a hex.");
+        assert!(
+            galaxy.region_map.is_some(),
+            "A map query should rebuild a missing region map from the galaxy's layers."
+        );
+
+        let division = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)
+            .expect("Should return a division.");
+        assert_eq!(division.region, GalacticRegion::Arm);
     }
 }

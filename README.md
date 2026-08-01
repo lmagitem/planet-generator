@@ -49,7 +49,7 @@ This is the current roadmap of the library:
 - [x] Planet generation
   - [x] Orbit parameters
   - [x] Moons
-  - [ ] World parameters and climate
+  - [x] World parameters and climate
   - [ ] Resources
     - [ ] Accessibility
     - [ ] Rarity

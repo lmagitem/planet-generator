@@ -20,11 +20,13 @@ pub mod prelude {
     pub use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
     pub use crate::galaxy::map::hex::types::*;
     pub use crate::galaxy::map::hex::GalacticHex;
+    pub use crate::galaxy::map::region_map::types::*;
     pub use crate::galaxy::map::types::*;
     pub use crate::galaxy::neighborhood::types::*;
     pub use crate::galaxy::neighborhood::GalacticNeighborhood;
     pub use crate::galaxy::types::*;
     pub use crate::galaxy::Galaxy;
+    pub use crate::galaxy::EXAMPLE_REGION_MAP_SVG;
     pub use crate::generator::types::*;
     pub use crate::generator::Generator;
     pub use crate::life::types::*;
@@ -141,6 +143,36 @@ mod tests {
 
             print_system_bodies(i, system);
         }
+    }
+
+    /// End-to-end check of SVG-defined galactic regions: a galaxy generated with a user-provided
+    /// single-layer SVG map (left half Arm, right half empty) must produce divisions whose regions
+    /// match the painted zones.
+    #[test]
+    fn generate_divisions_from_svg_region_map() {
+        let region_map_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect x="0" y="0" width="50" height="100" fill="#0000FF" /></svg>"##;
+        let settings = &GenerationSettings {
+            seed: Rc::from("svg-regions-end-to-end"),
+            galaxy: GalaxySettings {
+                fixed_category: Some(GalaxyCategory::Irregular(500, 500, 100)),
+                galactic_map_layers: vec![region_map_svg.to_string()],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let universe = Universe::generate(&settings);
+        let neighborhood = GalacticNeighborhood::generate(universe, &settings);
+        let mut galaxy = Galaxy::generate(neighborhood, 0, &settings);
+
+        let left_division = galaxy
+            .get_division_at_level(SpaceCoordinates::new(-200, 0, 0), 1)
+            .expect("Should have returned a sub-sector.");
+        let right_division = galaxy
+            .get_division_at_level(SpaceCoordinates::new(200, 0, 0), 1)
+            .expect("Should have returned a sub-sector.");
+
+        assert_eq!(left_division.region, GalacticRegion::Arm);
+        assert_eq!(right_division.region, GalacticRegion::Void);
     }
 
     // #[test]
