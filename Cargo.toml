@@ -12,6 +12,7 @@ simple_logger = "5.0.0"
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 smart-default = "0.7.1"
 ordered-float = "5.0.0"
+resvg = { version = "0.47.0", default-features = false }
 lazy_static = "1.5.0"
 strum = "0.27.1"
 strum_macros = "0.27.1"

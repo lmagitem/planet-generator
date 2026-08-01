@@ -73,8 +73,13 @@ impl Galaxy {
             );
         }
         let division_levels = GalacticMapDivisionLevel::generate_division_levels(settings);
+        let galactic_map_layers = if settings.galaxy.galactic_map_layers.is_empty() {
+            default_layers_for(category)
+        } else {
+            settings.galaxy.galactic_map_layers.clone()
+        };
 
-        let galaxy = Self {
+        let mut galaxy = Self {
             settings: settings.clone(),
             neighborhood,
             index,
@@ -88,7 +93,19 @@ impl Galaxy {
             division_levels,
             divisions: vec![],
             hexes: vec![],
+            galactic_map_layers,
+            region_map: None,
         };
+        // The bounds helpers are methods on Galaxy, so the region map is built once the struct exists.
+        let start = galaxy.get_galactic_start();
+        let end = galaxy.get_galactic_end();
+        galaxy.region_map = GalacticRegionMap::build(&galaxy.galactic_map_layers, start, end);
+        if galaxy.region_map.is_none() && !settings.galaxy.galactic_map_layers.is_empty() {
+            // The user's SVG failed to parse (the warning was logged inside build): fall back to the
+            // category's default map, which becomes the authoritative set of layers.
+            galaxy.galactic_map_layers = default_layers_for(category);
+            galaxy.region_map = GalacticRegionMap::build(&galaxy.galactic_map_layers, start, end);
+        }
         debug!("generated: {}", galaxy);
         galaxy
     }
@@ -1508,5 +1525,77 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn generate_with_empty_layers_uses_category_default() {
+        let settings = &GenerationSettings {
+            seed: "map-default".into(),
+            ..Default::default()
+        };
+        let neighborhood = GalacticNeighborhood::generate(Universe::generate(settings), settings);
+        let galaxy = Galaxy::generate(neighborhood, 0, settings);
+        assert!(
+            !galaxy.galactic_map_layers.is_empty(),
+            "An empty layers setting should be replaced by the category's default map."
+        );
+        assert!(
+            galaxy.region_map.is_some(),
+            "The default map should have been built during generation."
+        );
+    }
+
+    #[test]
+    fn generate_with_user_layers_keeps_them() {
+        // A one-layer map painting the whole galaxy in Arm blue.
+        let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="#0000FF"/></svg>"##.to_string();
+        let settings = &GenerationSettings {
+            seed: "map-user".into(),
+            galaxy: GalaxySettings {
+                fixed_category: Some(GalaxyCategory::Irregular(500, 500, 100)),
+                galactic_map_layers: vec![svg.clone()],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let neighborhood = GalacticNeighborhood::generate(Universe::generate(settings), settings);
+        let galaxy = Galaxy::generate(neighborhood, 0, settings);
+        assert_eq!(
+            galaxy.galactic_map_layers,
+            vec![svg],
+            "Valid user layers should be kept as-is."
+        );
+        let map = galaxy
+            .region_map
+            .as_ref()
+            .expect("The user's map should have been built during generation.");
+        assert_eq!(
+            map.region_at(SpaceCoordinates::new(0, 0, 0)),
+            GalacticRegion::Arm
+        );
+    }
+
+    #[test]
+    fn generate_with_broken_layers_falls_back_to_default() {
+        let settings = &GenerationSettings {
+            seed: "map-broken".into(),
+            galaxy: GalaxySettings {
+                fixed_category: Some(GalaxyCategory::Spiral(10000, 100)),
+                galactic_map_layers: vec!["not an svg".to_string()],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let neighborhood = GalacticNeighborhood::generate(Universe::generate(settings), settings);
+        let galaxy = Galaxy::generate(neighborhood, 0, settings);
+        assert_eq!(
+            galaxy.galactic_map_layers,
+            constants::default_layers_for(galaxy.category),
+            "Unparseable user layers should be replaced by the category's default map."
+        );
+        assert!(
+            galaxy.region_map.is_some(),
+            "The default map should have been built as a fallback."
+        );
     }
 }

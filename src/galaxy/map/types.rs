@@ -105,3 +105,144 @@ pub enum GalacticRegion {
     /// Some stars lost into the void, pushed out of their normal course by gravity during their past.
     Exile,
 }
+
+impl GalacticRegion {
+    /// The exact RGB color painting this region in an SVG galactic region map:
+    /// - Core: (255, 255, 255)
+    /// - Nucleus: (255, 255, 0)
+    /// - Bulge: (255, 165, 0)
+    /// - Bar: (255, 0, 0)
+    /// - Arm: (0, 0, 255)
+    /// - Disk: (0, 128, 128)
+    /// - Ellipse: (0, 128, 0)
+    /// - Halo: (128, 0, 128)
+    /// - Aura: (255, 0, 255)
+    /// - Void: (0, 0, 0)
+    /// - `GlobularCluster`: (128, 128, 0)
+    /// - `OpenCluster`: (0, 255, 255)
+    /// - Association: (0, 0, 128)
+    /// - Stream: (0, 255, 0)
+    /// - Exile: (128, 128, 128)
+    ///
+    /// [Multiple] is not paintable: it is a synthetic aggregate and maps to (0, 0, 0), which [`from_rgb`](Self::from_rgb)
+    /// resolves to [Void](GalacticRegion::Void).
+    ///
+    /// Authoring rules for SVG region maps:
+    /// - Fill zones with the exact colors above. Gradients and patterns render but match nothing.
+    /// - Do not use text labels, they are dropped by the parser.
+    /// - Give the SVG an explicit width/height or viewBox; it is stretched (not aspect-fitted) onto the galaxy's bounds.
+    /// - The SVG top edge corresponds to the maximum galactic y coordinate.
+    /// - Layers are ordered top (max z) to bottom (min z).
+    /// - Any unfilled background counts as [Void](GalacticRegion::Void).
+    #[must_use]
+    pub const fn to_rgb(self) -> (u8, u8, u8) {
+        match self {
+            GalacticRegion::Core => (255, 255, 255),
+            GalacticRegion::Nucleus => (255, 255, 0),
+            GalacticRegion::Bulge => (255, 165, 0),
+            GalacticRegion::Bar => (255, 0, 0),
+            GalacticRegion::Arm => (0, 0, 255),
+            GalacticRegion::Disk => (0, 128, 128),
+            GalacticRegion::Ellipse => (0, 128, 0),
+            GalacticRegion::Halo => (128, 0, 128),
+            GalacticRegion::Aura => (255, 0, 255),
+            GalacticRegion::GlobularCluster => (128, 128, 0),
+            GalacticRegion::OpenCluster => (0, 255, 255),
+            GalacticRegion::Association => (0, 0, 128),
+            GalacticRegion::Stream => (0, 255, 0),
+            GalacticRegion::Exile => (128, 128, 128),
+            GalacticRegion::Void | GalacticRegion::Multiple => (0, 0, 0),
+        }
+    }
+
+    /// Returns the region painted with the exact given RGB color in an SVG galactic region map, or [None] if the
+    /// color matches no palette entry. [Multiple] is never returned since it is not paintable: (0, 0, 0) maps
+    /// to [Void](GalacticRegion::Void).
+    #[must_use]
+    pub fn from_rgb(r: u8, g: u8, b: u8) -> Option<GalacticRegion> {
+        match (r, g, b) {
+            (255, 255, 255) => Some(GalacticRegion::Core),
+            (255, 255, 0) => Some(GalacticRegion::Nucleus),
+            (255, 165, 0) => Some(GalacticRegion::Bulge),
+            (255, 0, 0) => Some(GalacticRegion::Bar),
+            (0, 0, 255) => Some(GalacticRegion::Arm),
+            (0, 128, 128) => Some(GalacticRegion::Disk),
+            (0, 128, 0) => Some(GalacticRegion::Ellipse),
+            (128, 0, 128) => Some(GalacticRegion::Halo),
+            (255, 0, 255) => Some(GalacticRegion::Aura),
+            (0, 0, 0) => Some(GalacticRegion::Void),
+            (128, 128, 0) => Some(GalacticRegion::GlobularCluster),
+            (0, 255, 255) => Some(GalacticRegion::OpenCluster),
+            (0, 0, 128) => Some(GalacticRegion::Association),
+            (0, 255, 0) => Some(GalacticRegion::Stream),
+            (128, 128, 128) => Some(GalacticRegion::Exile),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PAINTABLE_REGIONS: [GalacticRegion; 15] = [
+        GalacticRegion::Core,
+        GalacticRegion::Nucleus,
+        GalacticRegion::Bulge,
+        GalacticRegion::Bar,
+        GalacticRegion::Arm,
+        GalacticRegion::Disk,
+        GalacticRegion::Ellipse,
+        GalacticRegion::Halo,
+        GalacticRegion::Aura,
+        GalacticRegion::Void,
+        GalacticRegion::GlobularCluster,
+        GalacticRegion::OpenCluster,
+        GalacticRegion::Association,
+        GalacticRegion::Stream,
+        GalacticRegion::Exile,
+    ];
+
+    #[test]
+    fn palette_roundtrips_for_all_paintable_regions() {
+        for region in PAINTABLE_REGIONS {
+            let (r, g, b) = region.to_rgb();
+            assert_eq!(GalacticRegion::from_rgb(r, g, b), Some(region));
+        }
+    }
+
+    #[test]
+    fn multiple_is_not_paintable() {
+        for region in PAINTABLE_REGIONS {
+            let (r, g, b) = region.to_rgb();
+            assert_ne!(
+                GalacticRegion::from_rgb(r, g, b),
+                Some(GalacticRegion::Multiple)
+            );
+        }
+        assert_eq!(GalacticRegion::from_rgb(1, 2, 3), None);
+        assert_eq!(
+            GalacticRegion::from_rgb(0, 0, 0),
+            Some(GalacticRegion::Void)
+        );
+    }
+
+    #[test]
+    fn palette_colors_are_unique_and_spaced() {
+        let colors: Vec<(u8, u8, u8)> = PAINTABLE_REGIONS
+            .iter()
+            .map(|region| region.to_rgb())
+            .collect();
+        let mut min_squared_distance = u32::MAX;
+        for (i, color) in colors.iter().enumerate() {
+            for other in colors.iter().skip(i + 1) {
+                assert_ne!(color, other);
+                let squared_distance = (i32::from(color.0) - i32::from(other.0)).pow(2) as u32
+                    + (i32::from(color.1) - i32::from(other.1)).pow(2) as u32
+                    + (i32::from(color.2) - i32::from(other.2)).pow(2) as u32;
+                min_squared_distance = min_squared_distance.min(squared_distance);
+            }
+        }
+        assert!(min_squared_distance > 4096);
+    }
+}

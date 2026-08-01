@@ -18,11 +18,17 @@ pub struct GalaxySettings {
     pub fixed_age: Option<f32>,
     /// Skip the galaxy generation and just uses a copy of ours.
     pub use_ours: bool,
+    /// A list of SVG strings mapping galactic regions at successive Z heights, ordered TOP (max z) to BOTTOM (min z).
+    /// A single layer means the map is flat and the Z coordinate is ignored. If empty, a built-in default map for the
+    /// galaxy's category is used instead. Fill zones with the exact palette colors documented on [`GalacticRegion`];
+    /// see [`EXAMPLE_REGION_MAP_SVG`](crate::galaxy::EXAMPLE_REGION_MAP_SVG) for a minimal working example.
+    #[serde(default)]
+    pub galactic_map_layers: Vec<String>,
 }
 
 impl Display for GalaxySettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{ fixed_era: {}, era_before: {}, era_after: {}, fixed_age: {}, age_before: {}, age_after: {}, use_ours: {} }}",
+        write!(f, "{{ fixed_era: {}, era_before: {}, era_after: {}, fixed_age: {}, age_before: {}, age_after: {}, use_ours: {}, galactic_map_layers: {} layer(s) }}",
         if self.fixed_neighborhood.is_some() { format!("{}", self.fixed_neighborhood.unwrap()) } else {
             "None".to_string()
         },
@@ -39,7 +45,8 @@ impl Display for GalaxySettings {
         .collect::<Vec<String>>()
         .join(", ")) } else { "None".to_string() },
         if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { "None".to_string() },
-        self.use_ours)
+        self.use_ours,
+        self.galactic_map_layers.len())
     }
 }
 
