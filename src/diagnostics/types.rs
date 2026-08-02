@@ -79,12 +79,16 @@ pub enum SettingsError {
         /// The offending (x, y, z) size.
         size: (u8, u8, u8),
     },
-    /// `universe.fixed_age` is outside the valid [0.4, 100000) range, in billions of years.
+    /// `universe.fixed_age`, `universe.age_before` or `universe.age_after` is NaN or outside
+    /// the valid [0.4, 99999.99] range, in billions of years.
     InvalidUniverseAge(f32),
-    /// `star.fixed_age` is negative.
+    /// `star.fixed_age` is negative or NaN.
     InvalidStarAge(f32),
-    /// `star.fixed_mass` is negative.
+    /// `star.fixed_mass` is negative or NaN.
     InvalidStarMass(f64),
+    /// `galaxy.fixed_age` is negative or NaN. (A positive age beyond the universe's age is
+    /// not a validation error: generation falls back to a rolled age with a warning.)
+    InvalidGalaxyAge(f32),
     /// Every `celestial_body.do_not_generate_*` flag is set: no body type can ever
     /// spawn, which would divide by zero inside the roll tables.
     AllBodyTypesDisabled,

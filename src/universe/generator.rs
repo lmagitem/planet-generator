@@ -27,13 +27,15 @@ impl Universe {
             "generating new universe (seed: {}, settings: {})",
             seed, settings.universe
         );
-        let requested_age = generate_age(settings, seed);
-        // Out-of-range ages (e.g. a fixed_age outside [0.4, 100000)) used to
+        let requested_age = generate_age(settings, seed, diagnostics);
+        // Out-of-range ages (e.g. a fixed_age outside [0.4, 99999.99]) used to
         // panic in `are_age_and_era_valid`; clamp them into the valid range
-        // instead and report the clamp. (A NaN age compares false everywhere,
+        // instead and report the clamp. The upper clamp sits one 0.01 Gyr roll
+        // quantum below the (exclusive) era end bound, matching
+        // `GenerationSettings::validate`. (A NaN age compares false everywhere,
         // so it is not reported here — `GenerationSettings::validate` rejects it.)
-        let mut age = requested_age.clamp(MIN_ANCIENT_STELLIFEROUS, MAX_END_STELLIFEROUS - 0.1);
-        if requested_age < MIN_ANCIENT_STELLIFEROUS || requested_age > MAX_END_STELLIFEROUS - 0.1 {
+        let mut age = requested_age.clamp(MIN_ANCIENT_STELLIFEROUS, MAX_END_STELLIFEROUS - 0.01);
+        if requested_age < MIN_ANCIENT_STELLIFEROUS || requested_age > MAX_END_STELLIFEROUS - 0.01 {
             diagnostics.push_warning(GenerationWarning::AgeOutOfRange {
                 requested: requested_age,
                 used: age,
@@ -51,28 +53,46 @@ impl Universe {
 }
 
 /// Generates an age to use in a [Universe] while following the given [GenerationSettings].
-fn generate_age(settings: &GenerationSettings, seed: &Rc<str>) -> f32 {
+fn generate_age(
+    settings: &GenerationSettings,
+    seed: &Rc<str>,
+    diagnostics: &mut Diagnostics,
+) -> f32 {
     let age;
     if settings.universe.use_ours {
         age = OUR_UNIVERSES_AGE;
     } else if let Some(fixed_age) = settings.universe.fixed_age {
         age = fixed_age;
     } else {
-        age = calculate_age(settings, seed);
+        age = calculate_age(settings, seed, diagnostics);
     }
     age
 }
 
 /// Generates the age of a [Universe] using the given [GenerationSettings] and **seed**.
-fn calculate_age(settings: &GenerationSettings, seed: &Rc<str>) -> f32 {
+fn calculate_age(
+    settings: &GenerationSettings,
+    seed: &Rc<str>,
+    diagnostics: &mut Diagnostics,
+) -> f32 {
     let age: f32;
     let mut rng = SeededDiceRoller::new(seed.as_ref(), "uni_age");
     let (mut min, mut max) = get_min_and_max_age(settings);
+    let requested_min = min;
     let possible_eras = filter_unwanted_eras(min, max);
 
     if let Some(era) = generate_era(&mut rng, possible_eras) {
         min = min.max(era.min);
         max = max.min(era.max);
+
+        // Conflicting bounds (e.g. age_after > age_before) leave an inverted
+        // effective range: fall back to the rolled era's full bounds and
+        // report the clamp instead of silently violating both bounds.
+        let inverted_range = min > max;
+        if inverted_range {
+            min = era.min;
+            max = era.max;
+        }
 
         max = max - min;
         if ((max * 100.0) as u32) == 0 {
@@ -80,10 +100,37 @@ fn calculate_age(settings: &GenerationSettings, seed: &Rc<str>) -> f32 {
         } else {
             age = (rng.roll(1, (max * 100.0) as u32, (min * 100.0) as i32) as f32).round() / 100.0;
         }
+        // Era max bounds are exclusive but the roll is inclusive: a roll
+        // landing exactly on the era's end is pulled back by one 0.01 Gyr
+        // quantum (the roll step) instead of silently falling back to our
+        // universe's age.
+        let clamped_age = age.min(era.max - 0.01);
+        if inverted_range {
+            diagnostics.push_warning(GenerationWarning::AgeOutOfRange {
+                requested: requested_min,
+                used: clamped_age,
+            });
+        }
+        clamped_age
     } else {
-        age = OUR_UNIVERSES_AGE;
+        // No era overlaps the requested bounds (mutually exclusive bounds
+        // tighter than any single era): clamp the requested minimum to the
+        // bounds of its own era and report the fallback.
+        match POSSIBLE_ERAS
+            .iter()
+            .find(|era| requested_min >= era.min && requested_min < era.max)
+        {
+            Some(era) => {
+                let clamped_age = requested_min.clamp(era.min, era.max - 0.01);
+                diagnostics.push_warning(GenerationWarning::AgeOutOfRange {
+                    requested: requested_min,
+                    used: clamped_age,
+                });
+                clamped_age
+            }
+            None => OUR_UNIVERSES_AGE,
+        }
     }
-    age
 }
 
 /// Uses the given [GenerationSettings] to get the min and max universe age to use.
@@ -265,7 +312,7 @@ mod tests {
             diagnostics.warnings,
             vec![GenerationWarning::AgeOutOfRange {
                 requested: 200_000.0,
-                used: MAX_END_STELLIFEROUS - 0.1,
+                used: MAX_END_STELLIFEROUS - 0.01,
             }]
         );
 
@@ -419,9 +466,36 @@ mod tests {
                 },
                 ..Default::default()
             });
-            assert!(universe.age < age);
+            // The roll is inclusive and quantized to 0.01 Gyr: it can land
+            // exactly on the requested bound, hence `<=` rather than `<`.
+            assert!(universe.age <= age);
             assert!(are_age_and_era_valid(universe.era, universe.age));
         }
+    }
+
+    #[test]
+    fn conflicting_age_bounds_fall_back_to_the_era_bounds_with_a_warning() {
+        // K11: age_after > age_before leaves an inverted effective range; the
+        // age must be rolled within the overlapping era's full bounds (Middle
+        // Stelliferous is the only era overlapping [13.5, 13.9]) and the clamp
+        // must be reported, instead of violating both bounds silently.
+        let settings = GenerationSettings {
+            universe: UniverseSettings {
+                age_after: Some(13.9),
+                age_before: Some(13.5),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut diagnostics = Diagnostics::default();
+        let universe = Universe::generate(&settings, &mut diagnostics);
+        assert_eq!(StelliferousEra::MiddleStelliferous, universe.era);
+        assert!(universe.age >= MIN_MIDDLE_STELLIFEROUS && universe.age < MIN_LATE_STELLIFEROUS);
+        assert!(are_age_and_era_valid(universe.era, universe.age));
+        assert!(diagnostics
+            .warnings
+            .iter()
+            .any(|w| matches!(w, GenerationWarning::AgeOutOfRange { .. })));
     }
 
     #[test]
@@ -447,7 +521,8 @@ mod tests {
                 ..Default::default()
             });
             if age_after < age_before {
-                assert!(universe.age < age_before);
+                // The roll is inclusive: it can land exactly on the bounds.
+                assert!(universe.age <= age_before);
                 assert!(universe.age >= age_after);
             }
             assert!(are_age_and_era_valid(universe.era, universe.age));

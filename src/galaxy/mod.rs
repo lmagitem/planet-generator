@@ -13,8 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::rc::Rc;
-#[path = "./constants.rs"]
-mod constants;
+pub(crate) mod constants;
 pub use constants::{DEFAULT_REGION_MAP_SPIRAL, EXAMPLE_REGION_MAP_SVG};
 use constants::{
     NO_SPECIAL_TRAIT, OUR_GALAXYS_AGE, OUR_GALAXYS_CATEGORY, OUR_GALAXYS_NAME,
@@ -68,11 +67,25 @@ pub struct Galaxy {
     pub region_map: Option<GalacticRegionMap>,
     /// The non-fatal issues raised while generating this galaxy (e.g. unusable
     /// user-provided SVG map layers). Transient: deliberately not serialized.
+    /// Note that a deserialized galaxy (whose diagnostics are rebuilt empty)
+    /// compares unequal to the original whenever the original's diagnostics
+    /// were non-empty.
     #[serde(skip)]
     pub diagnostics: Diagnostics,
 }
 
 impl Default for Galaxy {
+    /// Returns a bare-bones Milky Way look-alike, intended as a convenient
+    /// starting point for tests and demos.
+    ///
+    /// **Warning:** this galaxy is NOT ready for map queries. `division_levels`
+    /// and `galactic_map_layers` are empty, so [`Galaxy::get_hex`],
+    /// [`Galaxy::get_division_at_level`] and [`Galaxy::get_divisions_for_coord`]
+    /// will not behave like they do on a generated galaxy (level 0 is missing,
+    /// and no region map can be built). Fill `division_levels` via
+    /// [`GalacticMapDivisionLevel::generate_division_levels`] and set
+    /// `galactic_map_layers` (e.g. to `DEFAULT_REGION_MAP_SPIRAL`) first — or
+    /// just use [`Galaxy::generate`].
     fn default() -> Self {
         Self {
             settings: GenerationSettings {

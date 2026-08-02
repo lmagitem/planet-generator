@@ -98,7 +98,7 @@ impl GalacticNeighborhood {
                     },
                     // Major galaxies
                     if universe.era == StelliferousEra::EndStelliferous {
-                        0.max(rng.roll(1, 2, 0) as u8)
+                        rng.roll(1, 2, 0) as u8
                     } else if universe.era == StelliferousEra::LateStelliferous {
                         1.max(galaxies / 2)
                     } else {

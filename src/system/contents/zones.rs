@@ -12,10 +12,21 @@ use ordered_float::OrderedFloat;
 use std::cmp::Ordering;
 
 pub fn generate_star_zones(all_objects: &mut Vec<OrbitalPoint>) {
-    let all_objects_clone = all_objects.clone();
-    all_objects
-        .iter_mut()
-        .for_each(|o| calculate_star_zones(o, &all_objects_clone));
+    // The companion lookup only runs for stars in a binary relationship; single-star
+    // systems skip the full clone of the object list entirely.
+    let has_binary = all_objects
+        .iter()
+        .any(|o| matches!(&o.object, AstronomicalObject::Star(star) if star.orbit.is_some()));
+    if has_binary {
+        let all_objects_clone = all_objects.clone();
+        all_objects
+            .iter_mut()
+            .for_each(|o| calculate_star_zones(o, &all_objects_clone));
+    } else {
+        all_objects
+            .iter_mut()
+            .for_each(|o| calculate_star_zones(o, &[]));
+    }
 }
 
 fn calculate_star_zones(orbital_point: &mut OrbitalPoint, all_objects: &[OrbitalPoint]) {
@@ -183,6 +194,9 @@ fn calculate_forbidden_zone(
 /// In the case of a multiple star system, returns the closest star from the given one.
 /// Returns [None] if no other star with an orbit exists, which cannot happen when the
 /// given star is in a binary relationship (the only caller checks that first).
+///
+/// Note: for hierarchical multiples (a pair orbiting another pair or star), pairing
+/// each star with its closest companion is only a heuristic for the forbidden zone.
 fn get_closest_companion(
     star: &OrbitalPoint,
     all_objects: &[OrbitalPoint],
@@ -213,20 +227,21 @@ fn get_min_star_separation(object1: &OrbitalPoint, object2: &OrbitalPoint) -> f6
     // Both objects are binary-pair members and always have their own orbit filled;
     // a default orbit is a deterministic, unreachable stand-in.
     let orbit1 = object1.own_orbit.clone().unwrap_or_default();
-    let perihelion_distance_object1 = (1.0 - orbit1.eccentricity as f64) * orbit1.average_distance;
     let orbit2 = object2.own_orbit.clone().unwrap_or_default();
-    let aphelion_distance_object2 = (1.0 + orbit2.eccentricity as f64) * orbit2.average_distance;
-    (aphelion_distance_object2 - perihelion_distance_object1).abs()
+    // The two stars orbit their shared barycentre on OPPOSITE sides, each at its own
+    // barycentric distance, so the true separation is the SUM of both distances.
+    // Both orbits carry the same eccentricity (rolled once per pair, aligned apsides),
+    // hence the closest approach is (a1 + a2) * (1 - e).
+    (1.0 - orbit1.eccentricity as f64) * (orbit1.average_distance + orbit2.average_distance)
 }
 
 /// Get the radius after which planets could have a stable orbit around the first star of a binary pair.
 fn get_max_star_separation(object1: &OrbitalPoint, object2: &OrbitalPoint) -> f64 {
-    // See `get_min_star_separation`: the default-orbit stand-in is unreachable.
+    // See `get_min_star_separation`: the default-orbit stand-in is unreachable, and
+    // the widest separation is (a1 + a2) * (1 + e) with the shared pair eccentricity.
     let orbit1 = object1.own_orbit.clone().unwrap_or_default();
-    let aphelion_distance_object1 = (1.0 + orbit1.eccentricity as f64) * orbit1.average_distance;
     let orbit2 = object2.own_orbit.clone().unwrap_or_default();
-    let perihelion_distance_object2 = (1.0 - orbit2.eccentricity as f64) * orbit2.average_distance;
-    (aphelion_distance_object1 - perihelion_distance_object2).abs()
+    (1.0 + orbit1.eccentricity as f64) * (orbit1.average_distance + orbit2.average_distance)
 }
 
 fn adjust_zones_for_forbidden(star: &mut Star) {
@@ -364,16 +379,22 @@ fn consolidate_zones(all_zones: &mut Vec<StarZone>) {
     let mut i = 0;
 
     while i < all_zones.len() - 1 {
-        let zone1 = &all_zones[i];
-        let zone2 = &all_zones[i + 1];
+        let zone1 = all_zones[i].clone();
+        let zone2 = all_zones[i + 1].clone();
 
         if zone1.end > zone2.start {
+            // The list is sorted by start, so zone1 starts no later than zone2. The
+            // surviving zone keeps zone1.start, extends to the furthest end (so a
+            // zone fully contained in the other never shrinks the coverage), and is
+            // typed after the higher-priority of the two; the other index is removed.
             if zone_priority(&zone1.zone_type) >= zone_priority(&zone2.zone_type) {
-                all_zones[i].end = zone2.end;
+                all_zones[i].end = zone1.end.max(zone2.end);
+                all_zones.remove(i + 1);
             } else {
                 all_zones[i + 1].start = zone1.start;
+                all_zones[i + 1].end = zone1.end.max(zone2.end);
+                all_zones.remove(i);
             }
-            all_zones.remove(i);
         } else {
             i += 1;
         }
@@ -400,5 +421,108 @@ fn merge_same_zones(all_zones: &mut Vec<StarZone>) {
         } else {
             i += 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn binary_member(id: u32, average_distance: f64, eccentricity: f32) -> OrbitalPoint {
+        let mut point = OrbitalPoint::new(id, None, AstronomicalObject::Void, vec![]);
+        point.set_own_orbit(Orbit {
+            average_distance,
+            eccentricity,
+            ..Default::default()
+        });
+        point
+    }
+
+    #[test]
+    fn binary_separation_is_the_sum_of_barycentric_distances() {
+        // Equal masses => equal barycentric distances (1.0 AU each), shared e = 0.3.
+        // The stars orbit their barycentre on opposite sides, so the true
+        // separation ranges over (a1 + a2) * (1 - e) .. (a1 + a2) * (1 + e).
+        let star1 = binary_member(1, 1.0, 0.3);
+        let star2 = binary_member(2, 1.0, 0.3);
+
+        let min_separation = get_min_star_separation(&star1, &star2);
+        let max_separation = get_max_star_separation(&star1, &star2);
+
+        assert!(
+            min_separation < max_separation,
+            "an eccentric binary must have a non-empty separation range, got [{min_separation}, {max_separation}]"
+        );
+        // 0.3 is stored as f32, so compare with an f32-precision tolerance.
+        assert!((min_separation - 2.0 * 0.7).abs() < 1e-6);
+        assert!((max_separation - 2.0 * 1.3).abs() < 1e-6);
+    }
+
+    #[test]
+    fn consolidate_zones_keeps_higher_priority_type_over_union() {
+        // Overlapping zones, the higher-priority one comes second.
+        let mut zones = vec![
+            StarZone::new(0.5, 1.8, ZoneType::Corona),
+            StarZone::new(1.0, 2.0, ZoneType::BioZone),
+        ];
+        consolidate_zones(&mut zones);
+        assert_eq!(
+            zones,
+            vec![StarZone::new(0.5, 2.0, ZoneType::Corona)],
+            "the surviving zone must keep the higher-priority type and span the union"
+        );
+
+        // Overlapping zones, the higher-priority one comes first.
+        let mut zones = vec![
+            StarZone::new(0.5, 1.5, ZoneType::BioZone),
+            StarZone::new(1.0, 2.0, ZoneType::ForbiddenZone),
+        ];
+        consolidate_zones(&mut zones);
+        assert_eq!(
+            zones,
+            vec![StarZone::new(0.5, 2.0, ZoneType::ForbiddenZone)],
+        );
+    }
+
+    #[test]
+    fn consolidate_zones_containment_never_shrinks_coverage() {
+        // A lower-priority zone fully inside a higher-priority one.
+        let mut zones = vec![
+            StarZone::new(0.0, 10.0, ZoneType::ForbiddenZone),
+            StarZone::new(2.0, 3.0, ZoneType::BioZone),
+        ];
+        consolidate_zones(&mut zones);
+        assert_eq!(
+            zones,
+            vec![StarZone::new(0.0, 10.0, ZoneType::ForbiddenZone)],
+        );
+
+        // A higher-priority zone fully inside a lower-priority one: the union
+        // still spans the container, typed after the higher-priority zone.
+        let mut zones = vec![
+            StarZone::new(0.0, 10.0, ZoneType::OuterZone),
+            StarZone::new(2.0, 3.0, ZoneType::ForbiddenZone),
+        ];
+        consolidate_zones(&mut zones);
+        assert_eq!(
+            zones,
+            vec![StarZone::new(0.0, 10.0, ZoneType::ForbiddenZone)],
+        );
+    }
+
+    #[test]
+    fn consolidate_zones_leaves_disjoint_zones_alone() {
+        let mut zones = vec![
+            StarZone::new(0.0, 1.0, ZoneType::Corona),
+            StarZone::new(1.0, 2.0, ZoneType::BioZone),
+        ];
+        consolidate_zones(&mut zones);
+        assert_eq!(
+            zones,
+            vec![
+                StarZone::new(0.0, 1.0, ZoneType::Corona),
+                StarZone::new(1.0, 2.0, ZoneType::BioZone),
+            ],
+        );
     }
 }

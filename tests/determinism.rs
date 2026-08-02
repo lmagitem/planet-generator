@@ -19,6 +19,17 @@
 //! within the same run and asserts identical hashes, guarding against
 //! HashMap-iteration-order or float-formatting nondeterminism inside the
 //! pipeline itself.
+//!
+//! Build profiles: the golden file pins BOTH debug and `--release` output —
+//! `cargo test --test determinism` and `cargo test --test determinism --release`
+//! must both pass against it. That was not always true: `powi`/`powf` calls with
+//! small constant integer exponents are lowered differently by LLVM depending on
+//! the profile (release inlines/const-folds multiplication chains, debug calls
+//! libm), which shifted e.g. star zone boundaries by one ULP. Those calls were
+//! replaced by explicit multiplications (see `calculate_distance_for_temperature`
+//! in src/system/contents/utils.rs); do not reintroduce `powi`/`powf` with
+//! integer literal exponents on pipeline values — non-integer exponents stay
+//! libm calls in both profiles and are fine.
 
 use planet_generator::prelude::*;
 use std::collections::BTreeMap;
@@ -29,6 +40,8 @@ const GOLDEN_PATH: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/golden/det
 /// Inline SVG region map copied from the e2e test in `src/lib.rs`: the left
 /// half of the galaxy is painted Arm (#0000FF), the right half stays empty.
 const HALF_ARM_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect x="0" y="0" width="50" height="100" fill="#0000FF" /></svg>"##;
+/// Full-map Exile gray.
+const FULL_EXILE_SVG: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect x="0" y="0" width="100" height="100" fill="#808080" /></svg>"##;
 
 /// FNV-1a (64-bit) over the given bytes, same flavor as the golden-hash
 /// precedent in `src/galaxy/map/region_map/generator.rs`.
@@ -134,7 +147,14 @@ fn case_default_pipeline() -> u64 {
     ))
 }
 
-/// Our own universe and galaxy (`use_ours`), seed "golden-ours".
+/// Our own universe and galaxy (`use_ours`), seed "golden-ours". Covers two
+/// entries of the filled local-group table: the Milky Way (index 0) and the
+/// Large Magellanic Cloud (index 4, a minor Irregular member), so both the
+/// major-galaxy and the filled minor-galaxy paths of `use_ours` have golden
+/// coverage. For the LMC, (0, 0, 0) is legitimately empty and (1000, -1000, 0)
+/// generates one system. The universe and neighborhood are identical for both
+/// galaxies (same settings), so they are hashed once, before each galaxy's
+/// (galaxy, hexes, divisions) triple.
 fn case_ours_pipeline() -> u64 {
     let settings = GenerationSettings {
         seed: Rc::from("golden-ours"),
@@ -148,7 +168,21 @@ fn case_ours_pipeline() -> u64 {
         },
         ..Default::default()
     };
-    hash_pipeline_output(&run_pipeline(&settings, 0, &[(0, 0, 0), (500, 200, 0)]))
+
+    let mut input = String::new();
+    let milky_way = run_pipeline(&settings, 0, &[(0, 0, 0), (500, 200, 0)]);
+    push_artifact(&mut input, &milky_way.universe);
+    push_artifact(&mut input, &milky_way.neighborhood);
+    push_artifact(&mut input, &milky_way.galaxy);
+    push_artifact(&mut input, &milky_way.hexes);
+    push_artifact(&mut input, &milky_way.divisions);
+
+    let lmc = run_pipeline(&settings, 4, &[(0, 0, 0), (1000, -1000, 0)]);
+    push_artifact(&mut input, &lmc.galaxy);
+    push_artifact(&mut input, &lmc.hexes);
+    push_artifact(&mut input, &lmc.divisions);
+
+    fnv1a(input.as_bytes())
 }
 
 /// Only "interesting" systems are kept, seed "golden-interesting".
@@ -177,6 +211,207 @@ fn case_svg_region_map() -> u64 {
         ..Default::default()
     };
     hash_pipeline_output(&run_pipeline(&settings, 0, &[(-200, 0, 0), (200, 0, 0)]))
+}
+
+/// A fixed-size irregular galaxy painted entirely with the Exile region color
+/// (#808080), seed "golden-exile". This is the only case exercising the Exile
+/// arm of the stellar-neighborhood age modifiers.
+fn case_exile_region_map() -> u64 {
+    let settings = GenerationSettings {
+        seed: Rc::from("golden-exile"),
+        galaxy: GalaxySettings {
+            fixed_category: Some(GalaxyCategory::Irregular(500, 500, 100)),
+            galactic_map_layers: vec![FULL_EXILE_SVG.to_string()],
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    hash_pipeline_output(&run_pipeline(&settings, 0, &[(0, 0, 0), (100, 100, 0)]))
+}
+
+/// A fixed Cluster neighborhood (1 dominant, 2 major, 5 minor galaxies), seed
+/// "golden-cluster". Generates ALL 8 galaxies the way `Generator::generate`'s
+/// galaxies loop does, then pulls one hex at (0, 0, 0) — plus its level-1/2
+/// divisions — from the dominant galaxy (index 0). This is the only case
+/// covering multi-galaxy generation and the dominant/is_major branches of the
+/// galaxy category and size tables (dominant galaxies roll on the
+/// DominantElliptical-flavored weights).
+fn case_cluster_dominant() -> u64 {
+    let settings = GenerationSettings {
+        seed: Rc::from("golden-cluster"),
+        galaxy: GalaxySettings {
+            fixed_neighborhood: Some(GalacticNeighborhoodDensity::Cluster(1, 2, 5)),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let universe = Universe::generate(&settings, &mut Diagnostics::default());
+    let neighborhood =
+        GalacticNeighborhood::generate(universe, &settings, &mut Diagnostics::default());
+
+    // Mirrors `generate_galaxies` in src/generator/mod.rs: the galaxy count is
+    // derived from the neighborhood density and each galaxy is generated by index.
+    let galaxy_count = match neighborhood.density {
+        GalacticNeighborhoodDensity::Void(g, m) | GalacticNeighborhoodDensity::Group(g, m) => {
+            u16::from(g) + m
+        }
+        GalacticNeighborhoodDensity::Cluster(d, g, m) => u16::from(d) + u16::from(g) + m,
+    };
+    let mut galaxies: Vec<Galaxy> = (0..galaxy_count)
+        .map(|index| Galaxy::generate(neighborhood, index, &settings))
+        .collect();
+    assert_eq!(
+        galaxies.len(),
+        8,
+        "Cluster(1, 2, 5) should yield 1 dominant + 2 major + 5 minor galaxies."
+    );
+
+    let coord = SpaceCoordinates::new(0, 0, 0);
+    let hex = galaxies[0]
+        .get_hex(coord)
+        .unwrap_or_else(|e| panic!("get_hex({coord}) on the dominant galaxy should succeed: {e}"))
+        .clone();
+    let mut divisions = Vec::new();
+    for level in 1..=2 {
+        divisions.push(
+            galaxies[0]
+                .get_division_at_level(coord, level)
+                .unwrap_or_else(|e| {
+                    panic!("get_division_at_level({coord}, {level}) should succeed: {e}")
+                })
+                .clone(),
+        );
+    }
+
+    let mut input = String::new();
+    push_artifact(&mut input, &universe);
+    push_artifact(&mut input, &neighborhood);
+    push_artifact(&mut input, &galaxies);
+    push_artifact(&mut input, &hex);
+    push_artifact(&mut input, &divisions);
+    fnv1a(input.as_bytes())
+}
+
+/// One galaxy per `GalaxyCategory` variant (all 7), each pinned through
+/// `fixed_category` at that variant's default sizes, seed "golden-category",
+/// one hex at (0, 0, 0) plus its level-1/2 divisions each. All seven fold into
+/// ONE case hash: the universe and neighborhood are identical across the sweep
+/// (`fixed_category` does not affect them), so they are hashed once, followed
+/// by each (galaxy, hexes, divisions) triple in variant order. This covers the
+/// per-category default region maps and sub-category tables end to end. Some
+/// center hexes may legitimately be empty; that is part of the blessed output.
+fn case_category_sweep() -> u64 {
+    const CATEGORIES: [GalaxyCategory; 7] = [
+        GalaxyCategory::Intergalactic(1000, 3000, 1000),
+        GalaxyCategory::Irregular(3000, 3000, 2000),
+        GalaxyCategory::Spiral(10000, 100),
+        GalaxyCategory::Lenticular(10000, 600),
+        GalaxyCategory::Elliptical(10000),
+        GalaxyCategory::Intracluster(1, 3, 1),
+        GalaxyCategory::DominantElliptical(300000),
+    ];
+
+    let mut input = String::new();
+    for (position, category) in CATEGORIES.iter().enumerate() {
+        let settings = GenerationSettings {
+            seed: Rc::from("golden-category"),
+            galaxy: GalaxySettings {
+                fixed_category: Some(*category),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let output = run_pipeline(&settings, 0, &[(0, 0, 0)]);
+        if position == 0 {
+            push_artifact(&mut input, &output.universe);
+            push_artifact(&mut input, &output.neighborhood);
+        }
+        push_artifact(&mut input, &output.galaxy);
+        push_artifact(&mut input, &output.hexes);
+        push_artifact(&mut input, &output.divisions);
+    }
+    fnv1a(input.as_bytes())
+}
+
+/// One galaxy + one hex at (0, 0, 0) under a universe pinned to the given era.
+fn era_case(era: StelliferousEra, seed: &'static str) -> u64 {
+    let settings = GenerationSettings {
+        seed: Rc::from(seed),
+        universe: UniverseSettings {
+            fixed_era: Some(era),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    hash_pipeline_output(&run_pipeline(&settings, 0, &[(0, 0, 0)]))
+}
+
+/// Universe pinned to the Late Stelliferous era (age in [50, 2000) billion
+/// years), seed "golden-late-era" — chosen so the Older-trait roll in
+/// `add_age_related_traits` fires (the galaxy gets [Older, ActiveNucleus]).
+/// Also covers the late-era neighborhood weights.
+fn case_late_stelliferous_era() -> u64 {
+    era_case(StelliferousEra::LateStelliferous, "golden-late-era")
+}
+
+/// Universe pinned to the End Stelliferous era (age in [2000, 100000) billion
+/// years), seed "golden-dead-galaxy" — chosen so the generated universe is old
+/// enough (age 91635 > 50000) that BOTH age-related trait paths fire: the
+/// galaxy gets [Older, Dead, Expansive(75)]. Also covers the end-era
+/// neighborhood weights (no minor galaxies in clusters).
+fn case_end_stelliferous_era() -> u64 {
+    era_case(StelliferousEra::EndStelliferous, "golden-dead-galaxy")
+}
+
+/// Non-default sector settings, seed "golden-nondefault-sector": `flat_map`
+/// off (3D map), `max_one_system_per_hex` off (several systems per hex
+/// allowed) and `density_by_hex_instead_of_parsec` off (one density roll per
+/// cubic parsec). `hex_size` is set to (2, 2, 2) so the per-parsec path
+/// actually rolls 8 times per hex — with the default (1, 1, 1) it would
+/// degenerate to a single roll, indistinguishable from the per-hex path.
+///
+/// Probes a FIXED list of coordinates (in order) and keeps the first hex with
+/// at least one system, so the case always covers actual system generation.
+/// The probe list must stay stable: changing it re-rolls the case. As blessed,
+/// the FIRST probe (100, 100, 0) is accepted: it lands in a dense central
+/// region and generates 2462 systems in a single hex — exactly the behavior
+/// `max_one_system_per_hex: false` + per-parsec density unlock.
+fn case_non_default_sector() -> u64 {
+    const PROBES: &[(i64, i64, i64)] = &[
+        (100, 100, 0),
+        (-500, -500, 0),
+        (250, -250, 4),
+        (0, 0, 0),
+        (37, -12, 0),
+        (-120, 45, 0),
+        (-50, 300, -3),
+        (800, 0, 1),
+        (0, -800, -1),
+        (1000, 1000, 2),
+    ];
+
+    for &(x, y, z) in PROBES {
+        let settings = GenerationSettings {
+            seed: Rc::from("golden-nondefault-sector"),
+            sector: SectorSettings {
+                flat_map: false,
+                max_one_system_per_hex: false,
+                density_by_hex_instead_of_parsec: false,
+                hex_size: (2, 2, 2),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let output = run_pipeline(&settings, 0, &[(x, y, z)]);
+        if !output.hexes[0].contents.is_empty() {
+            return hash_pipeline_output(&output);
+        }
+    }
+
+    panic!(
+        "None of the fixed probe coords produced a populated hex; \
+         extend the probe list (a deliberate, commit-message-worthy change)."
+    );
 }
 
 /// Counts the stars among a system's orbital points.
@@ -240,9 +475,15 @@ fn case_multi_star() -> u64 {
 /// Computes the hash of every case, in a fixed order.
 fn compute_all_cases() -> BTreeMap<&'static str, u64> {
     let mut hashes = BTreeMap::new();
+    hashes.insert("category_sweep", case_category_sweep());
+    hashes.insert("cluster_dominant", case_cluster_dominant());
     hashes.insert("default_pipeline", case_default_pipeline());
+    hashes.insert("end_stelliferous_era", case_end_stelliferous_era());
+    hashes.insert("exile_region_map", case_exile_region_map());
     hashes.insert("interesting_systems", case_interesting_systems());
+    hashes.insert("late_stelliferous_era", case_late_stelliferous_era());
     hashes.insert("multi_star", case_multi_star());
+    hashes.insert("non_default_sector", case_non_default_sector());
     hashes.insert("ours_pipeline", case_ours_pipeline());
     hashes.insert("svg_region_map", case_svg_region_map());
     hashes

@@ -43,6 +43,7 @@ use seeded_dice_roller::{
     CopyableRollToProcess, CopyableWeightedResult, PreparedRoll, RollMethod, RollToProcess,
     SeededDiceRoller, WeightedResult,
 };
+use std::fmt::Write as _;
 use std::mem::discriminant;
 
 pub fn generate_stars_systems(ctx: &SystemGenContext, all_objects: &mut Vec<OrbitalPoint>) {
@@ -256,13 +257,14 @@ fn generate_reference_orbit_radius(
     major_bodies_left: &mut i32,
     star: &Star,
 ) -> f64 {
-    let mut rng = SeededDiceRoller::new(
-        &ctx.settings.seed,
-        &format!(
+    let mut rng = ctx.with_step(|step| {
+        let _ = write!(
+            step,
             "sys_{}_{}_str_{}_bdy{}_loc",
             ctx.coord, ctx.system_index, star.orbital_point_id, major_bodies_left
-        ),
-    );
+        );
+        SeededDiceRoller::new(&ctx.settings.seed, step)
+    });
     let reference_orbit_radius = star
         .zones
         .iter()
@@ -285,13 +287,14 @@ fn generate_orbits(
     star: &Star,
     reference_orbit_radius: &mut f64,
 ) -> Vec<Orbit> {
-    let mut rng = SeededDiceRoller::new(
-        &ctx.settings.seed,
-        &format!(
+    let mut rng = ctx.with_step(|step| {
+        let _ = write!(
+            step,
             "sys_{}_{}_str_{}_orbt_loc",
             ctx.coord, ctx.system_index, star.orbital_point_id
-        ),
-    );
+        );
+        SeededDiceRoller::new(&ctx.settings.seed, step)
+    });
     let mut orbits = vec![];
     let mut last_orbit = &mut *reference_orbit_radius;
     let star_id = star_orbital_point.id;
@@ -348,22 +351,28 @@ fn generate_inner_orbits(
     }
 }
 
+/// Pure-literal weighted table for orbit spacing; hoisted out of the orbit loops
+/// (same entries, same order, same roll method as the former per-call table).
+static ORBIT_MULTIPLIER_TABLE: std::sync::LazyLock<CopyableRollToProcess<f64>> =
+    std::sync::LazyLock::new(|| {
+        CopyableRollToProcess::new(
+            vec![
+                CopyableWeightedResult::new(1.4, 1),
+                CopyableWeightedResult::new(1.5, 7),
+                CopyableWeightedResult::new(1.6, 16),
+                CopyableWeightedResult::new(1.7, 48),
+                CopyableWeightedResult::new(1.8, 16),
+                CopyableWeightedResult::new(1.9, 7),
+                CopyableWeightedResult::new(2.0, 1),
+            ],
+            RollMethod::SimpleRoll,
+        )
+    });
+
 fn get_orbit_multiplier(rng: &mut SeededDiceRoller) -> f64 {
-    let table = CopyableRollToProcess::new(
-        vec![
-            CopyableWeightedResult::new(1.4, 1),
-            CopyableWeightedResult::new(1.5, 7),
-            CopyableWeightedResult::new(1.6, 16),
-            CopyableWeightedResult::new(1.7, 48),
-            CopyableWeightedResult::new(1.8, 16),
-            CopyableWeightedResult::new(1.9, 7),
-            CopyableWeightedResult::new(2.0, 1),
-        ],
-        RollMethod::SimpleRoll,
-    );
     // Unreachable fallback (hardcoded non-empty table): first entry.
-    rng.get_result(&table)
-        .unwrap_or(table.possible_results[0].result)
+    rng.get_result(&ORBIT_MULTIPLIER_TABLE)
+        .unwrap_or(ORBIT_MULTIPLIER_TABLE.possible_results[0].result)
 }
 
 fn generate_outer_orbits(
@@ -445,23 +454,50 @@ fn place_body_stubs(
     mut orbit_contents: Vec<(usize, f64, Option<u32>)>,
 ) -> Vec<(usize, f64, Option<u32>)> {
     let mut populated_orbit_index = 0;
+
+    // Settings variants and roll tables are constant for the whole star; build them
+    // once instead of per orbit. The only per-orbit variation is the
+    // `do_not_generate_gaseous` flag, which is either forced on or decided by
+    // `should_skip_gaseous_body_gen` — i.e. always one of the same two variants.
+    let settings = ctx.settings();
+    let no_gaseous_settings = GenerationSettings {
+        celestial_body: CelestialBodySettings {
+            do_not_generate_gaseous: true,
+            ..settings.celestial_body.clone()
+        },
+        ..settings.clone()
+    };
+    let gaseous_settings = GenerationSettings {
+        celestial_body: CelestialBodySettings {
+            do_not_generate_gaseous: false,
+            ..settings.celestial_body.clone()
+        },
+        ..settings.clone()
+    };
+    let spawn_table = build_spawn_table(spawn_chances);
+    let inner_body_type_table_no_gaseous = build_inner_body_type_table(&no_gaseous_settings);
+    let inner_body_type_table_gaseous = build_inner_body_type_table(&gaseous_settings);
+    let outer_body_type_table_no_gaseous = build_outer_body_type_table(&no_gaseous_settings);
+    let outer_body_type_table_gaseous = build_outer_body_type_table(&gaseous_settings);
+
     star_orbital_point
         .orbits
         .iter_mut()
         .enumerate()
         .for_each(|(possible_orbit_index, orbit)| {
             if orbit.id.is_none() {
-                let mut rng = SeededDiceRoller::new(
-                    &ctx.settings().seed,
-                    &format!(
+                let mut rng = ctx.system.with_step(|step| {
+                    let _ = write!(
+                        step,
                         "sys_{}_{}_str_{}_bdy{}_orbit{}_gen",
                         ctx.system.coord,
                         ctx.system.system_index,
                         star_orbital_point.id,
                         major_bodies_left,
                         possible_orbit_index
-                    ),
-                );
+                    );
+                    SeededDiceRoller::new(&ctx.settings().seed, step)
+                });
 
                 let inwards_gas_giant = orbit_contents
                     .iter()
@@ -480,15 +516,13 @@ fn place_body_stubs(
                     possible_orbit_index, next_id, orbit.average_distance
                 );
                 let should_spawn =
-                    should_spawn(&mut rng, spawn_chances) && major_bodies_left > &mut 0;
+                    should_spawn(&mut rng, &spawn_table) && major_bodies_left > &mut 0;
                 if should_spawn {
                     populated_orbit_index += 1;
                     debug!(
                         "Should spawn one of {} bodies left in {}, nextId is: {}",
                         *major_bodies_left, orbit.zone, next_id
                     );
-                    let settings = ctx.settings();
-                    let celestial_body_settings = &settings.celestial_body;
                     match ctx.gas_giant_arrangement {
                         GasGiantArrangement::NoGasGiant => {
                             match orbit.zone {
@@ -497,16 +531,8 @@ fn place_body_stubs(
                                     *next_id += 1;
                                     orbit.id = Some(body_id);
 
-                                    let celestial_body_settings = CelestialBodySettings {
-                                        do_not_generate_gaseous: true,
-                                        ..celestial_body_settings.clone()
-                                    };
-                                    let settings = GenerationSettings {
-                                        celestial_body: celestial_body_settings,
-                                        ..settings.clone()
-                                    };
-
-                                    let body_type = generate_inner_body_type(&mut rng, &settings);
+                                    let body_type =
+                                        roll_body_type(&mut rng, &inner_body_type_table_no_gaseous);
                                     let mut body_orbital_point = generate_new_body_and_moons(
                                         ctx,
                                         body_id,
@@ -535,17 +561,8 @@ fn place_body_stubs(
                                     *next_id += 1;
                                     orbit.id = Some(body_id);
 
-                                    let celestial_body_settings = CelestialBodySettings {
-                                        do_not_generate_gaseous: true,
-                                        ..celestial_body_settings.clone()
-                                    };
-                                    let settings = GenerationSettings {
-                                        celestial_body: celestial_body_settings,
-                                        ..settings.clone()
-                                    };
-
                                     let body_type =
-                                        generate_outer_body_type(&mut rng, &settings);
+                                        roll_body_type(&mut rng, &outer_body_type_table_no_gaseous);
                                     let mut body_orbital_point = generate_new_body_and_moons(
                                         ctx,
                                         body_id,
@@ -576,16 +593,8 @@ fn place_body_stubs(
                                     *next_id += 1;
                                     orbit.id = Some(body_id);
 
-                                    let celestial_body_settings = CelestialBodySettings {
-                                        do_not_generate_gaseous: true,
-                                        ..celestial_body_settings.clone()
-                                    };
-                                    let settings = GenerationSettings {
-                                        celestial_body: celestial_body_settings,
-                                        ..settings.clone()
-                                    };
-
-                                    let body_type = generate_inner_body_type(&mut rng, &settings);
+                                    let body_type =
+                                        roll_body_type(&mut rng, &inner_body_type_table_no_gaseous);
                                     let mut body_orbital_point = generate_new_body_and_moons(
                                         ctx,
                                         body_id,
@@ -615,21 +624,16 @@ fn place_body_stubs(
                                     *next_id += 1;
                                     orbit.id = Some(body_id);
 
-                                    let celestial_body_settings = CelestialBodySettings {
-                                        do_not_generate_gaseous: should_skip_gaseous_body_gen(
-                                            inwards_gas_giant,
-                                            outwards_gas_giant,
-                                            gas_giant_au_inwards_proximity,
-                                            gas_giant_au_outwards_proximity,
-                                        ),
-                                        ..celestial_body_settings.clone()
+                                    let body_type = if should_skip_gaseous_body_gen(
+                                        inwards_gas_giant,
+                                        outwards_gas_giant,
+                                        gas_giant_au_inwards_proximity,
+                                        gas_giant_au_outwards_proximity,
+                                    ) {
+                                        roll_body_type(&mut rng, &outer_body_type_table_no_gaseous)
+                                    } else {
+                                        roll_body_type(&mut rng, &outer_body_type_table_gaseous)
                                     };
-                                    let settings = GenerationSettings {
-                                        celestial_body: celestial_body_settings,
-                                        ..settings.clone()
-                                    };
-
-                                    let body_type = generate_outer_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
                                         ctx,
                                         body_id,
@@ -661,21 +665,16 @@ fn place_body_stubs(
                                     *next_id += 1;
                                     orbit.id = Some(body_id);
 
-                                    let celestial_body_settings = CelestialBodySettings {
-                                        do_not_generate_gaseous: should_skip_gaseous_body_gen(
-                                            inwards_gas_giant,
-                                            outwards_gas_giant,
-                                            gas_giant_au_inwards_proximity,
-                                            gas_giant_au_outwards_proximity,
-                                        ),
-                                        ..celestial_body_settings.clone()
+                                    let body_type = if should_skip_gaseous_body_gen(
+                                        inwards_gas_giant,
+                                        outwards_gas_giant,
+                                        gas_giant_au_inwards_proximity,
+                                        gas_giant_au_outwards_proximity,
+                                    ) {
+                                        roll_body_type(&mut rng, &inner_body_type_table_no_gaseous)
+                                    } else {
+                                        roll_body_type(&mut rng, &inner_body_type_table_gaseous)
                                     };
-                                    let settings = GenerationSettings {
-                                        celestial_body: celestial_body_settings,
-                                        ..settings.clone()
-                                    };
-
-                                    let body_type = generate_inner_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
                                         ctx,
                                         body_id,
@@ -704,21 +703,16 @@ fn place_body_stubs(
                                     *next_id += 1;
                                     orbit.id = Some(body_id);
 
-                                    let celestial_body_settings = CelestialBodySettings {
-                                        do_not_generate_gaseous: should_skip_gaseous_body_gen(
-                                            inwards_gas_giant,
-                                            outwards_gas_giant,
-                                            gas_giant_au_inwards_proximity,
-                                            gas_giant_au_outwards_proximity,
-                                        ),
-                                        ..celestial_body_settings.clone()
+                                    let body_type = if should_skip_gaseous_body_gen(
+                                        inwards_gas_giant,
+                                        outwards_gas_giant,
+                                        gas_giant_au_inwards_proximity,
+                                        gas_giant_au_outwards_proximity,
+                                    ) {
+                                        roll_body_type(&mut rng, &outer_body_type_table_no_gaseous)
+                                    } else {
+                                        roll_body_type(&mut rng, &outer_body_type_table_gaseous)
                                     };
-                                    let settings = GenerationSettings {
-                                        celestial_body: celestial_body_settings,
-                                        ..settings.clone()
-                                    };
-
-                                    let body_type = generate_outer_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
                                         ctx,
                                         body_id,
@@ -926,52 +920,51 @@ fn replace_telluric_stubs(
     new_objects_ids.iter().for_each(|orbit_id| {
         let index_to_replace = non_finished_objects.iter().position(|o| o.id == *orbit_id);
         if let Some(new_object_index) = index_to_replace {
-            let (stub_id, stub_orbit, stub_orbits, stub_body) = {
-                let current_stub = &non_finished_objects[new_object_index];
-                (
-                    current_stub.id,
-                    current_stub.own_orbit.clone(),
-                    current_stub.orbits.clone(),
-                    current_stub.object.clone(),
-                )
-            };
+            let is_telluric_stub = matches!(
+                &non_finished_objects[new_object_index].object,
+                AstronomicalObject::TelluricBody(body) if body.is_stub()
+            );
+            if is_telluric_stub {
+                let current_stub = &mut non_finished_objects[new_object_index];
+                let stub_id = current_stub.id;
+                // The stub point is fully overwritten below; move its fields out
+                // instead of cloning them.
+                let stub_orbit = current_stub.own_orbit.take();
+                let stub_orbits = std::mem::take(&mut current_stub.orbits);
+                if let AstronomicalObject::TelluricBody(stub_body) =
+                    std::mem::replace(&mut current_stub.object, AstronomicalObject::Void)
+                {
+                    let moons = finished_objects
+                        .iter_mut()
+                        .filter(|possible_moon_point| {
+                            possible_moon_point
+                                .own_orbit
+                                .as_ref()
+                                .map_or(false, |orbit| stub_id == orbit.primary_body_id)
+                        })
+                        .map(|o| o.clone())
+                        .collect::<Vec<OrbitalPoint>>();
 
-            match stub_body {
-                AstronomicalObject::TelluricBody(stub_body) => {
-                    if stub_body.is_stub() {
-                        let moons = finished_objects
-                            .iter_mut()
-                            .filter(|possible_moon_point| {
-                                possible_moon_point
-                                    .own_orbit
-                                    .as_ref()
-                                    .map_or(false, |orbit| stub_id == orbit.primary_body_id)
-                            })
-                            .map(|o| o.clone())
-                            .collect::<Vec<OrbitalPoint>>();
-
-                        // TODO: Tidal heating should also happen when eccentric orbit near to parent
-                        let tidal_heating = tidal_heating_array[new_object_index];
-                        // A stub always has its own orbit; 0.0 is a deterministic,
-                        // unreachable stand-in if the invariant is ever broken.
-                        let distance_from_star = stub_orbit
-                            .as_ref()
-                            .map_or(0.0, |orbit| orbit.average_distance);
-                        let generated = WorldGenerator::generate_world(
-                            ctx,
-                            stub_body,
-                            stub_orbit.unwrap_or_default(),
-                            stub_orbits,
-                            &moons,
-                            distance_from_star,
-                            stub_id,
-                            tidal_heating,
-                            false,
-                        );
-                        non_finished_objects[new_object_index] = generated;
-                    }
+                    // TODO: Tidal heating should also happen when eccentric orbit near to parent
+                    let tidal_heating = tidal_heating_array[new_object_index];
+                    // A stub always has its own orbit; 0.0 is a deterministic,
+                    // unreachable stand-in if the invariant is ever broken.
+                    let distance_from_star = stub_orbit
+                        .as_ref()
+                        .map_or(0.0, |orbit| orbit.average_distance);
+                    let generated = WorldGenerator::generate_world(
+                        ctx,
+                        stub_body,
+                        stub_orbit.unwrap_or_default(),
+                        stub_orbits,
+                        &moons,
+                        distance_from_star,
+                        stub_id,
+                        tidal_heating,
+                        false,
+                    );
+                    non_finished_objects[new_object_index] = generated;
                 }
-                _ => {}
             }
         }
     });
@@ -996,31 +989,18 @@ fn generate_body_and_moons(
     current_stub: &mut OrbitalPoint,
     size_modifier: i32,
 ) -> Option<(OrbitalPoint, Vec<OrbitalPoint>)> {
-    let mut to_return;
     let mut body_type = TelluricBodyComposition::Rocky;
     let body_id = current_stub.id;
-    let orbit = current_stub.own_orbit.clone();
-    let orbit_distance = current_stub
-        .own_orbit
-        .clone()
-        .unwrap_or_default()
-        .average_distance;
-    let orbited_by = current_stub.orbits.clone();
+    // The caller always overwrites the stub point with the returned one, so the
+    // fields can be moved out instead of cloned.
+    let orbit = current_stub.own_orbit.take();
+    let orbit_distance = orbit.as_ref().map_or(0.0, |orbit| orbit.average_distance);
+    let orbited_by = std::mem::take(&mut current_stub.orbits);
     let is_moon = false;
     let fixed_size = None;
 
-    match current_stub.object.clone() {
-        AstronomicalObject::TelluricBody(body) => {
-            if let CelestialBodyDetails::Telluric(details) = body.details {
-                body_type = details.body_type
-            }
-            to_return = None;
-        }
-        AstronomicalObject::IcyBody(_body) => {
-            body_type = TelluricBodyComposition::Icy;
-            to_return = None;
-        }
-        AstronomicalObject::GaseousBody(ref mut body) => {
+    match std::mem::replace(&mut current_stub.object, AstronomicalObject::Void) {
+        AstronomicalObject::GaseousBody(mut body) => {
             body.name = format!(
                 "{}{}",
                 ctx.star_name,
@@ -1028,38 +1008,44 @@ fn generate_body_and_moons(
             )
             .into();
 
-            to_return = Some((
+            Some((
                 OrbitalPoint::new(
                     body_id,
-                    orbit.clone(),
-                    AstronomicalObject::GaseousBody(body.clone()),
-                    orbited_by.clone(),
+                    orbit,
+                    AstronomicalObject::GaseousBody(body),
+                    orbited_by,
                 ),
                 vec![],
-            ));
+            ))
         }
-        _ => {
-            to_return = None;
+        stub_object => {
+            match stub_object {
+                AstronomicalObject::TelluricBody(body) => {
+                    if let CelestialBodyDetails::Telluric(details) = body.details {
+                        body_type = details.body_type
+                    }
+                }
+                AstronomicalObject::IcyBody(_body) => {
+                    body_type = TelluricBodyComposition::Icy;
+                }
+                _ => {}
+            }
+
+            Some(generate_body_from_type(
+                ctx,
+                next_id,
+                populated_orbit_index,
+                size_modifier,
+                body_type,
+                body_id,
+                orbit,
+                orbit_distance,
+                orbited_by,
+                is_moon,
+                fixed_size,
+            ))
         }
     }
-
-    if to_return.is_none() {
-        to_return = Some(generate_body_from_type(
-            ctx,
-            next_id,
-            populated_orbit_index,
-            size_modifier,
-            body_type,
-            body_id,
-            orbit,
-            orbit_distance,
-            orbited_by,
-            is_moon,
-            fixed_size,
-        ));
-    }
-
-    to_return
 }
 
 pub(crate) fn generate_body_from_type(
@@ -1136,13 +1122,14 @@ fn get_body_size_modifier(
     nearest_forbidden_distance: f64,
     zone_change_orbits_proximity: usize,
 ) -> i32 {
-    let mut rng = SeededDiceRoller::new(
-        &ctx.system.seed,
-        &format!(
+    let mut rng = ctx.system.with_step(|step| {
+        let _ = write!(
+            step,
             "sys_{}_{}_str_{}_bdy{}_orbit{}_rep",
             ctx.system.coord, ctx.system.system_index, ctx.star_id, major_bodies_left, orbit_index
-        ),
-    );
+        );
+        SeededDiceRoller::new(&ctx.system.seed, step)
+    });
 
     let mut size_modifier = 0;
     size_modifier += if nearest_forbidden_distance < 0.5 {
@@ -1349,13 +1336,14 @@ fn handle_proto_gas_giant_placement(
 }
 
 fn generate_number_of_bodies(ctx: &SystemGenContext, star: &mut Star) -> i32 {
-    let mut rng = SeededDiceRoller::new(
-        &ctx.seed,
-        &format!(
+    let mut rng = ctx.with_step(|step| {
+        let _ = write!(
+            step,
             "sys_{}_{}_str_{}_nbr_bdy",
             ctx.coord, ctx.system_index, star.orbital_point_id
-        ),
-    );
+        );
+        SeededDiceRoller::new(&ctx.seed, step)
+    });
 
     let mut modifier = 0;
     modifier += if discriminant(&star.population) == discriminant(&StellarEvolution::Paleodwarf) {
@@ -1487,13 +1475,14 @@ fn generate_gas_giant_arrangement(
             RollMethod::SimpleRoll,
         );
         // Unreachable (the weights above always sum to at least 100): first entry.
-        SeededDiceRoller::new(
-            &ctx.settings.seed,
-            &format!(
+        ctx.with_step(|step| {
+            let _ = write!(
+                step,
                 "sys_{}_{}_str_{}_gas_arr",
                 ctx.coord, ctx.system_index, star.orbital_point_id
-            ),
-        )
+            );
+            SeededDiceRoller::new(&ctx.settings.seed, step)
+        })
         .get_result(&table)
         .unwrap_or_else(|| {
             ctx.warn(GenerationWarning::RngTableFallback("gas giant arrangement"));
@@ -1795,13 +1784,14 @@ fn generate_proto_gas_giant_position(
     arrangement: &GasGiantArrangement,
     star: &Star,
 ) -> Option<f64> {
-    let mut rng = SeededDiceRoller::new(
-        &ctx.settings.seed,
-        &format!(
+    let mut rng = ctx.with_step(|step| {
+        let _ = write!(
+            step,
             "sys_{}_{}_str_{}_gas_pos",
             ctx.coord, ctx.system_index, star.orbital_point_id
-        ),
-    );
+        );
+        SeededDiceRoller::new(&ctx.settings.seed, step)
+    });
 
     match arrangement {
         GasGiantArrangement::ConventionalGasGiant => {
@@ -1810,7 +1800,7 @@ fn generate_proto_gas_giant_position(
                 .iter()
                 .find(|z| z.zone_type == ZoneType::OuterZone)?
                 .start;
-            Some(rng.roll(2, 6, -2) as f64 * 0.05 + 1.0 * snow_line)
+            Some((1.0 + rng.roll(2, 6, -2) as f64 * 0.05) * snow_line)
         }
         GasGiantArrangement::EccentricGasGiant => {
             let snow_line = star
@@ -1832,7 +1822,7 @@ fn generate_proto_gas_giant_position(
     }
 }
 
-fn should_spawn(rng: &mut SeededDiceRoller, spawn_chances: i32) -> bool {
+fn build_spawn_table(spawn_chances: i32) -> CopyableRollToProcess<bool> {
     let spawn_chances = if spawn_chances > 100 {
         100
     } else if spawn_chances < 0 {
@@ -1840,24 +1830,26 @@ fn should_spawn(rng: &mut SeededDiceRoller, spawn_chances: i32) -> bool {
     } else {
         10 + (spawn_chances as f32 * 0.90) as u32
     };
-    let table = CopyableRollToProcess::new(
+    CopyableRollToProcess::new(
         vec![
             CopyableWeightedResult::new(false, 100 - spawn_chances),
             CopyableWeightedResult::new(true, spawn_chances),
         ],
         RollMethod::SimpleRoll,
-    );
-    // Unreachable fallback (weights always sum to 100): first entry.
-    rng.get_result(&table)
-        .unwrap_or(table.possible_results[0].result)
+    )
 }
 
-pub(crate) fn generate_inner_body_type(
-    rng: &mut SeededDiceRoller,
+fn should_spawn(rng: &mut SeededDiceRoller, spawn_table: &CopyableRollToProcess<bool>) -> bool {
+    // Unreachable fallback (weights always sum to 100): first entry.
+    rng.get_result(spawn_table)
+        .unwrap_or(spawn_table.possible_results[0].result)
+}
+
+// TODO: Add modifier according to star population and metallicity
+fn build_inner_body_type_table(
     settings: &GenerationSettings,
-) -> CelestialBodyComposition {
-    // TODO: Add modifier according to star population and metallicity
-    let table = CopyableRollToProcess::new(
+) -> CopyableRollToProcess<CelestialBodyComposition> {
+    CopyableRollToProcess::new(
         vec![
             // CopyableWeightedResult::new(
             //     CelestialBodySubType::Exotic,
@@ -1901,16 +1893,22 @@ pub(crate) fn generate_inner_body_type(
             ),
         ],
         RollMethod::SimpleRoll,
-    );
-    roll_body_type(rng, &table)
+    )
 }
 
-pub(crate) fn generate_outer_body_type(
+pub(crate) fn generate_inner_body_type(
     rng: &mut SeededDiceRoller,
     settings: &GenerationSettings,
 ) -> CelestialBodyComposition {
-    // TODO: Add modifier according to star population and metallicity
-    let table = CopyableRollToProcess::new(
+    let table = build_inner_body_type_table(settings);
+    roll_body_type(rng, &table)
+}
+
+// TODO: Add modifier according to star population and metallicity
+fn build_outer_body_type_table(
+    settings: &GenerationSettings,
+) -> CopyableRollToProcess<CelestialBodyComposition> {
+    CopyableRollToProcess::new(
         vec![
             // CopyableWeightedResult::new(
             //     CelestialBodySubType::Exotic,
@@ -1954,7 +1952,14 @@ pub(crate) fn generate_outer_body_type(
             ),
         ],
         RollMethod::SimpleRoll,
-    );
+    )
+}
+
+pub(crate) fn generate_outer_body_type(
+    rng: &mut SeededDiceRoller,
+    settings: &GenerationSettings,
+) -> CelestialBodyComposition {
+    let table = build_outer_body_type_table(settings);
     roll_body_type(rng, &table)
 }
 

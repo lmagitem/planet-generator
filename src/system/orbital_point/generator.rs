@@ -32,7 +32,12 @@ use std::mem::discriminant;
 /// The orbital period in days.
 pub fn calculate_orbital_period(orbital_radius: f64, mass1: f64, mass2: f64) -> f64 {
     let combined_mass = mass1 + mass2;
-    let period_in_years = (orbital_radius.powf(3.0) / combined_mass).sqrt();
+    // Explicit cube, NOT `powf(3.0)`: release builds expand `powf(x, 3.0)` into
+    // inlined multiplications while debug builds call libm `pow`, and the two
+    // round differently for about a quarter of all inputs — that made generated
+    // output depend on the build profile (see tests/determinism.rs).
+    let radius_cubed = orbital_radius * orbital_radius * orbital_radius;
+    let period_in_years = (radius_cubed / combined_mass).sqrt();
     period_in_years * 365.256
 }
 
@@ -141,12 +146,14 @@ pub fn complete_orbit_with_rotation_and_axis(
             .map(|o| {
                 if let AstronomicalObject::TelluricBody(moon)
                 | AstronomicalObject::IcyBody(moon)
-                | AstronomicalObject::GaseousBody(moon) = o.object.clone()
+                | AstronomicalObject::GaseousBody(moon) = &o.object
                 {
                     return (
                         moon.mass,
                         ConversionUtils::astronomical_units_to_earth_diameters(
-                            o.own_orbit.clone().unwrap_or_default().average_distance,
+                            o.own_orbit
+                                .as_ref()
+                                .map_or(0.0, |orbit| orbit.average_distance),
                         ),
                     );
                 }
@@ -649,8 +656,9 @@ fn calculate_moon_tidal_braking(
     moon_mass_in_earth_masses: f64,
 ) -> u32 {
     let moon_orbit_radius_in_earth_diameters =
-        ConversionUtils::astronomical_units_to_earth_radii(moon_orbit_radius_in_astronomical_units)
-            * 2.0;
+        ConversionUtils::astronomical_units_to_earth_diameters(
+            moon_orbit_radius_in_astronomical_units,
+        );
 
     // Tidal Force by Planet on Moon
     let tidal_force_planet = 1_550_000.0
@@ -775,6 +783,37 @@ mod tests {
         assert!(
             (period - 15.94).abs() < 0.1,
             "The calculated period for Titan is incorrect"
+        );
+    }
+
+    #[test]
+    fn test_calculate_moon_tidal_braking_earth_moon() {
+        // Earth-Moon analog. The Moon's orbit (0.00257 AU) is ~30.14 Earth
+        // DIAMETERS — the distance must be converted with
+        // `astronomical_units_to_earth_diameters`, matching the planet-side
+        // caller's unit (see the 30.17 in the planet tidal braking test below).
+        let moon_radius_in_earth_radii = 0.2725; // Moon
+        let planet_mass_in_earth_masses = 1.0; // Earth
+        let moon_orbit_radius_in_astronomical_units = 0.00257; // Moon
+        let system_age_in_billion_years = 4.5;
+        let moon_mass_in_earth_masses = 0.0123; // Moon
+
+        let tidal_braking = calculate_moon_tidal_braking(
+            moon_radius_in_earth_radii,
+            planet_mass_in_earth_masses,
+            moon_orbit_radius_in_astronomical_units,
+            system_age_in_billion_years,
+            moon_mass_in_earth_masses,
+        );
+
+        // Hand-computed with the distance in Earth diameters (30.139):
+        // tidal_force = 1_550_000 * 0.2725^4 / (0.0123 * 30.139^3) ~= 25.38,
+        // total = (0.383 * 4.5 * 0.0123 / 0.2725^5) * 25.38^2 ~= 9088.
+        // The old radii*x2 bug put the distance at 120.56 "diameters" (4x too
+        // large) and returned 2.
+        assert!(
+            (tidal_braking as f64 - 9088.0).abs() / 9088.0 < 0.01,
+            "Moon tidal braking should use Earth diameters (expected ~9088, got {tidal_braking})"
         );
     }
 

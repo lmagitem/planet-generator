@@ -4,6 +4,8 @@ A Rust library that aims to generate galaxies, sectors, solar systems, planets w
 
 The library is intended for use in game development to generate believable worlds for Roguelikes, 4X games, or any other project that sparks your imagination.
 
+**Thread safety:** this library is deliberately single-threaded. Generated objects use `Rc<str>` and `RefCell` internally, so `GeneratedUniverse`, `Galaxy`, `StarSystem` and everything below them are `!Send` and `!Sync`. Generate on one thread; to move results across threads or an FFI boundary, serialize them and deserialize on the other side.
+
 I've tried my best to use realistic formulas and up-to-date data when possible for generation. However, as I am not an astrophysicist myself, and my limited knowledge on the subject isn't sufficient to build something entirely accurate, I've compensated for my shortfalls by borrowing ideas from various other generators I have previously used and loved, mostly from RPGs. These include, but are not limited to: [the RTT Complicated Star System Generator](https://wiki.rpg.net/index.php/RTT_Worldgen), [Instant Universe](https://www.drivethrurpg.com/product/153512/Instant-Universe), and generators from various editions of [GURPS Traveller](https://en.wikipedia.org/wiki/GURPS_Traveller), [Stars Without Number](https://www.drivethrurpg.com/product/226996/Stars-Without-Number-Revised-Edition), [Rogue Trader](<https://en.wikipedia.org/wiki/Rogue_Trader_(role-playing_game)>) and [Alternity](https://en.wikipedia.org/wiki/Alternity).
 
 ## Example

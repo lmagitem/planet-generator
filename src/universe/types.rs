@@ -13,14 +13,16 @@ pub struct UniverseSettings {
     /// Asks to generate a universe's [StelliferousEra] randomly, but only using eras that are younger than the given one. Will be
     /// overwritten if the age or **use_ours** is set.
     pub era_after: Option<StelliferousEra>,
-    /// The specific universe age to use if any, in billions of years. **Must be higher or equal to 0.4 and lower than 100000.**
+    /// The specific universe age to use if any, in billions of years. **Must be between 0.4 and 99999.99 inclusive.**
     /// Will overwrite the era if set, and be overwritten if **use_ours** is set.
     pub fixed_age: Option<f32>,
-    /// Asks to generate a universe's age randomly, but with an age at least older than the given one. **Must be higher or equal to 0.4
-    /// and lower than 100000.** Will overwrite the era if set, and be overwritten if **use_ours** is set.
+    /// Asks to generate a universe's age randomly, but no older than the given one: this is the UPPER bound on the
+    /// rolled age (the universe will be "before" this point in time). **Must be between 0.4 and 99999.99 inclusive.**
+    /// Will overwrite the era if set, and be overwritten if **use_ours** is set.
     pub age_before: Option<f32>,
-    /// Asks to generate a universe's age randomly, but with an age at least younger than the given one. **Must be higher or equal to 0.4
-    /// and lower than 100000.** Will overwrite the era if set, and be overwritten if **use_ours** is set.
+    /// Asks to generate a universe's age randomly, but no younger than the given one: this is the LOWER bound on the
+    /// rolled age (the universe will be "after" this point in time). **Must be between 0.4 and 99999.99 inclusive.**
+    /// Will overwrite the era if set, and be overwritten if **use_ours** is set.
     pub age_after: Option<f32>,
     /// Skip the universe generation and just uses a copy of ours. Will overwrite **fixed_era** and **fixed_age** if set.
     pub use_ours: bool,

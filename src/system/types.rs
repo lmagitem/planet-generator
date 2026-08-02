@@ -195,4 +195,9 @@ pub struct SystemGenContext<'a> {
     /// forcing `&mut` through ~20 signatures. Single-threaded pipeline; the
     /// crate is already `!Sync` (`Rc` everywhere).
     pub diagnostics: RefCell<Diagnostics>,
+    /// Reusable scratch buffer for building `SeededDiceRoller` step strings
+    /// without a `format!` allocation per roller (~50-100 rollers per system).
+    /// `RefCell` for the same reason as `diagnostics`. Use via `with_step`;
+    /// never hold a `&str` into this buffer across another `with_step` call.
+    pub step_scratch: RefCell<String>,
 }

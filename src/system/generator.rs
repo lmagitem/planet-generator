@@ -24,6 +24,7 @@ use crate::utils::conversion::ConversionUtils;
 use seeded_dice_roller::{
     CopyableRollToProcess, CopyableWeightedResult, PreparedRoll, RollMethod, SeededDiceRoller,
 };
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::rc::Rc;
 
@@ -108,11 +109,18 @@ impl StarSystem {
                 main_star_id = result.1;
 
                 let mut calculated_ids = HashSet::new();
+                // One-time id → index map (first occurrence wins, matching the
+                // former linear `position`/`find` scans).
+                let mut id_to_index = HashMap::with_capacity(all_objects.len());
+                for (index, op) in all_objects.iter().enumerate() {
+                    id_to_index.entry(op.id).or_insert(index);
+                }
                 for id in all_objects.iter().map(|op| op.id).collect::<Vec<u32>>() {
                     calculate_distance_from_system_center(
                         id,
                         &mut all_objects,
                         &mut calculated_ids,
+                        &id_to_index,
                     );
                 }
             } else {
@@ -181,6 +189,26 @@ fn get_system_name(system_index: u16, coord: SpaceCoordinates, galaxy: &Galaxy) 
     }
 }
 
+/// Pure-literal weighted table for the number of stars in a system; hoisted out
+/// of the per-system call path (same entries, same order, same roll method).
+static NUMBER_OF_STARS_TABLE: std::sync::LazyLock<CopyableRollToProcess<u16>> =
+    std::sync::LazyLock::new(|| {
+        CopyableRollToProcess::new(
+            vec![
+                CopyableWeightedResult::new(1, 400),
+                CopyableWeightedResult::new(2, 280),
+                CopyableWeightedResult::new(3, 120),
+                CopyableWeightedResult::new(4, 32),
+                CopyableWeightedResult::new(5, 20),
+                CopyableWeightedResult::new(6, 12),
+                CopyableWeightedResult::new(7, 4),
+                CopyableWeightedResult::new(8, 2),
+                CopyableWeightedResult::new(9, 1),
+            ],
+            RollMethod::SimpleRoll,
+        )
+    });
+
 fn generate_number_of_stars_in_system(
     system_gen_try: u32,
     system_index: u16,
@@ -191,23 +219,9 @@ fn generate_number_of_stars_in_system(
         &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
         &format!("sys_{}_{}_ste_evo", coord, system_index),
     );
-    let table = CopyableRollToProcess::new(
-        vec![
-            CopyableWeightedResult::new(1, 400),
-            CopyableWeightedResult::new(2, 280),
-            CopyableWeightedResult::new(3, 120),
-            CopyableWeightedResult::new(4, 32),
-            CopyableWeightedResult::new(5, 20),
-            CopyableWeightedResult::new(6, 12),
-            CopyableWeightedResult::new(7, 4),
-            CopyableWeightedResult::new(8, 2),
-            CopyableWeightedResult::new(9, 1),
-        ],
-        RollMethod::SimpleRoll,
-    );
     // Unreachable fallback (hardcoded non-empty table): first entry.
-    rng.get_result(&table)
-        .unwrap_or(table.possible_results[0].result)
+    rng.get_result(&NUMBER_OF_STARS_TABLE)
+        .unwrap_or(NUMBER_OF_STARS_TABLE.possible_results[0].result)
 }
 
 fn generate_stars(
@@ -569,16 +583,27 @@ fn find_center_of_binary_pair(
         generate_distance_between_stars(star_index, system_index, min_distance, 0, coord, galaxy);
     let barycentre_distance_from_most_massive =
         calculate_barycentre(actual_distance, most_massive_mass, less_massive_mass);
+    // One seeded eccentricity per pair: both members share it (aligned apsides), which
+    // the forbidden-zone formula (a1 + a2) * (1 -/+ e) relies upon.
+    let pair_eccentricity =
+        generate_pair_eccentricity(most_massive_point.id, system_index, coord, galaxy);
+    let most_massive_min_separation =
+        (1.0 - pair_eccentricity) * barycentre_distance_from_most_massive;
+    let most_massive_max_separation =
+        (1.0 + pair_eccentricity) * barycentre_distance_from_most_massive;
+    let less_massive_average_distance = actual_distance - barycentre_distance_from_most_massive;
+    let less_massive_min_separation = (1.0 - pair_eccentricity) * less_massive_average_distance;
+    let less_massive_max_separation = (1.0 + pair_eccentricity) * less_massive_average_distance;
 
     let most_massive_orbit = Orbit::new(
         next_id,
         Some(most_massive_point.id),
         ZoneType::ForbiddenZone,
         barycentre_distance_from_most_massive,
-        0.0,
-        0.0,
+        most_massive_min_separation,
+        most_massive_max_separation,
         barycentre_distance_from_most_massive,
-        0.0,
+        pair_eccentricity as f32,
         0.0,
         0.0,
         0.0,
@@ -589,11 +614,11 @@ fn find_center_of_binary_pair(
         next_id,
         Some(less_massive_point.id),
         ZoneType::ForbiddenZone,
+        less_massive_average_distance,
+        less_massive_min_separation,
+        less_massive_max_separation,
         actual_distance - barycentre_distance_from_most_massive,
-        0.0,
-        0.0,
-        actual_distance - barycentre_distance_from_most_massive,
-        0.0,
+        pair_eccentricity as f32,
         0.0,
         0.0,
         0.0,
@@ -636,6 +661,7 @@ fn calculate_distance_from_system_center(
     orbital_point_id: u32,
     all_objects: &mut [OrbitalPoint],
     calculated_ids: &mut HashSet<u32>,
+    id_to_index: &HashMap<u32, usize>,
 ) {
     // Check if the distance for this orbital point has already been calculated
     if !calculated_ids.insert(orbital_point_id) {
@@ -645,21 +671,25 @@ fn calculate_distance_from_system_center(
     // Find the orbital point in the list of all objects. Every id reaching this
     // function comes from an orbit stored on one of those objects, so the lookup
     // cannot fail; if the invariant is ever broken, skip instead of panicking.
-    let Some(orbital_point_index) = all_objects.iter().position(|op| op.id == orbital_point_id)
-    else {
+    let Some(&orbital_point_index) = id_to_index.get(&orbital_point_id) else {
         return;
     };
 
-    let (orbit_option, orbital_point) = {
-        let orbital_point = &all_objects[orbital_point_index];
-        (orbital_point.own_orbit.clone(), orbital_point.clone())
-    };
-
     // Calculate the distance for the primary orbit if it exists
-    if let Some(orbit) = orbit_option {
-        calculate_distance_from_system_center(orbit.primary_body_id, all_objects, calculated_ids);
+    if let Some(primary_body_id) = all_objects[orbital_point_index]
+        .own_orbit
+        .as_ref()
+        .map(|orbit| orbit.primary_body_id)
+    {
+        calculate_distance_from_system_center(
+            primary_body_id,
+            all_objects,
+            calculated_ids,
+            id_to_index,
+        );
 
-        let primary_orbit_distance = get_primary_orbit_distance(&orbit, all_objects);
+        let primary_orbit_distance =
+            get_primary_orbit_distance(primary_body_id, all_objects, id_to_index);
 
         // Update the distance from the system center
         if let Some(own_orbit) = &mut all_objects[orbital_point_index].own_orbit {
@@ -667,29 +697,36 @@ fn calculate_distance_from_system_center(
         }
     }
 
-    // Calculate the distances for any orbits around this orbital point
-    for orbit in orbital_point.orbits.clone() {
-        calculate_distance_from_system_center(orbit.primary_body_id, all_objects, calculated_ids);
+    // Calculate the distances for any orbits around this orbital point. The
+    // recursion never adds or removes orbits, so index-based iteration is exact.
+    let orbit_count = all_objects[orbital_point_index].orbits.len();
+    for orbit_index in 0..orbit_count {
+        let primary_body_id = all_objects[orbital_point_index].orbits[orbit_index].primary_body_id;
+        calculate_distance_from_system_center(
+            primary_body_id,
+            all_objects,
+            calculated_ids,
+            id_to_index,
+        );
 
-        let primary_orbit_distance = get_primary_orbit_distance(&orbit, all_objects);
+        let primary_orbit_distance =
+            get_primary_orbit_distance(primary_body_id, all_objects, id_to_index);
 
-        if let Some(orbit) = all_objects[orbital_point_index]
-            .orbits
-            .iter_mut()
-            .find(|o| o.id.unwrap_or(u32::MAX) == orbit.id.unwrap_or(u32::MAX))
-        {
-            orbit.average_distance_from_system_center += primary_orbit_distance;
-        }
+        all_objects[orbital_point_index].orbits[orbit_index].average_distance_from_system_center +=
+            primary_orbit_distance;
     }
 }
 
-fn get_primary_orbit_distance(orbit: &Orbit, all_objects: &[OrbitalPoint]) -> f64 {
+fn get_primary_orbit_distance(
+    primary_body_id: u32,
+    all_objects: &[OrbitalPoint],
+    id_to_index: &HashMap<u32, usize>,
+) -> f64 {
     // The primary body's id always refers to an existing orbital point; a missing
     // one (broken invariant) deterministically yields the same 0.0 as no orbit.
-    let primary_orbit_option = all_objects
-        .iter()
-        .find(|op| op.id == orbit.primary_body_id)
-        .and_then(|op| op.own_orbit.as_ref());
+    let primary_orbit_option = id_to_index
+        .get(&primary_body_id)
+        .and_then(|&index| all_objects[index].own_orbit.as_ref());
 
     match primary_orbit_option {
         Some(primary_orbit) => primary_orbit.average_distance_from_system_center,
@@ -701,6 +738,47 @@ fn update_existing_orbits(all_objects: &mut Vec<OrbitalPoint>) {
     all_objects
         .iter_mut()
         .for_each(|o| o.update_object_own_orbit());
+}
+
+/// Rolls the eccentricity of a binary pair's orbit around its barycentre. Called once
+/// per pair; both members carry the same value (aligned apsides), which the
+/// forbidden-zone formula (a1 + a2) * (1 -/+ e) relies upon.
+///
+/// The curve mirrors the style of `calculate_planet_orbit_eccentricity` (a 3d6 table
+/// plus a small jitter), weighted towards low values: most close binaries are tidally
+/// circularized, so the zero bucket (e <= 0.05) is the most likely outcome (~26%,
+/// exact 0.0 about half of that after jitter) and the result is clamped to 0.0..=0.6.
+fn generate_pair_eccentricity(
+    star_orbital_point_id: u32,
+    system_index: u16,
+    coord: SpaceCoordinates,
+    galaxy: &Galaxy,
+) -> f64 {
+    let mut rng = SeededDiceRoller::new(
+        &galaxy.settings.seed,
+        &format!(
+            "sys_{}_{}_str_{}_pair_ecc",
+            coord, system_index, star_orbital_point_id
+        ),
+    );
+    let roll = rng.roll(3, 6, 0);
+    ((if roll <= 8 {
+        0.0
+    } else if roll <= 10 {
+        0.1
+    } else if roll <= 12 {
+        0.2
+    } else if roll <= 14 {
+        0.3
+    } else if roll <= 16 {
+        0.4
+    } else if roll <= 17 {
+        0.5
+    } else {
+        0.6
+    }) + (rng.roll(1, 11, -6) as f64 * 0.01))
+        .max(0.0)
+        .min(0.6)
 }
 
 fn generate_distance_between_stars(
@@ -814,6 +892,64 @@ mod tests {
         // The field rides along with the accepted generation try; nothing in the
         // pipeline pushes diagnostics yet, so it is present but empty.
         assert!(system.diagnostics.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn binary_pair_members_share_one_seeded_eccentricity() -> Result<(), GenerationError> {
+        let settings = GenerationSettings {
+            seed: Rc::from("binary-pair-eccentricity"),
+            ..Default::default()
+        };
+        let mut diagnostics = Diagnostics::default();
+        let universe = Universe::generate(&settings, &mut diagnostics);
+        let neighborhood = GalacticNeighborhood::generate(universe, &settings, &mut diagnostics);
+        let galaxy = Galaxy::generate(neighborhood, 0, &settings);
+
+        let mut all_objects = Vec::new();
+        let most_massive_point =
+            OrbitalPoint::new(1, None, AstronomicalObject::Star(Star::default()), vec![]);
+        let less_massive_point =
+            OrbitalPoint::new(2, None, AstronomicalObject::Star(Star::default()), vec![]);
+
+        make_binary_pair(
+            2,
+            2.0,
+            1.0,
+            most_massive_point,
+            1.0,
+            1.0,
+            less_massive_point,
+            0.5,
+            0,
+            0,
+            SpaceCoordinates::new(0, 0, 0),
+            &galaxy,
+            &mut all_objects,
+        );
+
+        assert_eq!(all_objects.len(), 2);
+        let orbit1 = all_objects[0]
+            .own_orbit
+            .clone()
+            .expect("a binary pair member always gets its own orbit");
+        let orbit2 = all_objects[1]
+            .own_orbit
+            .clone()
+            .expect("a binary pair member always gets its own orbit");
+
+        // Both stars share the pair's eccentricity (aligned apsides), which the
+        // forbidden-zone formula (a1 + a2) * (1 -/+ e) relies upon.
+        assert_eq!(orbit1.eccentricity, orbit2.eccentricity);
+        assert!((0.0..=0.6).contains(&orbit1.eccentricity));
+        // The separation fields must be filled consistently with the eccentricity,
+        // the same way planet orbits fill them.
+        assert!(orbit1.min_separation > 0.0);
+        assert!(orbit1.min_separation <= orbit1.average_distance);
+        assert!(orbit1.max_separation >= orbit1.average_distance);
+        assert!(orbit2.min_separation > 0.0);
+        assert!(orbit2.min_separation <= orbit2.average_distance);
+        assert!(orbit2.max_separation >= orbit2.average_distance);
         Ok(())
     }
 }

@@ -13,17 +13,22 @@ use smart_default::SmartDefault;
 
 /// The current age of the Milky Way.
 pub const OUR_GALAXYS_AGE: f32 = 13.61;
-/// The current age of the universe.
+/// The name of our galaxy.
 pub const OUR_GALAXYS_NAME: &str = "Milky Way";
-/// The current age of the universe.
+/// The category of our galaxy.
 pub const OUR_GALAXYS_CATEGORY: GalaxyCategory = GalaxyCategory::Spiral(16203, 160);
-/// The current age of the universe.
+/// The sub-category of our galaxy.
 pub const OUR_GALAXYS_SUB_CATEGORY: GalaxySubCategory = GalaxySubCategory::BarredSpiral;
-/// The current age of the universe.
+/// A galaxy with no special trait.
 pub const NO_SPECIAL_TRAIT: GalaxySpecialTrait = GalaxySpecialTrait::NoPeculiarity;
 /// The width and height, in cells, of a rasterized galactic region map layer.
 pub const REGION_GRID_RESOLUTION: usize = 256;
-/// TODO List of all galaxies in our local group
+/// The real galaxies of our Local Group, used when `galaxy.use_ours` is set. Indices 0-2 are the
+/// three spirals (the 2 majors of the `Group(2, 36)` density plus Triangulum); indices 3-37 are
+/// minor members in rough order of distance from the Milky Way: its own satellites first, then the
+/// Andromeda subsystem, then the more isolated dwarfs. Sizes are plausible spans in parsecs
+/// (dwarf spheroidals as [Elliptical](GalaxyCategory::Elliptical) radii, dwarf irregulars as
+/// [Irregular](GalaxyCategory::Irregular) length/width/height); ages are old, in billions of years.
 pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     GalaxyWithoutTraits {
         index: 0,
@@ -61,145 +66,146 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
+    // Satellites of the Milky Way.
     GalaxyWithoutTraits {
         index: 3,
-        name: "TODO",
-        age: -1.0,
+        name: "Sagittarius Dwarf Spheroidal",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(1000),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::Interacting,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 4,
-        name: "TODO",
-        age: -1.0,
+        name: "Large Magellanic Cloud",
+        age: 13.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Irregular(9500, 8500, 1500),
+        sub_category: GalaxySubCategory::BarredSpiral,
+        first_trait: GalaxySpecialTrait::Interacting,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 5,
-        name: "TODO",
-        age: -1.0,
+        name: "Small Magellanic Cloud",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Irregular(5500, 4500, 2000),
+        sub_category: GalaxySubCategory::Amorphous,
+        first_trait: GalaxySpecialTrait::Interacting,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 6,
-        name: "TODO",
-        age: -1.0,
+        name: "Ursa Minor Dwarf",
+        age: 13.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(450),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::MetalPoor,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 7,
-        name: "TODO",
-        age: -1.0,
+        name: "Draco Dwarf",
+        age: 13.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(400),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::MetalPoor,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 8,
-        name: "TODO",
-        age: -1.0,
+        name: "Sculptor Dwarf",
+        age: 13.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(550),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::MetalPoor,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 9,
-        name: "TODO",
-        age: -1.0,
+        name: "Sextans Dwarf",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(800),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::MetalPoor,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 10,
-        name: "TODO",
-        age: -1.0,
+        name: "Carina Dwarf",
+        age: 12.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(500),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 11,
-        name: "TODO",
-        age: -1.0,
+        name: "Fornax Dwarf",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(1000),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::ExtendedHalo,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 12,
-        name: "TODO",
-        age: -1.0,
+        name: "Leo II",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(400),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 13,
-        name: "TODO",
-        age: -1.0,
+        name: "Leo I",
+        age: 11.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(500),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 14,
-        name: "TODO",
-        age: -1.0,
+        name: "Phoenix Dwarf",
+        age: 12.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(600, 550, 300),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -207,59 +213,60 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 15,
-        name: "TODO",
-        age: -1.0,
+        name: "Leo T",
+        age: 12.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(400, 350, 250),
         sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        first_trait: GalaxySpecialTrait::GasRich,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 16,
-        name: "TODO",
-        age: -1.0,
+        name: "NGC 6822",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Irregular(2200, 2000, 600),
+        sub_category: GalaxySubCategory::BarredSpiral,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
+    // The Andromeda subsystem.
     GalaxyWithoutTraits {
         index: 17,
-        name: "TODO",
-        age: -1.0,
+        name: "NGC 185",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(1500),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 18,
-        name: "TODO",
-        age: -1.0,
+        name: "NGC 147",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(1500),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 19,
-        name: "TODO",
-        age: -1.0,
+        name: "IC 1613",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(2000, 1800, 500),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -267,95 +274,96 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 20,
-        name: "TODO",
-        age: -1.0,
+        name: "Andromeda I",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(600),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 21,
-        name: "TODO",
-        age: -1.0,
+        name: "Andromeda III",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(600),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 22,
-        name: "TODO",
-        age: -1.0,
+        name: "M32",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(1000),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::Compact(150),
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 23,
-        name: "TODO",
-        age: -1.0,
+        name: "M110",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(4500),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 24,
-        name: "TODO",
-        age: -1.0,
+        name: "Andromeda V",
+        age: 13.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(500),
+        sub_category: GalaxySubCategory::DwarfElliptical,
+        first_trait: GalaxySpecialTrait::MetalPoor,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 25,
-        name: "TODO",
-        age: -1.0,
+        name: "Andromeda II",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(1500),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
+    // The more isolated members of the group.
     GalaxyWithoutTraits {
         index: 26,
-        name: "TODO",
-        age: -1.0,
+        name: "Cetus Dwarf",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
-        sub_category: GalaxySubCategory::DwarfAmorphous,
+        is_major: false,
+        category: GalaxyCategory::Elliptical(900),
+        sub_category: GalaxySubCategory::DwarfElliptical,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 27,
-        name: "TODO",
-        age: -1.0,
+        name: "Leo A",
+        age: 12.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(800, 700, 300),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -363,11 +371,11 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 28,
-        name: "TODO",
-        age: -1.0,
+        name: "LGS 3",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(600, 500, 250),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -375,35 +383,35 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 29,
-        name: "TODO",
-        age: -1.0,
+        name: "IC 10",
+        age: 12.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(1800, 1600, 600),
         sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        first_trait: GalaxySpecialTrait::Starburst,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 30,
-        name: "TODO",
-        age: -1.0,
+        name: "Andromeda VIII",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(2200, 700, 300),
         sub_category: GalaxySubCategory::DwarfAmorphous,
-        first_trait: NO_SPECIAL_TRAIT,
+        first_trait: GalaxySpecialTrait::Interacting,
         second_trait: NO_SPECIAL_TRAIT,
         third_trait: NO_SPECIAL_TRAIT,
     },
     GalaxyWithoutTraits {
         index: 31,
-        name: "TODO",
-        age: -1.0,
+        name: "Pegasus Dwarf",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(900, 800, 350),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -411,11 +419,11 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 32,
-        name: "TODO",
-        age: -1.0,
+        name: "WLM",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(2800, 2500, 800),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -423,11 +431,11 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 33,
-        name: "TODO",
-        age: -1.0,
+        name: "Aquarius Dwarf",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(700, 600, 300),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -435,11 +443,11 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 34,
-        name: "TODO",
-        age: -1.0,
+        name: "Sagittarius Dwarf Irregular",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(900, 800, 300),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -447,11 +455,11 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 35,
-        name: "TODO",
-        age: -1.0,
+        name: "Antlia Dwarf",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(800, 700, 300),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -459,11 +467,11 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 36,
-        name: "TODO",
-        age: -1.0,
+        name: "Sextans B",
+        age: 12.5,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(1600, 1400, 500),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -471,11 +479,11 @@ pub const LOCAL_GROUP_GALAXIES: [GalaxyWithoutTraits; 38] = [
     },
     GalaxyWithoutTraits {
         index: 37,
-        name: "TODO",
-        age: -1.0,
+        name: "Sextans A",
+        age: 12.0,
         is_dominant: false,
-        is_major: true,
-        category: GalaxyCategory::Irregular(10, 10, 10),
+        is_major: false,
+        category: GalaxyCategory::Irregular(1800, 1600, 500),
         sub_category: GalaxySubCategory::DwarfAmorphous,
         first_trait: NO_SPECIAL_TRAIT,
         second_trait: NO_SPECIAL_TRAIT,
@@ -550,7 +558,7 @@ pub fn get_opposite_traits() -> Vec<OppositeTraits> {
 ///
 /// The Nucleus and Bulge zones are kept deliberately tiny (about 1% of the disc area): their density tiers
 /// spawn roughly one system per hex at 99%+ probability, so large central zones would unbalance generation.
-pub const DEFAULT_REGION_MAP_SPIRAL: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+pub const DEFAULT_REGION_MAP_SPIRAL: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" shape-rendering="crispEdges">
   <circle cx="512" cy="512" r="512" fill="#800080"/>
   <circle cx="512" cy="512" r="478" fill="#008080"/>
   <polygon points="571.2,512.0 575.7,508.2 580.3,503.8 584.9,498.7 589.5,493.0 594.1,486.6 598.5,479.4 601.0,472.2 603.2,464.5 605.0,456.2 606.4,447.4 607.3,438.0 607.7,428.1 607.5,417.6 606.5,406.5 604.9,395.0 602.4,382.9 599.0,370.3 594.6,357.3 589.2,343.9 582.7,330.2 574.9,316.1 565.9,301.7 555.4,287.2 543.5,272.5 530.0,257.9 514.9,243.3 498.1,228.9 479.4,214.8 458.9,201.1 436.4,188.0 411.9,175.6 385.3,164.2 356.6,153.8 325.8,144.7 292.7,137.0 257.4,131.0 219.8,127.0 189.6,136.4 167.7,156.4 147.0,177.6 237.7,260.7 266.7,258.6 294.3,258.3 320.4,259.5 345.0,262.2 368.2,266.1 389.9,271.1 410.1,277.1 428.9,283.9 446.4,291.4 462.4,299.5 477.2,308.1 490.6,317.1 502.9,326.3 513.9,335.8 523.8,345.4 532.7,355.0 540.5,364.6 547.3,374.1 553.3,383.5 558.4,392.8 562.6,401.8 566.2,410.6 569.1,419.1 571.3,427.3 572.9,435.3 574.0,442.8 574.6,450.1 574.8,457.0 574.5,463.5 573.9,469.6 573.0,475.4 571.8,480.9 570.4,485.9 568.7,490.7 568.4,494.6 567.8,498.4 566.9,502.0 565.9,505.5 564.6,508.8 563.1,512.0" fill="#0000FF"/>
@@ -565,7 +573,7 @@ pub const DEFAULT_REGION_MAP_SPIRAL: &str = r##"<svg xmlns="http://www.w3.org/20
 ///
 /// The Bulge zone is kept deliberately small (under 2% of the disc area): its density tier spawns roughly
 /// one system per hex at ~99% probability, so a large bulge would unbalance generation.
-pub const DEFAULT_REGION_MAP_LENTICULAR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+pub const DEFAULT_REGION_MAP_LENTICULAR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" shape-rendering="crispEdges">
   <circle cx="512" cy="512" r="512" fill="#800080"/>
   <circle cx="512" cy="512" r="470" fill="#008080"/>
   <circle cx="512" cy="512" r="56" fill="#FFA500"/>
@@ -577,7 +585,7 @@ pub const DEFAULT_REGION_MAP_LENTICULAR: &str = r##"<svg xmlns="http://www.w3.or
 ///
 /// The Core zone is kept deliberately small (about 1% of the ellipse area): its density tier spawns roughly
 /// one system per hex at ~99% probability, so a large core would unbalance generation.
-pub const DEFAULT_REGION_MAP_ELLIPTICAL: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+pub const DEFAULT_REGION_MAP_ELLIPTICAL: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" shape-rendering="crispEdges">
   <circle cx="512" cy="512" r="512" fill="#800080"/>
   <ellipse cx="512" cy="512" rx="470" ry="360" fill="#008000"/>
   <circle cx="512" cy="512" r="40" fill="#FFFFFF"/>
@@ -588,7 +596,11 @@ pub const DEFAULT_REGION_MAP_ELLIPTICAL: &str = r##"<svg xmlns="http://www.w3.or
 /// galaxies: an off-center Disk (teal) blob made of two overlapping ellipses with two `OpenCluster` (cyan)
 /// knots, surrounded by a generous Aura (magenta) halo reaching the map edges. The unfilled corners count
 /// as Void.
-pub const DEFAULT_REGION_MAP_IRREGULAR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+///
+/// `shape-rendering="crispEdges"` turns off anti-aliasing: every rasterized pixel is exactly one palette
+/// color, so no pixel blends into an off-palette color that would trigger an
+/// [`SvgPixelsUnmatched`](crate::diagnostics::types::GenerationWarning::SvgPixelsUnmatched) warning.
+pub const DEFAULT_REGION_MAP_IRREGULAR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" shape-rendering="crispEdges">
   <ellipse cx="512" cy="512" rx="510" ry="500" fill="#FF00FF"/>
   <ellipse cx="460" cy="530" rx="220" ry="160" fill="#008080"/>
   <ellipse cx="570" cy="480" rx="150" ry="115" fill="#008080"/>
@@ -839,6 +851,35 @@ mod tests {
             assert!(
                 GalacticRegionMap::build(&layers, start, end).is_some(),
                 "The default layers of {category} should build."
+            );
+        }
+    }
+
+    #[test]
+    fn default_maps_rasterize_without_unmatched_pixels() {
+        // All four default maps use `shape-rendering="crispEdges"` so their edges
+        // never anti-alias into off-palette blends: no SvgPixelsUnmatched warning
+        // allowed on any of them.
+        let (start, end) = test_bounds();
+        for svg in [
+            DEFAULT_REGION_MAP_SPIRAL,
+            DEFAULT_REGION_MAP_LENTICULAR,
+            DEFAULT_REGION_MAP_ELLIPTICAL,
+            DEFAULT_REGION_MAP_IRREGULAR,
+        ] {
+            let mut diagnostics = crate::diagnostics::types::Diagnostics::default();
+            let map = GalacticRegionMap::build_with_diagnostics(
+                &[svg.to_string()],
+                start,
+                end,
+                &mut diagnostics,
+            )
+            .expect("The default SVG should parse.");
+            let _ = map;
+            assert!(
+                diagnostics.warnings.is_empty(),
+                "A default map should rasterize clean, got {:?}.",
+                diagnostics.warnings
             );
         }
     }

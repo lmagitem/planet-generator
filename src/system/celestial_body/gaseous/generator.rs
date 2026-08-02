@@ -29,6 +29,7 @@ use crate::utils::conversion::ConversionUtils;
 use crate::utils::math::MathUtils;
 use crate::utils::string::StringUtils;
 use seeded_dice_roller::SeededDiceRoller;
+use std::fmt::Write as _;
 use std::mem::discriminant;
 
 impl GaseousBodyDetails {
@@ -42,13 +43,14 @@ impl GaseousBodyDetails {
         populated_orbit_index: u32,
         next_id: &mut u32,
     ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
-        let mut rng = SeededDiceRoller::new(
-            &settings.seed,
-            &format!(
+        let mut rng = ctx.system.with_step(|step| {
+            let _ = write!(
+                step,
                 "sys_{}_{}_str_{}_gas_bdy{}",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, body_id
-            ),
-        );
+            );
+            SeededDiceRoller::new(&settings.seed, step)
+        });
         let mut moons: Vec<OrbitalPoint> = Vec::new();
         let mut object = AstronomicalObject::Void;
         let mut this_orbit = orbit.clone();

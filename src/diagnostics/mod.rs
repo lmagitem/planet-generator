@@ -104,13 +104,16 @@ impl Display for SettingsError {
             ),
             SettingsError::InvalidUniverseAge(age) => write!(
                 f,
-                "Invalid universe age {age}: must be higher or equal to 0.4 and lower than 100000."
+                "Invalid universe age {age}: must be between 0.4 and 99999.99 inclusive."
             ),
             SettingsError::InvalidStarAge(age) => {
-                write!(f, "Invalid star age {age}: must not be negative.")
+                write!(f, "Invalid star age {age}: must not be negative or NaN.")
             }
             SettingsError::InvalidStarMass(mass) => {
-                write!(f, "Invalid star mass {mass}: must not be negative.")
+                write!(f, "Invalid star mass {mass}: must not be negative or NaN.")
+            }
+            SettingsError::InvalidGalaxyAge(age) => {
+                write!(f, "Invalid galaxy age {age}: must not be negative or NaN.")
             }
             SettingsError::AllBodyTypesDisabled => {
                 write!(

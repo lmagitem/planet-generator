@@ -24,71 +24,118 @@ pub enum GalacticNeighborhoodDensity {
 
 impl Display for GalacticNeighborhoodDensity {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            GalacticNeighborhoodDensity::Void(g, m) => write!(
-                f,
-                "Void with {}{}{} galax{}",
-                if g > &0 {
-                    format!("{} major", g)
-                } else {
-                    "".to_string()
-                },
-                if g > &0 && m > &0 { " and " } else { "" },
-                if m > &0 {
-                    format!("{} minor", m)
-                } else {
-                    "".to_string()
-                },
-                if *m == 1 { "y" } else { "ies" }
-            ),
-            GalacticNeighborhoodDensity::Group(g, m) => write!(
-                f,
-                "Group with {}{}{} galax{}",
-                if g > &0 {
-                    format!("{} major", g)
-                } else {
-                    "".to_string()
-                },
-                if g > &0 && m > &0 { " and " } else { "" },
-                if m > &0 {
-                    format!("{} minor", m)
-                } else {
-                    "".to_string()
-                },
-                if *m == 1 { "y" } else { "ies" }
-            ),
-            GalacticNeighborhoodDensity::Cluster(d, g, m) => write!(
-                f,
-                "Cluster with {}{}{}{}{} galax{}",
-                if d > &0 {
-                    format!("{} dominant", d)
-                } else {
-                    "".to_string()
-                },
-                if d > &0 && g > &0 && m > &0 {
-                    ", "
-                } else if (d > &0 && m > &0) || (d > &0 && g > &0) {
-                    " and "
-                } else {
-                    ""
-                },
-                if g > &0 {
-                    format!("{} major", m)
-                } else {
-                    "".to_string()
-                },
-                if (m > &0 && d > &0) || (m > &0 && g > &0) {
-                    " and "
-                } else {
-                    ""
-                },
-                if m > &0 {
-                    format!("{} minor", m)
-                } else {
-                    "".to_string()
-                },
-                if *m == 1 { "y" } else { "ies" }
-            ),
+        /// Builds one "<count> <kind> galaxy/galaxies" fragment; the plural
+        /// follows THIS count alone.
+        fn count_fragment(count: u16, kind: &str) -> String {
+            format!(
+                "{} {} galax{}",
+                count,
+                kind,
+                if count == 1 { "y" } else { "ies" }
+            )
         }
+
+        /// Joins one to three fragments the way this type always has:
+        /// "a", "a and b", or "a, b and c".
+        fn join(fragments: &[String]) -> String {
+            match fragments.len() {
+                0 => "no galaxies".to_string(),
+                1 => fragments[0].clone(),
+                2 => format!("{} and {}", fragments[0], fragments[1]),
+                _ => format!("{}, {} and {}", fragments[0], fragments[1], fragments[2]),
+            }
+        }
+
+        match self {
+            GalacticNeighborhoodDensity::Void(g, m) => {
+                let mut fragments = Vec::new();
+                if *g > 0 {
+                    fragments.push(count_fragment(u16::from(*g), "major"));
+                }
+                if *m > 0 {
+                    fragments.push(count_fragment(*m, "minor"));
+                }
+                write!(f, "Void with {}", join(&fragments))
+            }
+            GalacticNeighborhoodDensity::Group(g, m) => {
+                let mut fragments = Vec::new();
+                if *g > 0 {
+                    fragments.push(count_fragment(u16::from(*g), "major"));
+                }
+                if *m > 0 {
+                    fragments.push(count_fragment(*m, "minor"));
+                }
+                write!(f, "Group with {}", join(&fragments))
+            }
+            GalacticNeighborhoodDensity::Cluster(d, g, m) => {
+                let mut fragments = Vec::new();
+                if *d > 0 {
+                    fragments.push(count_fragment(u16::from(*d), "dominant"));
+                }
+                if *g > 0 {
+                    fragments.push(count_fragment(u16::from(*g), "major"));
+                }
+                if *m > 0 {
+                    fragments.push(count_fragment(*m, "minor"));
+                }
+                write!(f, "Cluster with {}", join(&fragments))
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use GalacticNeighborhoodDensity::{Cluster, Group, Void};
+
+    /// K14: each count's plural must follow its own count, a zero count must not
+    /// leave a double space or a dangling separator, and the Cluster arm must
+    /// print the MAJOR count in the major slot (it used to print the minor one).
+    #[test]
+    fn density_display_plurals_follow_each_count() {
+        assert_eq!("Void with 1 major galaxy", Void(1, 0).to_string());
+        assert_eq!("Void with 1 minor galaxy", Void(0, 1).to_string());
+        assert_eq!(
+            "Void with 2 major galaxies and 1 minor galaxy",
+            Void(2, 1).to_string()
+        );
+        assert_eq!(
+            "Void with 1 major galaxy and 3 minor galaxies",
+            Void(1, 3).to_string()
+        );
+        assert_eq!(
+            "Group with 1 major galaxy and 1 minor galaxy",
+            Group(1, 1).to_string()
+        );
+        assert_eq!(
+            "Group with 2 major galaxies and 23 minor galaxies",
+            Group(2, 23).to_string()
+        );
+    }
+
+    #[test]
+    fn density_display_cluster_uses_the_major_count_in_the_major_slot() {
+        // Regression pin: the major slot used to print the MINOR count (5 here).
+        assert_eq!(
+            "Cluster with 1 dominant galaxy, 2 major galaxies and 5 minor galaxies",
+            Cluster(1, 2, 5).to_string()
+        );
+        assert_eq!(
+            "Cluster with 1 dominant galaxy and 1 major galaxy",
+            Cluster(1, 1, 0).to_string()
+        );
+        assert_eq!(
+            "Cluster with 5 minor galaxies",
+            Cluster(0, 0, 5).to_string()
+        );
+        assert_eq!(
+            "Cluster with 1 dominant galaxy",
+            Cluster(1, 0, 0).to_string()
+        );
+        assert_eq!(
+            "Cluster with 2 dominant galaxies and 3 minor galaxies",
+            Cluster(2, 0, 3).to_string()
+        );
     }
 }

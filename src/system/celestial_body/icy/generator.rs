@@ -33,6 +33,7 @@ use crate::system::star::types::StarGenContext;
 use crate::utils::conversion::ConversionUtils;
 use crate::utils::string::StringUtils;
 use seeded_dice_roller::SeededDiceRoller;
+use std::fmt::Write as _;
 use std::mem::discriminant;
 use std::rc::Rc;
 
@@ -70,13 +71,14 @@ impl IcyBodyDetails {
         is_moon: bool,
         fixed_size: Option<CelestialBodySize>,
     ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
-        let mut rng = SeededDiceRoller::new(
-            &ctx.system.settings.seed,
-            &format!(
+        let mut rng = ctx.system.with_step(|step| {
+            let _ = write!(
+                step,
                 "sys_{}_{}_str_{}_bdy{}",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, body_id
-            ),
-        );
+            );
+            SeededDiceRoller::new(&ctx.system.settings.seed, step)
+        });
         let rolled_size = rng.roll(1, 400, size_modifier);
         let mut moons: Vec<OrbitalPoint> = Vec::new();
         let blackbody_temp = calculate_blackbody_temperature(ctx.star_luminosity, orbit_distance);
@@ -483,7 +485,11 @@ impl IcyBodyDetails {
             // Ice supergiant
             min_density = 0.9;
             max_density = 1.6;
-            mass = (rng.roll(1, 1000, 200 - 1) as f64).powf(2.0) / 100.0;
+            // `roll * roll`, NOT `powf(2.0)`: release builds inline `powf(x, 2.0)`
+            // as a multiplication while debug builds call libm `pow`, and the two
+            // do not always round identically — see tests/determinism.rs.
+            let roll = rng.roll(1, 1000, 200 - 1) as f64;
+            mass = roll * roll / 100.0;
             size = CelestialBodySize::Supergiant;
         } else {
             // Ice planet

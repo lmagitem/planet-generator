@@ -45,6 +45,7 @@ use seeded_dice_roller::{
 };
 use std::cmp::Ordering;
 use std::collections::HashMap;
+use std::fmt::Write as _;
 use std::mem::discriminant;
 use std::rc::Rc;
 
@@ -107,10 +108,8 @@ impl WorldGenerator {
                 )),
             }),
             moons
-                .clone()
                 .iter()
-                .filter(|o| o.own_orbit.is_some())
-                .map(|o| o.own_orbit.clone().unwrap_or_default())
+                .filter_map(|o| o.own_orbit.clone())
                 .collect::<Vec<Orbit>>(),
         )
     }
@@ -351,7 +350,10 @@ impl WorldGenerator {
         let ice_over_water = hydrosphere_and_cryosphere.1;
         let ice_over_land = hydrosphere_and_cryosphere.2;
         let cryosphere = ice_over_water + ice_over_land;
-        let land_area_percentage = 100.0 - hydrosphere - cryosphere;
+        // Clamped at 0: on worlds whose surface liquid isn't water (ammonia, methane...),
+        // the liquid and the water ice are accounted separately and can legitimately
+        // exceed 100% together in this model — in that case there is simply no land left.
+        let land_area_percentage = (100.0 - hydrosphere - cryosphere).max(0.0);
 
         let humidity = Self::generate_relative_humidity(
             coord,
@@ -371,13 +373,14 @@ impl WorldGenerator {
 
         // TODO: Planetary imbalances
         {
-            let mut rng = SeededDiceRoller::new(
-                &settings.seed,
-                &format!(
+            let mut rng = ctx.system.with_step(|step| {
+                let _ = write!(
+                    step,
                     "sys_{}_{}_str_{}_bdy{}_cmp",
                     coord, system_index, star_id, orbital_point_id
-                ),
-            );
+                );
+                SeededDiceRoller::new(&settings.seed, step)
+            });
             for special_trait in star_traits {
                 if let StarPeculiarity::UnusualElementPresence(component_and_occurrence) =
                     special_trait
@@ -467,13 +470,14 @@ impl WorldGenerator {
                 Vec::new();
             let _final_composition: Vec<(f32, ChemicalComponent)> = Vec::new();
             if atmospheric_pressure > 0.0 {
-                let mut rng = SeededDiceRoller::new(
-                    &settings.seed,
-                    &format!(
+                let mut rng = ctx.system.with_step(|step| {
+                    let _ = write!(
+                        step,
                         "sys_{}_{}_str_{}_bdy{}_atcmp",
                         coord, system_index, star_id, orbital_point_id
-                    ),
-                );
+                    );
+                    SeededDiceRoller::new(&settings.seed, step)
+                });
                 let mut carbon_system = false;
                 for special_trait in system_traits {
                     if special_trait == &SystemPeculiarity::CarbonRich {
@@ -853,11 +857,11 @@ impl WorldGenerator {
                             &mut add_other_flavor_components,
                         );
                     } else if roll <= 15 {
-                        if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                        if (discriminant(star_type) == discriminant(&StarSpectralType::M(0))
                             || discriminant(star_type) == discriminant(&StarSpectralType::L(0))
                             || discriminant(star_type) == discriminant(&StarSpectralType::T(0))
-                            || discriminant(star_type) == discriminant(&StarSpectralType::Y(0))
-                                && rng.roll(1, 3, 0) != 3
+                            || discriminant(star_type) == discriminant(&StarSpectralType::Y(0)))
+                            && rng.roll(1, 3, 0) != 3
                         {
                             // Methane and oxygen
                             Self::add_gas_methane_and_oxygen(
@@ -880,11 +884,11 @@ impl WorldGenerator {
                             );
                         }
                     } else if roll <= 16 {
-                        if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                        if (discriminant(star_type) == discriminant(&StarSpectralType::M(0))
                             || discriminant(star_type) == discriminant(&StarSpectralType::L(0))
                             || discriminant(star_type) == discriminant(&StarSpectralType::T(0))
-                            || discriminant(star_type) == discriminant(&StarSpectralType::Y(0))
-                                && rng.roll(1, 3, 0) != 3
+                            || discriminant(star_type) == discriminant(&StarSpectralType::Y(0)))
+                            && rng.roll(1, 3, 0) != 3
                         {
                             // Methane and oxygen
                             Self::add_gas_methane_and_oxygen(
@@ -1023,14 +1027,15 @@ impl WorldGenerator {
                                     &mut add_other_flavor_components,
                                 );
                             } else if roll <= 59 {
-                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                if (discriminant(star_type)
+                                    == discriminant(&StarSpectralType::M(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::L(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::T(0))
                                     || discriminant(star_type)
-                                        == discriminant(&StarSpectralType::Y(0))
-                                        && rng.roll(1, 2, 0) != 2
+                                        == discriminant(&StarSpectralType::Y(0)))
+                                    && rng.roll(1, 2, 0) != 2
                                 {
                                     // Methane and oxygen
                                     Self::add_gas_methane_and_oxygen(
@@ -1053,14 +1058,15 @@ impl WorldGenerator {
                                     );
                                 }
                             } else if roll <= 62 {
-                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                if (discriminant(star_type)
+                                    == discriminant(&StarSpectralType::M(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::L(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::T(0))
                                     || discriminant(star_type)
-                                        == discriminant(&StarSpectralType::Y(0))
-                                        && rng.roll(1, 2, 0) != 2
+                                        == discriminant(&StarSpectralType::Y(0)))
+                                    && rng.roll(1, 2, 0) != 2
                                 {
                                     // Methane and oxygen
                                     Self::add_gas_methane_and_oxygen(
@@ -1198,14 +1204,15 @@ impl WorldGenerator {
                                     &mut add_other_flavor_components,
                                 );
                             } else if roll <= 54 {
-                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                if (discriminant(star_type)
+                                    == discriminant(&StarSpectralType::M(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::L(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::T(0))
                                     || discriminant(star_type)
-                                        == discriminant(&StarSpectralType::Y(0))
-                                        && rng.roll(1, 2, 0) != 2
+                                        == discriminant(&StarSpectralType::Y(0)))
+                                    && rng.roll(1, 2, 0) != 2
                                 {
                                     // Methane and oxygen
                                     Self::add_gas_methane_and_oxygen(
@@ -1228,14 +1235,15 @@ impl WorldGenerator {
                                     );
                                 }
                             } else if roll <= 59 {
-                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                if (discriminant(star_type)
+                                    == discriminant(&StarSpectralType::M(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::L(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::T(0))
                                     || discriminant(star_type)
-                                        == discriminant(&StarSpectralType::Y(0))
-                                        && rng.roll(1, 2, 0) != 2
+                                        == discriminant(&StarSpectralType::Y(0)))
+                                    && rng.roll(1, 2, 0) != 2
                                 {
                                     // Methane and oxygen
                                     Self::add_gas_methane_and_oxygen(
@@ -1373,14 +1381,15 @@ impl WorldGenerator {
                                     &mut add_other_flavor_components,
                                 );
                             } else if roll <= 14 {
-                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                if (discriminant(star_type)
+                                    == discriminant(&StarSpectralType::M(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::L(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::T(0))
                                     || discriminant(star_type)
-                                        == discriminant(&StarSpectralType::Y(0))
-                                        && rng.roll(1, 2, 0) != 2
+                                        == discriminant(&StarSpectralType::Y(0)))
+                                    && rng.roll(1, 2, 0) != 2
                                 {
                                     // Methane and oxygen
                                     Self::add_gas_methane_and_oxygen(
@@ -1403,14 +1412,15 @@ impl WorldGenerator {
                                     );
                                 }
                             } else if roll <= 19 {
-                                if discriminant(star_type) == discriminant(&StarSpectralType::M(0))
+                                if (discriminant(star_type)
+                                    == discriminant(&StarSpectralType::M(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::L(0))
                                     || discriminant(star_type)
                                         == discriminant(&StarSpectralType::T(0))
                                     || discriminant(star_type)
-                                        == discriminant(&StarSpectralType::Y(0))
-                                        && rng.roll(1, 2, 0) != 2
+                                        == discriminant(&StarSpectralType::Y(0)))
+                                    && rng.roll(1, 2, 0) != 2
                                 {
                                     // Methane and oxygen
                                     Self::add_gas_methane_and_oxygen(
@@ -1529,13 +1539,14 @@ impl WorldGenerator {
 
                 // Flavor components
                 if add_other_flavor_components {
-                    let mut rng = SeededDiceRoller::new(
-                        &settings.seed,
-                        &format!(
+                    let mut rng = ctx.system.with_step(|step| {
+                        let _ = write!(
+                            step,
                             "sys_{}_{}_str_{}_bdy{}_atcmp_flavor",
                             coord, system_index, star_id, orbital_point_id
-                        ),
-                    );
+                        );
+                        SeededDiceRoller::new(&settings.seed, step)
+                    });
                     let number_of_elements = rng.roll(1, 3, 0);
                     for _number_of_element in 0..number_of_elements {
                         let picked_element = MOST_COMMON_ELEMENTS
@@ -1643,13 +1654,14 @@ impl WorldGenerator {
                 index += 1;
             }
 
-            let mut rng = SeededDiceRoller::new(
-                &settings.seed,
-                &format!(
+            let mut rng = ctx.system.with_step(|step| {
+                let _ = write!(
+                    step,
                     "sys_{}_{}_str_{}_bdy{}_atcmp_perct",
                     coord, system_index, star_id, orbital_point_id
-                ),
-            );
+                );
+                SeededDiceRoller::new(&settings.seed, step)
+            });
 
             guess_composition.sort_by(|a, b| a.0.cmp(&b.0));
             let mut rolled_composition: Vec<(f32, ChemicalComponent)> = vec![];
@@ -2782,7 +2794,7 @@ impl WorldGenerator {
                 let ice_water_percentage = rng.roll(1, 1000, 0) as f32 / 100.0;
 
                 // The sum of relative humidity everywhere, taking into account that oceans aren't primarily made of water, and ice might not be either
-                ((ocean_water_percentage / 100.0) * ice_humidity)
+                ((ocean_water_percentage / 100.0) * ocean_humidity)
                     + ((ice_water_percentage / 100.0) * ice_humidity)
                     + (land_area_percentage / 100.0) * land_humidity
             } else {
@@ -3042,8 +3054,8 @@ impl WorldGenerator {
         }
         if (can_have_water
             && (core_heat == CelestialBodyCoreHeat::ActiveCore
-                || core_heat == CelestialBodyCoreHeat::IntenseCore)
-            || tidal_heating >= 5)
+                || core_heat == CelestialBodyCoreHeat::IntenseCore
+                || tidal_heating >= 5))
             && ((world_type == CelestialBodyWorldType::Ice && rng.roll(1, random_chance, 0) == 1)
                 || ((world_type == CelestialBodyWorldType::Ammonia
                     || world_type == CelestialBodyWorldType::Hadean
@@ -3571,7 +3583,7 @@ impl WorldGenerator {
             } else if special_traits.iter().any(|x| {
                 matches!(
                     x,
-                    CelestialBodySpecialTrait::UnusualCore(TelluricCoreDifference::Smaller)
+                    CelestialBodySpecialTrait::UnusualCore(TelluricCoreDifference::Larger)
                 )
             }) {
                 2
@@ -3782,31 +3794,40 @@ fn generate_atmosphere(
         0
     };
     atmospheric_mass_modifier += if is_moon { -2 } else { 0 };
+    // Star peculiarities STACK on purpose: a star with several
+    // atmosphere-relevant peculiarities applies each modifier. No clamp is
+    // needed on the accumulated value: the pressure roll below clamps its
+    // RESULT with `.min(14).max(0)`, so any modifier — however large — still
+    // yields a valid bracket index (a large negative stack pins the world to
+    // the near-vacuum bracket, exactly what the pre-existing WR/O-class/
+    // Chthonian/moon stack already does).
     for peculiarity in star_traits {
-        if let StarPeculiarity::UnusualMetallicity(metallicity_difference) = peculiarity {
-            if discriminant(metallicity_difference)
-                == discriminant(&StarMetallicityDifference::MuchHigher)
+        atmospheric_mass_modifier +=
+            if let StarPeculiarity::UnusualMetallicity(metallicity_difference) = peculiarity {
+                if discriminant(metallicity_difference)
+                    == discriminant(&StarMetallicityDifference::MuchHigher)
+                {
+                    2
+                } else if discriminant(metallicity_difference)
+                    == discriminant(&StarMetallicityDifference::Higher)
+                {
+                    1
+                } else if discriminant(metallicity_difference)
+                    == discriminant(&StarMetallicityDifference::Lower)
+                {
+                    -1
+                } else {
+                    -2
+                }
+            } else if discriminant(peculiarity)
+                == discriminant(&StarPeculiarity::ExcessiveRadiation)
+                || discriminant(peculiarity) == discriminant(&StarPeculiarity::PowerfulStellarWinds)
+                || discriminant(peculiarity) == discriminant(&StarPeculiarity::StrongMagneticField)
             {
-                2
-            } else if discriminant(metallicity_difference)
-                == discriminant(&StarMetallicityDifference::Higher)
-            {
-                1
-            } else if discriminant(metallicity_difference)
-                == discriminant(&StarMetallicityDifference::Lower)
-            {
-                -1
-            } else {
                 -2
-            }
-        } else if discriminant(peculiarity) == discriminant(&StarPeculiarity::ExcessiveRadiation)
-            || discriminant(peculiarity) == discriminant(&StarPeculiarity::PowerfulStellarWinds)
-            || discriminant(peculiarity) == discriminant(&StarPeculiarity::StrongMagneticField)
-        {
-            -2
-        } else {
-            0
-        };
+            } else {
+                0
+            };
     }
     let mut rng = SeededDiceRoller::new(
         &settings.seed,
@@ -3926,4 +3947,244 @@ fn generate_atmosphere(
             rng.gen_range(atmospheric_pressure_bracket.0..atmospheric_pressure_bracket.1);
     }
     atmospheric_pressure
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_settings() -> GenerationSettings {
+        GenerationSettings {
+            seed: Rc::from("batch-d-unit"),
+            ..Default::default()
+        }
+    }
+
+    fn test_coord() -> SpaceCoordinates {
+        SpaceCoordinates::new(1, 2, 3)
+    }
+
+    /// K5: the per-peculiarity atmosphere modifiers must actually be applied to
+    /// `atmospheric_mass_modifier` (they were evaluated then dropped). Fails on
+    /// the pre-fix code: the pressure bracket index comes from
+    /// `rng.roll(1, 10, atmospheric_mass_modifier).min(14).max(0)`, and here the
+    /// inputs are chosen so the base modifier alone is +13 — always the top
+    /// bracket — while eleven stacked atmosphere-stripping traits (-2 each, the
+    /// stacking is intended) drag it to -9, always one of the two lowest
+    /// brackets, no matter the dice.
+    #[test]
+    fn star_trait_atmosphere_modifiers_are_applied_and_stack() {
+        let settings = test_settings();
+        let call = |star_traits: &Vec<StarPeculiarity>| {
+            generate_atmosphere(
+                test_coord(),
+                0,
+                1,
+                0.05, // young star: +1
+                &StarSpectralType::M(5),
+                &StarLuminosityClass::V,
+                star_traits,
+                7,
+                &Orbit {
+                    average_distance: 3.0, // beyond 2.0: 0
+                    ..Default::default()
+                },
+                CelestialBodySize::Standard,  // 0
+                25.0,                         // mass >= 20: +5
+                TelluricBodyComposition::Icy, // +2
+                CelestialBodyWorldType::Terrestrial,
+                150.0, // volcanism >= 100: +5
+                0.0,   // no hydrosphere shortcut
+                false, // not a moon
+                &settings,
+            )
+        };
+
+        // Setup check: without traits the modifier is +13, the roll is always
+        // clamped to the last index of the terrestrial table: [1.2, 1.5).
+        let without_traits = call(&Vec::new());
+        assert!(
+            (1.2..1.5).contains(&without_traits),
+            "setup check failed: without traits the top pressure bracket [1.2, 1.5) \
+             is expected, got {without_traits}"
+        );
+
+        // With the stacked traits the modifier is -9, so the clamped roll index
+        // is 0 or 1: brackets (0.5, 0.8) — always strictly below 1.2.
+        let traits = vec![StarPeculiarity::ExcessiveRadiation; 11];
+        let with_traits = call(&traits);
+        assert!(
+            with_traits < 1.2,
+            "star-trait atmosphere modifiers were dropped: expected pressure < 1.2 \
+             (bottom brackets), got {with_traits}"
+        );
+    }
+
+    fn core_heat_ordinal(heat: CelestialBodyCoreHeat) -> u8 {
+        match heat {
+            CelestialBodyCoreHeat::FrozenCore => 0,
+            CelestialBodyCoreHeat::WarmCore => 1,
+            CelestialBodyCoreHeat::ActiveCore => 2,
+            CelestialBodyCoreHeat::IntenseCore => 3,
+        }
+    }
+
+    /// K6: `TelluricCoreDifference::Larger` must hit the +2 core-heat arm (the
+    /// third arm mistakenly re-tested `Smaller`, so Larger silently got 0). The
+    /// weighted table maps `2d6 + modifier` monotonically (same seed -> same
+    /// dice, modifier only shifts the total), and the inputs below keep the
+    /// total modifier <= 0 so the +2 can never push the roll past the table's
+    /// top range into the fallback. Fails on the pre-fix code: Larger then gets
+    /// the same 0 as no trait and the results are always equal.
+    #[test]
+    fn larger_core_gets_the_plus_two_core_heat_modifier() {
+        let settings = test_settings();
+        let larger = vec![CelestialBodySpecialTrait::UnusualCore(
+            TelluricCoreDifference::Larger,
+        )];
+        let no_core_trait: Vec<CelestialBodySpecialTrait> = Vec::new();
+        let heat = |orbital_point_id: u32, traits: &Vec<CelestialBodySpecialTrait>| {
+            WorldGenerator::generate_core_heat(
+                test_coord(),
+                0,
+                1,
+                4.0, // star age: -1
+                orbital_point_id,
+                &Orbit {
+                    eccentricity: 0.05, // 0
+                    ..Default::default()
+                },
+                CelestialBodySize::Small,       // -2
+                4.0,                            // density: 0
+                TelluricBodyComposition::Rocky, // 0
+                CelestialBodyWorldType::Rock,
+                traits,
+                0,   // tidal heating: 0
+                1.0, // rotation speed: +1
+                &settings,
+                1.0, // distance from star: 0
+            )
+        };
+
+        let mut strictly_hotter = 0;
+        for orbital_point_id in 1..=12 {
+            let with_larger = core_heat_ordinal(heat(orbital_point_id, &larger));
+            let baseline = core_heat_ordinal(heat(orbital_point_id, &no_core_trait));
+            assert!(
+                with_larger >= baseline,
+                "a Larger core must never cool the roll: point {orbital_point_id} \
+                 gave {with_larger} < {baseline}"
+            );
+            if with_larger > baseline {
+                strictly_hotter += 1;
+            }
+        }
+        assert!(
+            strictly_hotter > 0,
+            "the Larger-core +2 arm never fired across 12 seeds — the arm is dead"
+        );
+    }
+
+    /// K8a: a star-trait Water `Absence` (`can_have_water = false`) must not be
+    /// overridden by high tidal heating. Fails on the pre-fix code:
+    /// `(can_have_water && core) || tidal_heating >= 5` was true from the tidal
+    /// term alone. For an Ice world the chance roll is `roll(1, 1, 0) == 1`,
+    /// always true, so this is fully deterministic.
+    #[test]
+    fn water_absence_blocks_subsurface_oceans_even_with_tidal_heating() {
+        let settings = test_settings();
+        let water_absence = vec![StarPeculiarity::UnusualElementPresence((
+            ChemicalComponent::Water,
+            ElementPresenceOccurrence::Absence,
+        ))];
+
+        let mut special_traits = Vec::new();
+        WorldGenerator::compute_subsurface_oceans(
+            test_coord(),
+            0,
+            1,
+            &water_absence,
+            7,
+            &settings,
+            &mut special_traits,
+            CelestialBodyWorldType::Ice,
+            CelestialBodyCoreHeat::FrozenCore,
+            5, // tidal heating >= 5 must NOT override the Absence
+            3.0,
+        );
+        assert!(
+            !special_traits
+                .iter()
+                .any(|t| matches!(t, CelestialBodySpecialTrait::SubSurfaceOceans(_))),
+            "tidal heating overrode a star-trait Water Absence: {special_traits:?}"
+        );
+
+        // Control: without the Absence, the same world does get its ocean.
+        let mut control_traits = Vec::new();
+        WorldGenerator::compute_subsurface_oceans(
+            test_coord(),
+            0,
+            1,
+            &Vec::new(),
+            7,
+            &settings,
+            &mut control_traits,
+            CelestialBodyWorldType::Ice,
+            CelestialBodyCoreHeat::FrozenCore,
+            5,
+            3.0,
+        );
+        assert!(
+            control_traits
+                .iter()
+                .any(|t| matches!(t, CelestialBodySpecialTrait::SubSurfaceOceans(_))),
+            "control failed: tidal heating alone should allow the subsurface ocean"
+        );
+    }
+
+    /// K8b: in the "oceans aren't primarily made of water" humidity arm, the
+    /// ocean term must use `ocean_humidity` (it used `ice_humidity`). Fails on
+    /// the pre-fix code: at 300K ocean is 75.0 and ice is 57.5, so the expected
+    /// value only matches once the right term is used. The test replays the
+    /// exact roll sequence of the arm (land roll, then ocean-water percentage,
+    /// then ice-water percentage) — a regression pin on a direct unit call with
+    /// synthetic inputs, per campaign rules.
+    #[test]
+    #[allow(clippy::cast_precision_loss)] // mirrors the generator's own roll scaling
+    fn humidity_ocean_term_uses_ocean_humidity_not_ice_humidity() {
+        let settings = test_settings();
+        let (coord, system_index, star_id, orbital_point_id) = (test_coord(), 0, 1, 7);
+        let result = WorldGenerator::generate_relative_humidity(
+            coord,
+            system_index,
+            star_id,
+            orbital_point_id,
+            &settings,
+            300, // ocean_humidity = 75.0, ice_humidity = 57.5
+            &Vec::new(),
+            false, // no water...
+            true,  // ...but something else can be liquid
+            50.0,
+            1.0,
+            20.0, // cryosphere > 0.01, so the first arm is skipped
+            30.0, // land area percentage
+        );
+
+        let mut rng = SeededDiceRoller::new(
+            &settings.seed,
+            &format!("sys_{coord}_{system_index}_str_{star_id}_bdy{orbital_point_id}_hmdt"),
+        );
+        let land_humidity = (rng.roll(1, 15000, -10000) as f32 / 10000.0).clamp(0.0, 10.0);
+        let ocean_water_percentage = rng.roll(1, 1000, -500) as f32 / 100.0;
+        let ice_water_percentage = rng.roll(1, 1000, 0) as f32 / 100.0;
+        let expected = ((ocean_water_percentage / 100.0) * 75.0)
+            + ((ice_water_percentage / 100.0) * 57.5)
+            + (30.0_f32 / 100.0) * land_humidity;
+
+        assert!(
+            (result - expected).abs() < 1e-4,
+            "the ocean term should use ocean_humidity (75.0 at 300K): expected \
+             {expected}, got {result}"
+        );
+    }
 }

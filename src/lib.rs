@@ -1,3 +1,14 @@
+//! Generates galaxies, sectors, solar systems, planets and their inhabitants in a
+//! deterministic, seed-driven way.
+//!
+//! # Thread safety
+//!
+//! This crate is deliberately **single-threaded**: generated objects use `Rc<str>`
+//! and `RefCell` internally, so `GeneratedUniverse`, `Galaxy`, `StarSystem` and
+//! everything below them are `!Send` and `!Sync`. Generate on one thread; to move
+//! results across threads or an FFI boundary, serialize them (every generated object
+//! is `Serialize` / `Deserialize`) and deserialize on the other side.
+
 #![warn(clippy::all, clippy::pedantic)]
 mod diagnostics;
 mod galaxy;
@@ -42,6 +53,7 @@ pub mod prelude {
     pub use crate::system::celestial_body::traits::*;
     pub use crate::system::celestial_body::types::*;
     pub use crate::system::celestial_body::world::types::*;
+    pub use crate::system::celestial_body::world::utils::get_category_from_temperature;
     pub use crate::system::celestial_body::world::WorldGenerator;
     pub use crate::system::celestial_body::CelestialBody;
     pub use crate::system::celestial_disk::belt::types::*;

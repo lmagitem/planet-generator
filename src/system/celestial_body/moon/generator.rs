@@ -33,6 +33,7 @@ use crate::utils::string::StringUtils;
 use seeded_dice_roller::{
     CopyableRollToProcess, CopyableWeightedResult, RollMethod, SeededDiceRoller,
 };
+use std::fmt::Write as _;
 use std::iter::Filter;
 use std::slice::Iter;
 
@@ -129,15 +130,17 @@ impl MoonGenerator {
         mut number_of_inner_moonlets: i8,
         number_of_outer_moonlets: i8,
     ) {
-        let mut moon_stubs: Vec<OrbitalPoint> = Vec::new();
-        let _separate_inner_moonlets_and_major_moons = if SeededDiceRoller::new(
-            &ctx.system.settings.seed,
-            &format!(
-                "sys_{}_{}_str_{}_bdy{}_orbit",
-                ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
-            ),
-        )
-        .roll(1, 10, 0)
+        let _separate_inner_moonlets_and_major_moons = if ctx
+            .system
+            .with_step(|step| {
+                let _ = write!(
+                    step,
+                    "sys_{}_{}_str_{}_bdy{}_orbit",
+                    ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
+                );
+                SeededDiceRoller::new(&ctx.system.settings.seed, step)
+            })
+            .roll(1, 10, 0)
             == 1
         {
             true
@@ -149,6 +152,8 @@ impl MoonGenerator {
             + number_of_moonlets
             + number_of_inner_moonlets
             + number_of_outer_moonlets;
+        let mut moon_stubs: Vec<OrbitalPoint> =
+            Vec::with_capacity(orbits_to_generate.max(0) as usize);
         let mut closest_major_distance = f64::MAX;
         let mut record_closest_distance;
 
@@ -156,13 +161,14 @@ impl MoonGenerator {
             let moon_id = *next_id;
             *next_id += 1;
 
-            let mut rng = SeededDiceRoller::new(
-                &ctx.system.settings.seed,
-                &format!(
+            let mut rng = ctx.system.with_step(|step| {
+                let _ = write!(
+                    step,
                     "sys_{}_{}_str_{}_bdy{}_type",
                     ctx.system.coord, ctx.system.system_index, ctx.star_id, moon_id
-                ),
-            );
+                );
+                SeededDiceRoller::new(&ctx.system.settings.seed, step)
+            });
 
             let orbit = Some(Orbit {
                 primary_body_id: parent.planet_id,
@@ -262,13 +268,14 @@ impl MoonGenerator {
 
             let (moon_mass, moon_density, moon_radius) = Self::moon_body_stats(&moon_stub);
 
-            let mut rng = SeededDiceRoller::new(
-                &ctx.system.settings.seed,
-                &format!(
+            let mut rng = ctx.system.with_step(|step| {
+                let _ = write!(
+                    step,
                     "sys_{}_{}_str_{}_bdy{}_orbit",
                     ctx.system.coord, ctx.system.system_index, ctx.star_id, moon_id
-                ),
-            );
+                );
+                SeededDiceRoller::new(&ctx.system.settings.seed, step)
+            });
             let max_attempts = 50;
             let mut attempt_count = 0;
             let mut found = false;
@@ -379,7 +386,7 @@ impl MoonGenerator {
                             ctx.system.system_index,
                             ctx.star_id,
                             ctx.star_age,
-                            ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
+                            parent.planet_mass,
                             Some(parent.planet_orbital_period),
                             ctx.gas_giant_arrangement,
                             ctx.system.system_traits,
@@ -388,7 +395,7 @@ impl MoonGenerator {
                                 ctx.system.coord,
                                 ctx.system.system_index,
                                 ctx.star_id,
-                                ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
+                                parent.planet_mass,
                                 ctx.gas_giant_arrangement,
                                 moon_id,
                                 &moon_stub.own_orbit,
@@ -442,34 +449,24 @@ impl MoonGenerator {
             0.03,
         );
 
-        for i in 0..moon_stubs.len() {
-            let (stub_id, stub_orbit, stub_orbits, stub_body) = {
-                let current_stub = &moon_stubs[i];
-                (
-                    current_stub.id,
-                    current_stub.own_orbit.clone(),
-                    current_stub.orbits.clone(),
-                    current_stub.object.clone(),
-                )
-            };
-
+        let no_moons: Vec<OrbitalPoint> = Vec::new();
+        // moon_stubs is not used after this loop; consume it instead of cloning
+        // every field of every stub.
+        for (i, stub) in moon_stubs.into_iter().enumerate() {
             let tidal_heating = tidal_heating_array[i];
-            match stub_body {
-                AstronomicalObject::TelluricBody(stub_body) => {
-                    let polished = WorldGenerator::generate_world(
-                        ctx,
-                        stub_body,
-                        stub_orbit.unwrap_or_default(),
-                        stub_orbits,
-                        &Vec::new(),
-                        parent.parent_orbit.average_distance,
-                        stub_id,
-                        tidal_heating,
-                        true,
-                    );
-                    result.push(polished);
-                }
-                _ => {}
+            if let AstronomicalObject::TelluricBody(stub_body) = stub.object {
+                let polished = WorldGenerator::generate_world(
+                    ctx,
+                    stub_body,
+                    stub.own_orbit.unwrap_or_default(),
+                    stub.orbits,
+                    &no_moons,
+                    parent.parent_orbit.average_distance,
+                    stub.id,
+                    tidal_heating,
+                    true,
+                );
+                result.push(polished);
             }
         }
     }
@@ -706,13 +703,14 @@ impl MoonGenerator {
         ctx: &StarGenContext,
         parent: &ParentBodyInfo,
     ) -> (i8, i8, i8, i8) {
-        let mut rng = SeededDiceRoller::new(
-            &ctx.system.settings.seed,
-            &format!(
+        let mut rng = ctx.system.with_step(|step| {
+            let _ = write!(
+                step,
                 "sys_{}_{}_str_{}_bdy{}_moons",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
-            ),
-        );
+            );
+            SeededDiceRoller::new(&ctx.system.settings.seed, step)
+        });
         let mut modifier = if parent.parent_orbit.average_distance < 0.5 {
             -6
         } else if parent.parent_orbit.average_distance < 0.75 {
@@ -744,13 +742,14 @@ impl MoonGenerator {
         ctx: &StarGenContext,
         parent: &ParentBodyInfo,
     ) -> (i8, i8, i8, i8) {
-        let mut rng = SeededDiceRoller::new(
-            &ctx.system.settings.seed,
-            &format!(
+        let mut rng = ctx.system.with_step(|step| {
+            let _ = write!(
+                step,
                 "sys_{}_{}_str_{}_gas_bdy{}_moons",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
-            ),
-        );
+            );
+            SeededDiceRoller::new(&ctx.system.settings.seed, step)
+        });
 
         let size_modifier = if parent.planet_size == CelestialBodySize::Hypergiant {
             0
@@ -810,13 +809,14 @@ impl MoonGenerator {
         moons: &mut Vec<OrbitalPoint>,
         moonlets: i8,
     ) {
-        let mut rng = SeededDiceRoller::new(
-            &ctx.system.settings.seed,
-            &format!(
+        let mut rng = ctx.system.with_step(|step| {
+            let _ = write!(
+                step,
                 "sys_{}_{}_str_{}_gas_bdy{}_ring",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
-            ),
-        );
+            );
+            SeededDiceRoller::new(&ctx.system.settings.seed, step)
+        });
         let ring_composition = if moonlets < 4 {
             CelestialRingComposition::Dust
         } else {
@@ -857,13 +857,14 @@ impl MoonGenerator {
         let ring_mass = (moonlets as f64) * 2.0 * 10.0f64.powf(-7.0);
 
         let ring_distance = MoonGenerator::generate_moon_orbit_distance(
-            &mut SeededDiceRoller::new(
-                &ctx.system.settings.seed,
-                &format!(
+            &mut ctx.system.with_step(|step| {
+                let _ = write!(
+                    step,
                     "sys_{}_{}_str_{}_gas_bdy{}_ring",
                     ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
-                ),
-            ),
+                );
+                SeededDiceRoller::new(&ctx.system.settings.seed, step)
+            }),
             ctx.star_mass as f64,
             parent.parent_orbit.average_distance,
             parent.planet_mass as f64,
@@ -957,7 +958,7 @@ pub(crate) fn get_major_moons(
     moons: &Vec<OrbitalPoint>,
 ) -> Filter<Iter<'_, OrbitalPoint>, fn(&&OrbitalPoint) -> bool> {
     moons.iter().filter(|moon_point| {
-        if let AstronomicalObject::TelluricBody(moon) = moon_point.object.clone() {
+        if let AstronomicalObject::TelluricBody(moon) = &moon_point.object {
             moon.size != CelestialBodySize::Puny
         } else {
             false

@@ -2,8 +2,14 @@
 #   BLESS_GOLDEN=1 cargo test --test determinism
 # Only bless after an INTENTIONAL behavior change, and call the
 # re-bless out in the commit message. Anything else is a regression.
-default_pipeline = 0x87338f45ca73f37a
-interesting_systems = 0x73db93a0a88ebe4f
-multi_star = 0x19c8154aef4fc830
-ours_pipeline = 0xec103e7d6c5d370a
-svg_region_map = 0x244d60eeab53795a
+category_sweep = 0xed193328e7f3203d
+cluster_dominant = 0xb36230abfe2afec1
+default_pipeline = 0xdfdfd06dd3bff47a
+end_stelliferous_era = 0x06b67c0650d9a0f3
+exile_region_map = 0xfcef0094689e1012
+interesting_systems = 0x440fd9a16ee374a7
+late_stelliferous_era = 0xfb46362e669496e2
+multi_star = 0x99875c02f1053c6b
+non_default_sector = 0x0c5d0507d0781d76
+ours_pipeline = 0xf493d91fb2dadabd
+svg_region_map = 0x52a2f497dd9a87a6

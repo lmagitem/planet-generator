@@ -90,7 +90,6 @@ impl GalacticMapDivision {
             let mut size = SpaceCoordinates::new(1, 1, 1);
             galaxy
                 .division_levels
-                .clone()
                 .iter()
                 .filter(|l| l.level <= self.level)
                 .for_each(|l| {
@@ -109,8 +108,8 @@ impl GalacticMapDivision {
 
 #[cfg(test)]
 mod tests {
-    use super::super::constants;
     use super::*;
+    use crate::galaxy::constants;
     use std::collections::BTreeMap;
 
     /// Builds a galaxy shaped like the one used in the map tests: an

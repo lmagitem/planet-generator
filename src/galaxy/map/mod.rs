@@ -1,6 +1,7 @@
 #[cfg(test)]
 use crate::diagnostics::types::Diagnostics;
 use crate::diagnostics::types::{GenerationError, GenerationWarning};
+use crate::galaxy::constants;
 use crate::galaxy::map::division::GalacticMapDivision;
 use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
 use crate::galaxy::map::hex::types::SpaceCoordinates;
@@ -21,8 +22,6 @@ use crate::generator::types::GenerationSettings;
 #[cfg(test)]
 use crate::universe::types::UniverseSettings;
 use log::error;
-#[path = "../constants.rs"]
-mod constants;
 pub mod division;
 pub mod division_level;
 pub mod hex;
@@ -89,10 +88,11 @@ impl Galaxy {
         let divisions = self.get_divisions_for_coord(coord)?;
         // `level` was validated above and `get_divisions_for_coord` returns one
         // division per level 0..=9, so this lookup cannot actually fail.
-        let division = divisions
-            .into_iter()
-            .find(|div| div.level == level)
-            .ok_or(GenerationError::InvalidDivisionLevel(level))?;
+        let division = divisions.into_iter().find(|div| div.level == level).ok_or(
+            GenerationError::InternalInvariant(
+                "get_divisions_for_coord must return one division per level 0..=9",
+            ),
+        )?;
         Ok(division)
     }
 
@@ -337,6 +337,42 @@ mod tests {
         assert_eq!(start, SpaceCoordinates::new(-2, -1, 0));
         assert_eq!(center, SpaceCoordinates::new(0, 0, 0));
         assert_eq!(end, SpaceCoordinates::new(2, 2, 0));
+    }
+
+    #[test]
+    fn get_division_at_level_rejects_out_of_range_levels() {
+        let mut galaxy = Galaxy {
+            settings: GenerationSettings {
+                seed: "default".into(),
+                ..Default::default()
+            },
+            neighborhood: GalacticNeighborhood {
+                ..Default::default()
+            },
+            index: 0,
+            name: constants::OUR_GALAXYS_NAME.into(),
+            age: constants::OUR_GALAXYS_AGE,
+            is_dominant: false,
+            is_major: true,
+            category: GalaxyCategory::Irregular(5, 4, 1),
+            sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![constants::NO_SPECIAL_TRAIT],
+            division_levels: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
+            galactic_map_layers: vec![],
+            region_map: None,
+            diagnostics: Diagnostics::default(),
+        };
+        // The reachable InvalidDivisionLevel check (the second one, after
+        // `get_divisions_for_coord`, is an InternalInvariant: the level was
+        // already validated here).
+        for level in [0, 10] {
+            assert!(matches!(
+                galaxy.get_division_at_level(SpaceCoordinates::new(0, 0, 0), level),
+                Err(GenerationError::InvalidDivisionLevel(l)) if l == level
+            ));
+        }
     }
 
     #[test]

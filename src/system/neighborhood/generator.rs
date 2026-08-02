@@ -58,7 +58,13 @@ fn generate_age(
         GalacticRegion::GlobularCluster
         | GalacticRegion::Halo
         | GalacticRegion::Aura
-        | GalacticRegion::Void => modifier += 5,
+        | GalacticRegion::Void
+        // Exile joins the sparse-outskirts arm: stars lost into the void skew old,
+        // like the Halo. The sign is positive here because a higher prepared roll
+        // lands on OLDER entries in the weighted table below (unlike the
+        // StellarEvolution table in system/generator.rs, where older outcomes sit
+        // at the low end of the roll and this same arm is negative there).
+        | GalacticRegion::Exile => modifier += 5,
         GalacticRegion::Stream => modifier += 3,
         GalacticRegion::Core | GalacticRegion::Bulge => modifier += 2,
         GalacticRegion::Disk | GalacticRegion::Ellipse => modifier += 1,
@@ -66,7 +72,8 @@ fn generate_age(
         GalacticRegion::Bar | GalacticRegion::Arm => modifier -= 2,
         GalacticRegion::Association => modifier -= 3,
         GalacticRegion::OpenCluster => modifier -= 5,
-        _ => (),
+        // Multiple aggregates several heterogeneous regions, so it is neutral by design.
+        GalacticRegion::Multiple => (),
     });
 
     let mut rng = SeededDiceRoller::new(
@@ -192,7 +199,10 @@ mod tests {
                 }
                 StellarNeighborhoodAge::Mature => (),
                 StellarNeighborhoodAge::Old(a) => {
-                    assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200)
+                    // Old(0) is reachable by design at the 0.4 Gyr universe-age
+                    // floor (the generator only saturates the subtraction), so the
+                    // lower bound is 0 here, unlike Young and Ancient.
+                    assert!(a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200)
                 }
                 StellarNeighborhoodAge::Ancient(a) => {
                     assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200)

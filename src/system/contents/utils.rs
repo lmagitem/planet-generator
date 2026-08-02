@@ -19,7 +19,13 @@ pub(crate) fn calculate_blackbody_temperature(luminosity: f32, orbital_radius: f
 /// Returns a value in Astronomical Units.
 pub(crate) fn calculate_distance_for_temperature(luminosity: f32, temperature: i32) -> f64 {
     let t_ratio = temperature as f64 / 278.0;
-    (luminosity as f64 / t_ratio.powi(4)).sqrt()
+    // Explicit square-of-square, NOT `t_ratio.powi(4)`: `t_ratio` is a compile-time
+    // constant at every call site, and release builds constant-fold `powi(x, 4)` as
+    // the left-associated chain ((x*x)*x)*x while debug builds evaluate it as
+    // (x*x)*(x*x) — the two can differ by one ULP, which made star zone boundaries
+    // (and thus whole generated systems) depend on the build profile.
+    let t_ratio_squared = t_ratio * t_ratio;
+    (luminosity as f64 / (t_ratio_squared * t_ratio_squared)).sqrt()
 }
 
 /// Returns a value in Earth Radii

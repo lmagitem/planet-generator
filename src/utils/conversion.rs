@@ -17,6 +17,7 @@ impl ConversionUtils {
     }
 
     /// Converts a value from Astronomical units to Earth radii.
+    #[cfg(test)]
     pub fn astronomical_units_to_earth_radii(au: f64) -> f64 {
         au * 23454.706481336
     }

@@ -37,7 +37,9 @@ pub struct StarSystem {
     pub special_traits: Vec<SystemPeculiarity>,
     /// The non-fatal issues raised while generating this system (from the accepted
     /// generation try only; rejected tries' diagnostics are dropped). Transient:
-    /// deliberately not serialized.
+    /// deliberately not serialized. Note that a deserialized system (whose
+    /// diagnostics are rebuilt empty) compares unequal to the original whenever
+    /// the original's diagnostics were non-empty.
     #[serde(skip)]
     pub diagnostics: Diagnostics,
 }
@@ -139,7 +141,20 @@ impl<'a> SystemGenContext<'a> {
             hex,
             universe,
             diagnostics: RefCell::new(Diagnostics::default()),
+            step_scratch: RefCell::new(String::new()),
         }
+    }
+
+    /// Runs `f` with the cleared step-string scratch buffer. Fill it (e.g. via
+    /// `write!`) and consume it (e.g. pass it to `SeededDiceRoller::new`)
+    /// inside `f` — fill→construct stays confined to this one call, so a
+    /// `&str` into the buffer can never escape across another fill.
+    /// `write!` into a `String` is infallible; callers use `let _ =` on the
+    /// `Result` (no `unwrap`).
+    pub(crate) fn with_step<R>(&self, f: impl FnOnce(&mut String) -> R) -> R {
+        let mut buf = self.step_scratch.borrow_mut();
+        buf.clear();
+        f(&mut buf)
     }
 
     pub(crate) fn warn(&self, w: GenerationWarning) {

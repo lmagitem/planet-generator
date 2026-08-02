@@ -1,6 +1,6 @@
 use super::types::{GalacticRegionMap, RegionGrid};
 use crate::diagnostics::types::{Diagnostics, GenerationWarning};
-use crate::galaxy::map::constants::REGION_GRID_RESOLUTION;
+use crate::galaxy::constants::REGION_GRID_RESOLUTION;
 use crate::galaxy::map::hex::types::SpaceCoordinates;
 use crate::galaxy::map::types::GalacticRegion;
 use log::warn;
@@ -356,7 +356,7 @@ mod tests {
     /// (or an accidental edit of the default SVGs) breaks this test. FNV-1a over the grid cells.
     #[test]
     fn default_maps_rasterize_deterministically() {
-        use crate::galaxy::map::constants::*;
+        use crate::galaxy::constants::*;
         fn fnv1a(cells: &[GalacticRegion]) -> u64 {
             cells
                 .iter()
@@ -369,10 +369,10 @@ mod tests {
             SpaceCoordinates::new(10000, 10000, 50),
         );
         for (svg, expected) in [
-            (DEFAULT_REGION_MAP_SPIRAL, 0x230a_395f_e2db_749d_u64),
-            (DEFAULT_REGION_MAP_LENTICULAR, 0xbe28_d7bc_d93e_3f1d_u64),
-            (DEFAULT_REGION_MAP_ELLIPTICAL, 0xdca1_49df_0b72_c0e9_u64),
-            (DEFAULT_REGION_MAP_IRREGULAR, 0xc9b3_af5a_8db9_79ca_u64),
+            (DEFAULT_REGION_MAP_SPIRAL, 0x59e5_de4b_49c6_ac3e_u64),
+            (DEFAULT_REGION_MAP_LENTICULAR, 0x595b_50f1_130d_3dd6_u64),
+            (DEFAULT_REGION_MAP_ELLIPTICAL, 0x2002_8bef_f7b0_accd_u64),
+            (DEFAULT_REGION_MAP_IRREGULAR, 0x9b9e_3741_b5a7_ed80_u64),
         ] {
             let map = GalacticRegionMap::build(&[svg.to_string()], start, end)
                 .expect("The default SVG should parse.");

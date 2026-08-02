@@ -33,6 +33,7 @@ use crate::utils::string::StringUtils;
 use seeded_dice_roller::{
     CopyableRollToProcess, CopyableWeightedResult, RollMethod, SeededDiceRoller,
 };
+use std::fmt::Write as _;
 #[cfg(test)]
 use std::mem::discriminant;
 use std::rc::Rc;
@@ -205,10 +206,14 @@ impl Star {
 
         // TODO: Still have to take into account metallicity
         let elements_abundance: Vec<ChemicalComponent> = {
-            let mut rng = SeededDiceRoller::new(
-                &settings.seed,
-                &format!("sys_{}_{}_{}_elem_abnd", coord, system_index, star_index),
-            );
+            let mut rng = ctx.with_step(|step| {
+                let _ = write!(
+                    step,
+                    "sys_{}_{}_{}_elem_abnd",
+                    coord, system_index, star_index
+                );
+                SeededDiceRoller::new(&settings.seed, step)
+            });
             let mut elements = Vec::new();
             let mut roll = rng.gen_u8();
 
@@ -251,10 +256,14 @@ impl Star {
             elements
         };
         let elements_lack: Vec<ChemicalComponent> = {
-            let mut rng = SeededDiceRoller::new(
-                &*seed,
-                &format!("sys_{}_{}_{}_elem_lack", coord, system_index, star_index),
-            );
+            let mut rng = ctx.with_step(|step| {
+                let _ = write!(
+                    step,
+                    "sys_{}_{}_{}_elem_lack",
+                    coord, system_index, star_index
+                );
+                SeededDiceRoller::new(&*seed, step)
+            });
             let mut elements = Vec::new();
             let mut roll = rng.gen_u8();
 
@@ -298,10 +307,14 @@ impl Star {
             }
             elements
         };
-        let mut rng = SeededDiceRoller::new(
-            &*seed,
-            &format!("sys_{}_{}_{}_elem_comp", coord, system_index, star_index),
-        );
+        let mut rng = ctx.with_step(|step| {
+            let _ = write!(
+                step,
+                "sys_{}_{}_{}_elem_comp",
+                coord, system_index, star_index
+            );
+            SeededDiceRoller::new(&*seed, step)
+        });
 
         elements_abundance.iter().for_each(|el| {
             let roll = rng.roll(1, 12, 0);
@@ -371,7 +384,10 @@ fn get_star_name(star_index: u16, name: Rc<str>, settings: &GenerationSettings) 
 
 fn calculate_temperature_using_luminosity(luminosity: f32, radius: f64) -> f32 {
     let pi = std::f64::consts::PI;
-    let area = 4.0 * pi * (radius).powf(2.0);
+    // `radius * radius`, NOT `powf(2.0)`: release builds inline `powf(x, 2.0)` as
+    // a multiplication while debug builds call libm `pow`, and the two do not
+    // always round identically — see tests/determinism.rs (build-profile drift).
+    let area = 4.0 * pi * radius * radius;
     // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
     // in order to get working results.
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
@@ -384,13 +400,19 @@ fn calculate_temperature_using_luminosity(luminosity: f32, radius: f64) -> f32 {
 
 fn calculate_luminosity_using_temperature(temperature: u32, radius: f64) -> f32 {
     let pi = std::f64::consts::PI;
-    let area = 4.0 * pi * (radius).powf(2.0);
+    // `radius * radius`, NOT `powf(2.0)`: release builds inline `powf(x, 2.0)` as
+    // a multiplication while debug builds call libm `pow`, and the two do not
+    // always round identically — see tests/determinism.rs (build-profile drift).
+    let area = 4.0 * pi * radius * radius;
     // If I understood properly, the real approximation of the constant is 5.670367x10^-8, I have no idea why but I need to put 10^-17
     // in order to get working results.
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
     // Same there, I've added the "x1.2643679" because it gives me results that are, on average (and exactly in the case of Sun), closer
     // to the ones I found on existing stars.
-    let mut result = (sigma * area * (temperature as f64).powf(4.0)) as f32;
+    // Square-of-square instead of `powf(4.0)`: same build-profile drift as above.
+    let temperature_f64 = temperature as f64;
+    let temperature_squared = temperature_f64 * temperature_f64;
+    let mut result = (sigma * area * temperature_squared * temperature_squared) as f32;
     result = result * 1.2643679;
     result
 }
@@ -402,8 +424,12 @@ fn calculate_radius_using_luminosity_and_temperature(luminosity: f32, temperatur
     let sigma = 5.670367 * f64::powf(10.0, -17.0);
     // Same there, I've added the "x0.88937" because it gives me results that are, on average (and exactly in the case of Sun), closer
     // to the ones I found on existing stars.
-    let mut result: f64 =
-        f64::sqrt(luminosity as f64 / (4.0 * pi * sigma * (temperature as f64).powf(4.0)));
+    // Square-of-square instead of `powf(4.0)`: same build-profile drift as above.
+    let temperature_f64 = temperature as f64;
+    let temperature_squared = temperature_f64 * temperature_f64;
+    let mut result: f64 = f64::sqrt(
+        luminosity as f64 / (4.0 * pi * sigma * temperature_squared * temperature_squared),
+    );
     result = result * 0.88937;
     result
 }
@@ -647,16 +673,20 @@ fn calculate_radius(
 }
 
 fn calculate_main_sequence_luminosity(mass: f64) -> f32 {
+    // NOTE: integer exponents are written as explicit multiplications on
+    // purpose — `powf` with integer literal exponents is lowered differently
+    // across build profiles (libm call vs inlined chain), which would make
+    // generated output depend on the build profile.
     (if mass <= 0.27 {
-        0.0002 + f64::powf(mass, 3.0)
+        0.0002 + mass * mass * mass
     } else if mass <= 0.45 {
-        0.8 * f64::powf(mass, 3.0)
+        0.8 * mass * mass * mass
     } else if mass <= 0.6 {
-        0.66 * f64::powf(mass, 3.0)
+        0.66 * mass * mass * mass
     } else if mass <= 0.8 {
-        0.56 * f64::powf(mass, 3.0)
+        0.56 * mass * mass * mass
     } else if mass <= 0.9 {
-        f64::powf(mass, 3.0) - 0.25
+        mass * mass * mass - 0.25
     } else if mass <= 1.0 {
         mass - 0.36
     } else if mass <= 1.05 {
@@ -664,11 +694,12 @@ fn calculate_main_sequence_luminosity(mass: f64) -> f32 {
     } else if mass <= 1.1 {
         mass
     } else if mass <= 1.2 {
-        f64::powf(mass, 3.0)
+        mass * mass * mass
     } else if mass <= 1.4 {
         f64::powf(mass, 3.9)
     } else if mass <= 2.0 {
-        f64::powf(mass, 4.0)
+        let mass_squared = mass * mass;
+        mass_squared * mass_squared
     } else if mass <= 55.0 {
         1.4 * f64::powf(mass, 3.5)
     } else {
@@ -914,7 +945,7 @@ fn calculate_luminosity_class(
     }
     return if age <= main_lifespan {
         StarLuminosityClass::V
-    } else if age <= subgiant_lifespan {
+    } else if age <= main_lifespan + subgiant_lifespan {
         StarLuminosityClass::IV
     } else {
         if luminosity <= 100.0 {
@@ -953,23 +984,30 @@ fn calculate_white_dwarf_radius(mass: f64) -> f64 {
 
 /// TODO: That doesn't seem right at all, but at the moment I don't have anything better, so to be rewritten later.
 fn calculate_neutron_star_temperature(age: f32, full_lifespan: f32) -> u32 {
-    let neutron_star_age = age - full_lifespan * 1_000_000.0;
+    // Both `age` and `full_lifespan` are in millions of years; the remnant age
+    // is their difference, converted to years.
+    let neutron_star_age = (age - full_lifespan) * 1_000_000.0;
     let initial_temp = 1_000_000.0;
     let t_cool = 1.0 / (0.02 * (neutron_star_age / 10.0).powf(1.5)); // Cooling timescale in years
     let t_sec = 3.15e7 * t_cool; // Cooling timescale in seconds
     let temperature = initial_temp * ((t_sec / 1.0e6).ln() / (neutron_star_age / 10.0));
-    return if temperature < 0.0 {
-        0
-    } else {
-        temperature as u32
-    };
+    // The formula diverges as neutron_star_age -> 0+ (inf, which `as u32`
+    // would saturate to u32::MAX) and goes negative for old remnants: clamp
+    // the result to [0, initial_temp].
+    temperature.clamp(0.0, initial_temp) as u32
 }
 
+/// Schwarzschild radius (r = 2·G·M/c²) of the remnant, in solar radii. Used
+/// for neutron stars as well as black holes — at these masses the result is a
+/// few kilometers, which is the right order of magnitude for a neutron star.
 fn calculate_precise_radius_of_neutron_star_or_black_hole(mass: f64) -> f64 {
-    let g: f64 = 6.674e-11;
-    let c: f64 = 299_792_458.0;
-    let sun_in_km = 696_340.0;
-    2.0 * g * mass as f64 / c * 2.0 / sun_in_km
+    let g: f64 = 6.674e-11; // Gravitational constant, in m³·kg⁻¹·s⁻²
+    let c: f64 = 299_792_458.0; // Speed of light, in m/s
+    let solar_mass_in_kg: f64 = 1.989e30;
+    let sun_radius_in_km = 696_340.0;
+    let radius_in_meters = 2.0 * g * mass * solar_mass_in_kg / c.powi(2);
+    let radius_in_km = radius_in_meters / 1000.0;
+    radius_in_km / sun_radius_in_km
 }
 
 /// * 2.0 because my dataset has half-way points
@@ -981,12 +1019,15 @@ fn get_age_range_in_star_lifecycle_dataset(
 ) -> f32 {
     let to_subgiant_lifespan = main_lifespan + subgiant_lifespan;
     let to_giant_lifespan = to_subgiant_lifespan + giant_lifespan;
+    // Each phase fraction is (age - phase start) / phase length. Zero-length
+    // phases (subgiant and giant are 0 for red dwarfs) are unreachable here:
+    // their branch conditions collapse to empty ranges, so no 0/0 can occur.
     return if age >= 0.0 && age <= main_lifespan {
         (age / main_lifespan) * 2.0
     } else if age > main_lifespan && age <= to_subgiant_lifespan {
-        2.0 + ((age - main_lifespan) / to_subgiant_lifespan) * 2.0
+        2.0 + ((age - main_lifespan) / subgiant_lifespan) * 2.0
     } else if age > to_subgiant_lifespan && age <= to_giant_lifespan {
-        4.0 + ((age - to_subgiant_lifespan) / to_giant_lifespan) * 2.0
+        4.0 + ((age - to_subgiant_lifespan) / giant_lifespan) * 2.0
     } else {
         7.0
     };
@@ -1622,6 +1663,213 @@ mod tests {
         result = interpolate_f32(x0_y0, x1_y0, x0_y1, x1_y1, x, y);
         expected = 1000.0;
         assert!((result - expected).abs() < 0.001);
+    }
+
+    #[test]
+    fn remnant_radius_matches_schwarzschild_formula() {
+        // 2 M☉ -> r_s = 2·G·M/c² ≈ 5908 m ≈ 5.908 km ≈ 8.485e-6 R☉.
+        let radius = calculate_precise_radius_of_neutron_star_or_black_hole(2.0);
+        let expected = 8.485e-6;
+        assert!(
+            (radius - expected).abs() / expected < 0.05,
+            "2 M☉ remnant radius should be ~8.485e-6 R☉ (within 5%), got {radius}"
+        );
+        // Scales linearly with mass: a 1 M☉ remnant is half as wide.
+        let half = calculate_precise_radius_of_neutron_star_or_black_hole(1.0);
+        assert!((half * 2.0 - radius).abs() / radius < 1e-9);
+    }
+
+    #[test]
+    fn neutron_star_temperature_finite_positive_and_capped() {
+        // `age` and `full_lifespan` are both in millions of years; a star
+        // 1000 years past its full lifespan is a very young neutron star.
+        let temperature = calculate_neutron_star_temperature(28.001, 28.0);
+        assert!(
+            temperature > 0,
+            "A young neutron star should still be hot, got {temperature} K"
+        );
+        assert!(
+            temperature <= 1_000_000,
+            "Neutron star temperature should be capped at its initial temperature, got {temperature} K"
+        );
+
+        // At ~1000 years of remnant age the cooling model lands in the
+        // thousands of Kelvin, not at zero and not at u32::MAX.
+        assert!(
+            (1_000..=100_000).contains(&temperature),
+            "1000-year-old neutron star temperature should be a few thousand K, got {temperature} K"
+        );
+
+        // The luminosity derived from that temperature and the Schwarzschild
+        // radius must be strictly positive (was always 0 before the fix).
+        let radius = calculate_precise_radius_of_neutron_star_or_black_hole(1.688);
+        let luminosity = calculate_luminosity_using_temperature(temperature, radius);
+        assert!(
+            luminosity > 0.0 && luminosity.is_finite(),
+            "Neutron star luminosity should be positive and finite, got {luminosity}"
+        );
+
+        // Divergence guard: as the remnant age approaches 0 the raw formula
+        // blows up (inf -> u32::MAX via `as`); the result must be clamped to
+        // the initial temperature instead.
+        let newborn = calculate_neutron_star_temperature(28.000_001, 28.0);
+        assert_eq!(
+            newborn, 1_000_000,
+            "A newborn neutron star should be clamped to its initial temperature, got {newborn} K"
+        );
+    }
+
+    #[test]
+    fn subgiant_age_yields_luminosity_class_iv() {
+        // 1 M☉: main lifespan 15625 Myr, subgiant lifespan 2343.75 Myr.
+        let main_lifespan = 15625.0;
+        let subgiant_lifespan = 2343.75;
+        let mid_subgiant_age = main_lifespan + subgiant_lifespan / 2.0;
+        let class = calculate_luminosity_class(
+            1.0,
+            StarSpectralType::G(2),
+            mid_subgiant_age,
+            main_lifespan,
+            subgiant_lifespan,
+        );
+        assert_eq!(
+            class,
+            StarLuminosityClass::IV,
+            "A star halfway through its subgiant phase should be class IV"
+        );
+    }
+
+    #[test]
+    fn lifecycle_age_range_tracks_phase_fractions() {
+        // 1 M☉: main 15625 Myr, subgiant 2343.75 Myr, giant 1432.81 Myr.
+        let main_lifespan = 15625.0;
+        let subgiant_lifespan = 2343.75;
+        let giant_lifespan = 1432.81;
+
+        // Halfway through the main sequence: fraction 0.5 -> age_range 1.0.
+        let ms = get_age_range_in_star_lifecycle_dataset(
+            main_lifespan / 2.0,
+            main_lifespan,
+            subgiant_lifespan,
+            giant_lifespan,
+        );
+        assert!(
+            (ms - 1.0).abs() < 1e-3,
+            "mid-MS age_range should be 1.0, got {ms}"
+        );
+
+        // Halfway through the subgiant phase: age_range 3.0 (dataset half-way
+        // points, hence the *2.0 scale).
+        let sub = get_age_range_in_star_lifecycle_dataset(
+            main_lifespan + subgiant_lifespan / 2.0,
+            main_lifespan,
+            subgiant_lifespan,
+            giant_lifespan,
+        );
+        assert!(
+            (sub - 3.0).abs() < 1e-3,
+            "mid-subgiant age_range should be 3.0, got {sub}"
+        );
+        assert!((2.0..=4.0).contains(&sub));
+
+        // Halfway through the giant phase: age_range 5.0.
+        let giant = get_age_range_in_star_lifecycle_dataset(
+            main_lifespan + subgiant_lifespan + giant_lifespan / 2.0,
+            main_lifespan,
+            subgiant_lifespan,
+            giant_lifespan,
+        );
+        assert!(
+            (giant - 5.0).abs() < 1e-3,
+            "mid-giant age_range should be 5.0, got {giant}"
+        );
+        assert!((4.0..=6.0).contains(&giant));
+
+        // Red dwarfs have zero-length subgiant/giant phases: those branches
+        // must stay unreachable (no 0/0), so a post-MS age maps straight to
+        // the remnant range without producing NaN.
+        let red_dwarf = get_age_range_in_star_lifecycle_dataset(9000.0, 8000.0, 0.0, 0.0);
+        assert!((red_dwarf - 7.0).abs() < f32::EPSILON);
+        assert!(red_dwarf.is_finite());
+    }
+
+    #[test]
+    fn fixed_age_past_lifespan_yields_remnant_with_recomputed_mass() {
+        let coord = SpaceCoordinates {
+            ..Default::default()
+        };
+        let hex = &GalacticHex {
+            ..Default::default()
+        };
+        let galaxy = &Galaxy {
+            ..Default::default()
+        };
+        let system_traits = Vec::new();
+        let make_star = |fixed_age: f32| {
+            let settings = GenerationSettings {
+                star: StarSettings {
+                    fixed_mass: Some(2.0),
+                    fixed_age: Some(fixed_age),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let ctx = SystemGenContext::new(
+                0,
+                &settings,
+                coord,
+                0,
+                &system_traits,
+                hex,
+                galaxy.neighborhood.universe,
+            );
+            Star::generate(&ctx, 0, "Test".into(), StellarEvolution::Dwarf)
+        };
+
+        // A 2 M☉ star asked to be 10 Gyr old is far past its ~2.5 Gyr full
+        // lifespan: it must come out as a remnant — a white dwarf (class VII)
+        // whose mass was recomputed by the remnant formula, not the requested
+        // 2 M☉ — and still carry the requested age.
+        let remnant = make_star(10.0);
+        assert_eq!(
+            remnant.luminosity_class,
+            StarLuminosityClass::VII,
+            "a 2 M☉ star at 10 Gyr should be a white dwarf, got {:?}",
+            remnant.luminosity_class
+        );
+        let expected_remnant_mass = 0.096 * 2.0 + 0.429;
+        assert!(
+            (remnant.mass - expected_remnant_mass).abs() < 1e-9,
+            "remnant mass should be recomputed to {expected_remnant_mass} M☉, got {}",
+            remnant.mass
+        );
+        assert!(
+            (remnant.age - 10.0).abs() < 1e-3,
+            "the requested age should be respected, got {}",
+            remnant.age
+        );
+
+        // The same star asked to be 1 Gyr old is well within its main
+        // sequence: no remnant, the fixed mass is untouched, age honored.
+        let young = make_star(1.0);
+        assert!(
+            !matches!(
+                young.luminosity_class,
+                StarLuminosityClass::VII | StarLuminosityClass::XNS | StarLuminosityClass::XBH
+            ),
+            "a 2 M☉ star at 1 Gyr should NOT be a remnant, got {:?}",
+            young.luminosity_class
+        );
+        assert!(
+            (young.mass - 2.0).abs() < 1e-9,
+            "a within-lifespan star should keep its fixed mass, got {}",
+            young.mass
+        );
+        assert!(
+            (young.age - 1.0).abs() < 1e-3,
+            "the requested age should be respected, got {}",
+            young.age
+        );
     }
 
     fn print_real_to_generated_stars_comparison_results(rad_sum: f64, lum_sum: f64, temp_sum: f64) {

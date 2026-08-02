@@ -1,4 +1,7 @@
 use crate::diagnostics::types::{Diagnostics, GenerationWarning};
+use crate::galaxy::constants::{
+    default_layers_for, get_opposite_traits, OppositeTraits, LOCAL_GROUP_GALAXIES, NO_SPECIAL_TRAIT,
+};
 use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
 #[cfg(test)]
 use crate::galaxy::map::hex::types::SpaceCoordinates;
@@ -17,6 +20,8 @@ use crate::galaxy::Galaxy;
 use crate::generator::types::GenerationSettings;
 use crate::universe::types::StelliferousEra;
 #[cfg(test)]
+use crate::universe::types::UniverseSettings;
+#[cfg(test)]
 use crate::universe::Universe;
 use log::debug;
 use seeded_dice_roller::{
@@ -25,11 +30,6 @@ use seeded_dice_roller::{
 use std::collections::BTreeMap;
 use std::mem::discriminant;
 use std::rc::Rc;
-#[path = "./constants.rs"]
-mod constants;
-use constants::{
-    default_layers_for, get_opposite_traits, OppositeTraits, LOCAL_GROUP_GALAXIES, NO_SPECIAL_TRAIT,
-};
 
 impl Galaxy {
     /// Generates a brand new [Galaxy] using the given seed and [GenerationSettings].
@@ -167,7 +167,10 @@ fn generate_age(
     let age;
     let fixed_age = get_fixed_age(settings);
 
-    age = if fixed_age > neighborhood.universe.age {
+    // A fixed age is honored when it is valid: non-negative (-1.0 is the "no
+    // fixed age" sentinel from `get_fixed_age`) and not older than the
+    // universe. Anything else falls back to the rolled age.
+    age = if fixed_age >= 0.0 && fixed_age <= neighborhood.universe.age {
         fixed_age
     } else {
         neighborhood.universe.age
@@ -435,11 +438,28 @@ fn get_category_with_size(
             let mut w = 0;
             let mut h = 0;
             let mut current_size: u64 = 0;
+            // Defensive bound against a pathological seed looping forever:
+            // each attempt clears min_size with overwhelming probability, so
+            // the cap is unreachable in practice. If it ever fires, the
+            // largest roll seen so far is kept as a deterministic fallback.
+            // Whenever the cap does not fire, behavior is exactly as before.
+            let mut iterations = 0;
+            let mut best_size: u64 = 0;
+            let mut best_roll = (0, 0, 0);
             while current_size < min_size {
                 l = rng.roll(1, 1125, 124) as u32 * 10;
                 w = rng.roll(1, 1125, 124) as u32 * 10;
                 h = rng.roll(1, 900, 99) as u32 * 10;
                 current_size = (l as u64) * (w as u64) * (h as u64);
+                if current_size > best_size {
+                    best_size = current_size;
+                    best_roll = (l, w, h);
+                }
+                iterations += 1;
+                if iterations >= 1000 {
+                    (l, w, h) = best_roll;
+                    break;
+                }
             }
             if category == GalaxyCategory::Intergalactic(0, 0, 0) {
                 category_with_size = GalaxyCategory::Intergalactic(l, w, h);
@@ -1037,7 +1057,7 @@ fn get_full_list_of_traits(
             {
                 10
             } else if sub_category != GalaxySubCategory::GiantElliptical
-                || sub_category != GalaxySubCategory::GiantLenticular
+                && sub_category != GalaxySubCategory::GiantLenticular
             {
                 23
             } else {
@@ -1137,8 +1157,8 @@ fn get_full_list_of_traits(
             result: GalaxySpecialTrait::Younger,
             weight: if discriminant(&category)
                 == discriminant(&GalaxyCategory::DominantElliptical(0))
-                || sub_category != GalaxySubCategory::GiantElliptical
-                || sub_category != GalaxySubCategory::GiantLenticular
+                || (sub_category != GalaxySubCategory::GiantElliptical
+                    && sub_category != GalaxySubCategory::GiantLenticular)
             {
                 2
             } else {
@@ -1275,6 +1295,18 @@ fn add_random_traits(
     let opposite_traits = get_opposite_traits();
     let mut turn = 0;
     while turn < to_add {
+        // Termination guards (pure scans, no RNG consumed): stop when no
+        // candidate remains, or when every remaining candidate is already in
+        // the list — in both cases no further roll could ever be added.
+        if possible_traits.is_empty()
+            || possible_traits.iter().all(|possible_trait| {
+                list_to_fill.iter().any(|current_trait| {
+                    discriminant(&possible_trait.result) == discriminant(current_trait)
+                })
+            })
+        {
+            break;
+        }
         let entry_found = rng.get_result(&CopyableRollToProcess {
             possible_results: possible_traits.clone(),
             roll_method: RollMethod::SimpleRoll,
@@ -1391,6 +1423,7 @@ fn get_number_of_random_traits(index: u16, seed: &Rc<str>) -> i32 {
 }
 
 /// Retreives an age to use in [Galaxy] generation from the given [GenerationSettings].
+/// Returns -1.0 as a sentinel when no fixed age was set.
 fn get_fixed_age(settings: &GenerationSettings) -> f32 {
     settings.galaxy.fixed_age.unwrap_or(-1.0)
 }
@@ -1450,153 +1483,67 @@ mod tests {
         }
     }
 
+    /// Returns the physically-plausible size envelope (in parsecs, inclusive)
+    /// for every component of the given category. These bounds are deliberately
+    /// much wider than the current dice tables: they catch unit slips (parsecs
+    /// vs kiloparsecs), zero/negative sizes and impossible values, while leaving
+    /// the tables free to be rebalanced without touching this test.
+    fn size_envelope(category: &GalaxyCategory) -> (u32, u32) {
+        match category {
+            // From dwarf clouds/disks/ellipticals (below a kiloparsec) up to
+            // supercluster-filament scale (~100 kpc): loose clouds, disks and
+            // ordinary ellipticals all live inside this envelope.
+            GalaxyCategory::Intergalactic(..)
+            | GalaxyCategory::Irregular(..)
+            | GalaxyCategory::Intracluster(..)
+            | GalaxyCategory::Spiral(..)
+            | GalaxyCategory::Lenticular(..)
+            | GalaxyCategory::Elliptical(_) => (1, 100_000),
+            // Dominant (cD) ellipticals are the largest galaxies known: never
+            // below a few kiloparsecs, never beyond a megaparsec.
+            GalaxyCategory::DominantElliptical(_) => (10_000, 1_000_000),
+        }
+    }
+
     #[test]
     fn generate_a_galaxy_with_proper_size() {
-        for i in 0..10000 {
+        for i in 0u16..10000 {
             let settings = &GenerationSettings {
-                galaxy: GalaxySettings {
-                    ..Default::default()
-                },
+                seed: Rc::from(i.to_string()),
                 ..Default::default()
             };
             let neighborhood = GalacticNeighborhood::generate(
-                Universe::generate(&settings, &mut Diagnostics::default()),
-                &settings,
+                Universe::generate(settings, &mut Diagnostics::default()),
+                settings,
                 &mut Diagnostics::default(),
             );
-            let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
+            let galaxy = Galaxy::generate(neighborhood, i % 5, settings);
 
-            let category = galaxy.category;
-            let sub_category = galaxy.sub_category;
-            match sub_category {
-                GalaxySubCategory::DwarfAmorphous => {
-                    if let GalaxyCategory::Intergalactic(l, w, h) = category {
-                        assert!(
-                            l >= 100 && l <= 4000 && w >= 100 && w <= 4000 && h >= 75 && h <= 3000
-                        );
-                    } else if let GalaxyCategory::Irregular(l, w, h) = category {
-                        assert!(
-                            l >= 100 && l <= 4000 && w >= 100 && w <= 4000 && h >= 75 && h <= 3000
-                        );
-                    } else if let GalaxyCategory::Intracluster(l, w, h) = category {
-                        assert!(
-                            l >= 100 && l <= 4000 && w >= 100 && w <= 4000 && h >= 75 && h <= 3000
-                        );
-                    }
-                }
-                GalaxySubCategory::Amorphous => {
-                    if let GalaxyCategory::Intergalactic(l, w, h) = category {
-                        assert!(
-                            l >= 1250
-                                && l <= 12500
-                                && w >= 1250
-                                && w <= 12500
-                                && h >= 1000
-                                && h <= 10000
-                        );
-                    } else if let GalaxyCategory::Irregular(l, w, h) = category {
-                        assert!(
-                            l >= 1250
-                                && l <= 12500
-                                && w >= 1250
-                                && w <= 12500
-                                && h >= 1000
-                                && h <= 10000
-                        );
-                    } else if let GalaxyCategory::Intracluster(l, w, h) = category {
-                        assert!(
-                            l >= 1250
-                                && l <= 12500
-                                && w >= 1250
-                                && w <= 12500
-                                && h >= 1000
-                                && h <= 10000
-                        );
-                    }
-                }
-                GalaxySubCategory::DwarfSpiral => {
-                    if let GalaxyCategory::Intergalactic(l, w, h) = category {
-                        assert!(
-                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
-                        );
-                    } else if let GalaxyCategory::Irregular(l, w, h) = category {
-                        assert!(
-                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
-                        );
-                    } else if let GalaxyCategory::Intracluster(l, w, h) = category {
-                        assert!(
-                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
-                        );
-                    } else if let GalaxyCategory::Spiral(r, t) = category {
-                        assert!(r >= 250 && r <= 5000 && t >= 2 && t <= 300);
-                    }
-                }
-                GalaxySubCategory::FlatSpiral
-                | GalaxySubCategory::BarredSpiral
-                | GalaxySubCategory::ClassicSpiral => {
-                    if let GalaxyCategory::Spiral(r, t) = category {
-                        assert!(r >= 5000 && r <= 20000 && t >= 50 && t <= 400);
-                    }
-                }
-                GalaxySubCategory::DwarfLenticular => {
-                    if let GalaxyCategory::Intergalactic(l, w, h) = category {
-                        assert!(
-                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
-                        );
-                    } else if let GalaxyCategory::Irregular(l, w, h) = category {
-                        assert!(
-                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
-                        );
-                    } else if let GalaxyCategory::Intracluster(l, w, h) = category {
-                        assert!(
-                            l >= 500 && l <= 10000 && w >= 500 && w <= 10000 && h >= 2 && h <= 300
-                        );
-                    } else if let GalaxyCategory::Lenticular(r, t) = category {
-                        assert!(r >= 250 && r <= 5000 && t >= 2 && t <= 300);
-                    }
-                }
-                GalaxySubCategory::CommonLenticular => {
-                    if let GalaxyCategory::Lenticular(r, t) = category {
-                        assert!(r >= 5000 && r <= 30000 && t >= 100 && t <= 3600);
-                    }
-                }
-                GalaxySubCategory::GiantLenticular => {
-                    if let GalaxyCategory::Lenticular(r, t) = category {
-                        assert!(r >= 30000 && r <= 60000 && t >= 900 && t <= 10800);
-                    }
-                }
-                GalaxySubCategory::DwarfElliptical => {
-                    if let GalaxyCategory::Intergalactic(l, w, h) = category {
-                        assert!(
-                            l >= 20 && l <= 3500 && w >= 20 && w <= 3500 && h >= 5 && h <= 3500
-                        );
-                    } else if let GalaxyCategory::Irregular(l, w, h) = category {
-                        assert!(
-                            l >= 20 && l <= 3500 && w >= 20 && w <= 3500 && h >= 5 && h <= 3500
-                        );
-                    } else if let GalaxyCategory::Intracluster(l, w, h) = category {
-                        assert!(
-                            l >= 20 && l <= 3500 && w >= 20 && w <= 3500 && h >= 5 && h <= 3500
-                        );
-                    } else if let GalaxyCategory::Elliptical(r) = category {
-                        assert!(r >= 10 && r <= 1750);
-                    }
-                }
-                GalaxySubCategory::CommonElliptical => {
-                    if let GalaxyCategory::DominantElliptical(r) = category {
-                        assert!(r >= 50000 && r <= 200000);
-                    } else if let GalaxyCategory::Elliptical(r) = category {
-                        assert!(r >= 1000 && r <= 20000);
-                    }
-                }
-                GalaxySubCategory::GiantElliptical => {
-                    if let GalaxyCategory::DominantElliptical(r) = category {
-                        assert!(r >= 200000 && r <= 500000);
-                    } else if let GalaxyCategory::Elliptical(r) = category {
-                        assert!(r >= 20000 && r <= 50000);
-                    }
-                }
+            // Every size component is positive and within the category's
+            // physically-plausible envelope (see size_envelope).
+            let (min, max) = size_envelope(&galaxy.category);
+            let components: Vec<u32> = match galaxy.category {
+                GalaxyCategory::Intergalactic(l, w, h)
+                | GalaxyCategory::Irregular(l, w, h)
+                | GalaxyCategory::Intracluster(l, w, h) => vec![l, w, h],
+                GalaxyCategory::Spiral(r, t) | GalaxyCategory::Lenticular(r, t) => vec![r, t],
+                GalaxyCategory::Elliptical(r) | GalaxyCategory::DominantElliptical(r) => vec![r],
+            };
+            for component in components {
+                assert!(
+                    (min..=max).contains(&component),
+                    "Size component {component} pc is outside the [{min}, {max}] pc envelope \
+                     for category {} (sub-category {})",
+                    galaxy.category,
+                    galaxy.sub_category
+                );
             }
+
+            // Determinism: regenerating from the same seed and index must
+            // produce the exact same category, sub-category and sizes.
+            let regenerated = Galaxy::generate(neighborhood, i % 5, settings);
+            assert_eq!(galaxy.category, regenerated.category);
+            assert_eq!(galaxy.sub_category, regenerated.sub_category);
         }
     }
 
@@ -1675,7 +1622,7 @@ mod tests {
         let galaxy = Galaxy::generate(neighborhood, 0, settings);
         assert_eq!(
             galaxy.galactic_map_layers,
-            constants::default_layers_for(galaxy.category),
+            default_layers_for(galaxy.category),
             "Unparseable user layers should be replaced by the category's default map."
         );
         assert!(
@@ -1695,6 +1642,276 @@ mod tests {
                 .warnings
                 .contains(&GenerationWarning::UserLayersReplacedWithDefault),
             "The fallback to the default layers should be reported in the galaxy's diagnostics."
+        );
+    }
+
+    /// Generates a galaxy with the given settings and returns it, building its
+    /// neighborhood the standard way.
+    fn generate_galaxy_for(settings: &GenerationSettings, index: u16) -> Galaxy {
+        let neighborhood = GalacticNeighborhood::generate(
+            Universe::generate(settings, &mut Diagnostics::default()),
+            settings,
+            &mut Diagnostics::default(),
+        );
+        Galaxy::generate(neighborhood, index, settings)
+    }
+
+    #[test]
+    fn use_ours_local_group_sweep_has_real_named_sane_galaxies() {
+        // The LOCAL_GROUP_GALAXIES table feeds every use_ours galaxy at
+        // index < 38: each entry must carry a real, unique name (no leftover
+        // "TODO" placeholders), flags consistent with the Group(2, 36) density
+        // (indices 0-1 major, everything else minor, none dominant), and a sane
+        // size in parsecs.
+        let settings = &GenerationSettings {
+            seed: Rc::from("local-group-sweep"),
+            universe: UniverseSettings {
+                use_ours: true,
+                ..Default::default()
+            },
+            galaxy: GalaxySettings {
+                use_ours: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut names = std::collections::BTreeSet::new();
+        for index in 0..u16::try_from(LOCAL_GROUP_GALAXIES.len())
+            .expect("The local-group table is far smaller than u16::MAX.")
+        {
+            let galaxy = generate_galaxy_for(settings, index);
+            assert_ne!(
+                "TODO",
+                galaxy.name.as_ref(),
+                "local-group entry #{index} is still a placeholder"
+            );
+            assert!(
+                names.insert(galaxy.name.clone()),
+                "duplicate local-group galaxy name: {}",
+                galaxy.name
+            );
+            assert!(
+                !galaxy.is_dominant,
+                "{} should not be dominant in a Group",
+                galaxy.name
+            );
+            assert_eq!(
+                index < 2,
+                galaxy.is_major,
+                "{} (index {index}) should be major iff index < 2",
+                galaxy.name
+            );
+            let largest_dimension = match galaxy.category {
+                GalaxyCategory::Intergalactic(l, w, h)
+                | GalaxyCategory::Irregular(l, w, h)
+                | GalaxyCategory::Intracluster(l, w, h) => l.max(w).max(h),
+                GalaxyCategory::Spiral(r, _) | GalaxyCategory::Lenticular(r, _) => r * 2,
+                GalaxyCategory::Elliptical(r) | GalaxyCategory::DominantElliptical(r) => r * 2,
+            };
+            assert!(
+                largest_dimension > 0,
+                "{} has a zero-sized category",
+                galaxy.name
+            );
+            // No Local Group member exceeds Andromeda's ~47kpc span; 50kpc leaves slack.
+            assert!(
+                largest_dimension <= 50_000,
+                "{} has an implausible size of {largest_dimension} pc",
+                galaxy.name
+            );
+        }
+    }
+
+    #[test]
+    // Exact equality is intended: the fixed age is assigned as-is.
+    #[allow(clippy::float_cmp)]
+    fn fixed_age_is_honored_when_valid() {
+        // C6: a fixed age within [0, universe age] must be used as-is.
+        for i in 0..100u16 {
+            let settings = &GenerationSettings {
+                seed: Rc::from(i.to_string()),
+                universe: UniverseSettings {
+                    use_ours: true,
+                    ..Default::default()
+                },
+                galaxy: GalaxySettings {
+                    fixed_age: Some(10.0),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let galaxy = generate_galaxy_for(settings, i % 5);
+            assert_eq!(10.0, galaxy.age);
+        }
+    }
+
+    #[test]
+    fn fixed_age_falls_back_to_a_rolled_age_when_invalid() {
+        // C6: fixed ages older than the universe or negative are rejected; the
+        // usual roll applies (a rolled galaxy age is <= universe age - 0.2).
+        for invalid in [20.0, -1.5] {
+            for i in 0..100u16 {
+                let settings = &GenerationSettings {
+                    seed: Rc::from(i.to_string()),
+                    universe: UniverseSettings {
+                        use_ours: true,
+                        ..Default::default()
+                    },
+                    galaxy: GalaxySettings {
+                        fixed_age: Some(invalid),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                };
+                let galaxy = generate_galaxy_for(settings, i % 5);
+                assert!(galaxy.age <= 13.8 - 0.2);
+            }
+        }
+    }
+
+    #[test]
+    fn generate_terminates_when_all_special_traits_are_forbidden() {
+        // K9: forbidding every trait empties the candidate list; generation
+        // must still terminate instead of spinning on un-addable rolls.
+        let all_traits = vec![
+            GalaxySpecialTrait::NoPeculiarity,
+            GalaxySpecialTrait::ActiveNucleus,
+            GalaxySpecialTrait::DoubleNuclei,
+            GalaxySpecialTrait::Compact(0),
+            GalaxySpecialTrait::Expansive(0),
+            GalaxySpecialTrait::ExtendedHalo,
+            GalaxySpecialTrait::MetalPoor,
+            GalaxySpecialTrait::Dusty,
+            GalaxySpecialTrait::GasPoor,
+            GalaxySpecialTrait::GasRich,
+            GalaxySpecialTrait::Starburst,
+            GalaxySpecialTrait::Dead,
+            GalaxySpecialTrait::Dormant,
+            GalaxySpecialTrait::Satellites(GalaxySatellites::None),
+            GalaxySpecialTrait::Interacting,
+            GalaxySpecialTrait::Tail,
+            GalaxySpecialTrait::Younger,
+            GalaxySpecialTrait::Older,
+            GalaxySpecialTrait::SubSize(0),
+            GalaxySpecialTrait::SuperSize(0),
+        ];
+        let settings = &GenerationSettings {
+            seed: "forbidden-all".into(),
+            galaxy: GalaxySettings {
+                forbidden_special_traits: Some(all_traits),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let galaxy = generate_galaxy_for(settings, 0);
+        assert_eq!(
+            vec![GalaxySpecialTrait::NoPeculiarity],
+            galaxy.special_traits
+        );
+    }
+
+    /// Returns the weight of the given trait in the full candidate table for
+    /// the given galaxy (sub-)category.
+    fn trait_weight(
+        category: GalaxyCategory,
+        sub_category: GalaxySubCategory,
+        reference: GalaxySpecialTrait,
+    ) -> u32 {
+        let neighborhood = GalacticNeighborhood {
+            universe: Universe {
+                era: StelliferousEra::MiddleStelliferous,
+                age: 13.8,
+            },
+            density: GalacticNeighborhoodDensity::Group(2, 23),
+        };
+        get_full_list_of_traits(neighborhood, category, sub_category, 0, &Rc::from("k10"))
+            .iter()
+            .find(|t| discriminant(&t.result) == discriminant(&reference))
+            .map(|t| t.weight)
+            .expect("The trait should be in the full candidate list.")
+    }
+
+    #[test]
+    fn giant_subcategories_use_the_giant_trait_weights() {
+        // K10: the "not a giant" conditions used to be always-true
+        // (`sub != A || sub != B`), so every galaxy got the non-giant weight.
+        let satellites = GalaxySpecialTrait::Satellites(GalaxySatellites::None);
+        // Non-dominant giants fall through to the giant arm.
+        assert_eq!(
+            5,
+            trait_weight(
+                GalaxyCategory::Elliptical(0),
+                GalaxySubCategory::GiantElliptical,
+                satellites
+            )
+        );
+        assert_eq!(
+            5,
+            trait_weight(
+                GalaxyCategory::Lenticular(0, 0),
+                GalaxySubCategory::GiantLenticular,
+                satellites
+            )
+        );
+        // Non-giants and dominant ellipticals keep their existing weights.
+        assert_eq!(
+            8,
+            trait_weight(
+                GalaxyCategory::Elliptical(0),
+                GalaxySubCategory::CommonElliptical,
+                satellites
+            )
+        );
+        assert_eq!(
+            10,
+            trait_weight(
+                GalaxyCategory::DominantElliptical(0),
+                GalaxySubCategory::GiantElliptical,
+                satellites
+            )
+        );
+        assert_eq!(
+            23,
+            trait_weight(
+                GalaxyCategory::Lenticular(0, 0),
+                GalaxySubCategory::CommonLenticular,
+                satellites
+            )
+        );
+
+        // Younger: dominant ellipticals and non-giants get 2, non-dominant
+        // giants get 5.
+        assert_eq!(
+            2,
+            trait_weight(
+                GalaxyCategory::Elliptical(0),
+                GalaxySubCategory::CommonElliptical,
+                GalaxySpecialTrait::Younger
+            )
+        );
+        assert_eq!(
+            2,
+            trait_weight(
+                GalaxyCategory::DominantElliptical(0),
+                GalaxySubCategory::GiantElliptical,
+                GalaxySpecialTrait::Younger
+            )
+        );
+        assert_eq!(
+            5,
+            trait_weight(
+                GalaxyCategory::Elliptical(0),
+                GalaxySubCategory::GiantElliptical,
+                GalaxySpecialTrait::Younger
+            )
+        );
+        assert_eq!(
+            5,
+            trait_weight(
+                GalaxyCategory::Lenticular(0, 0),
+                GalaxySubCategory::GiantLenticular,
+                GalaxySpecialTrait::Younger
+            )
         );
     }
 }

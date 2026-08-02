@@ -10,6 +10,30 @@ use std::time::Duration;
 
 const BENCH_SEED: &str = "bench-fixed-seed";
 
+/// Fixed system coordinates for `system_generation`, probed once with the same
+/// settings this bench uses (fixed seed, ours-based universe/galaxy, system
+/// index 0). Profiles (stars / non-star bodies / total orbital points):
+/// - `(0, 0, 0)`: 1 star, 1 body, 2 objects — single-star sparse (the historical bench coord).
+/// - `(50, 10, 0)`: 1 star, 0 bodies, 1 object — single-star, bare.
+/// - `(-120, -30, 0)`: 2 stars, 0 bodies, 4 objects — sparse binary.
+/// - `(-5, -200, 0)`: 3 stars, 0 bodies, 5 objects — trinary.
+/// - `(300, 300, 0)`: 4 stars, 0 bodies, 7 objects — quadruple.
+/// - `(7, 3, 0)`: 2 stars, 2 bodies, 10 objects — moderate binary.
+/// - `(88, -44, 0)`: 2 stars, 4 bodies, 7 objects — moderate binary.
+/// - `(25, -75, 0)`: 2 stars, 25 bodies, 31 objects — body-rich binary.
+///
+/// The list must stay stable: changing it re-rolls which systems get benched.
+const SYSTEM_COORDS: &[(i64, i64, i64)] = &[
+    (0, 0, 0),
+    (50, 10, 0),
+    (-120, -30, 0),
+    (-5, -200, 0),
+    (300, 300, 0),
+    (7, 3, 0),
+    (88, -44, 0),
+    (25, -75, 0),
+];
+
 /// Settings matching the example-systems test: fixed seed, ours-based universe and galaxy.
 fn bench_settings() -> GenerationSettings {
     GenerationSettings {
@@ -52,12 +76,15 @@ fn bench_hex_generation(c: &mut Criterion) {
             b.iter_batched(
                 || build_galaxy(&settings),
                 |mut galaxy| {
+                    // Cold-cache hex lookup: the galaxy rebuild stays in the
+                    // untimed setup, only the lookup is timed. `get_hex`
+                    // returns a reference; it cannot escape the batched
+                    // closure, so it is black-boxed in place (no clone).
                     black_box(
                         galaxy
                             .get_hex(black_box(SpaceCoordinates::new(x, y, z)))
-                            .expect("Should have returned an hex.")
-                            .clone(),
-                    )
+                            .expect("Should have returned an hex."),
+                    );
                 },
                 BatchSize::SmallInput,
             )
@@ -68,34 +95,38 @@ fn bench_hex_generation(c: &mut Criterion) {
 
 fn bench_system_generation(c: &mut Criterion) {
     let settings = bench_settings();
-    let coord = SpaceCoordinates::new(0, 0, 0);
     let base_galaxy = build_galaxy(&settings);
-    c.bench_function("system_generation", |b| {
-        b.iter_batched(
-            || {
-                let mut galaxy = base_galaxy.clone();
-                let sub_sector = galaxy
-                    .get_division_at_level(coord, 1)
-                    .expect("Should have returned a sub-sector.")
-                    .clone();
-                let hex = galaxy
-                    .get_hex(coord)
-                    .expect("Should have returned an hex.")
-                    .clone();
-                (galaxy, hex, sub_sector)
-            },
-            |(mut galaxy, hex, sub_sector)| {
-                black_box(StarSystem::generate(
-                    0,
-                    black_box(coord),
-                    &hex,
-                    &sub_sector,
-                    &mut galaxy,
-                ))
-            },
-            BatchSize::SmallInput,
-        )
-    });
+    let mut group = c.benchmark_group("system_generation");
+    for &(x, y, z) in SYSTEM_COORDS {
+        let coord = SpaceCoordinates::new(x, y, z);
+        group.bench_function(format!("({x},{y},{z})"), |b| {
+            b.iter_batched(
+                || {
+                    let mut galaxy = base_galaxy.clone();
+                    let sub_sector = galaxy
+                        .get_division_at_level(coord, 1)
+                        .expect("Should have returned a sub-sector.")
+                        .clone();
+                    let hex = galaxy
+                        .get_hex(coord)
+                        .expect("Should have returned an hex.")
+                        .clone();
+                    (galaxy, hex, sub_sector)
+                },
+                |(mut galaxy, hex, sub_sector)| {
+                    black_box(StarSystem::generate(
+                        0,
+                        black_box(coord),
+                        &hex,
+                        &sub_sector,
+                        &mut galaxy,
+                    ))
+                },
+                BatchSize::SmallInput,
+            )
+        });
+    }
+    group.finish();
 }
 
 fn bench_region_map(c: &mut Criterion) {

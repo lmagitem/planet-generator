@@ -42,8 +42,18 @@ impl GenerationSettings {
     /// - `sector.level_N_size` (N in 1..=9): components must be between 4 and 62 inclusive.
     ///   Only x and y are checked when `sector.flat_map` is set, because the z component is
     ///   then forced to 1 downstream (see `GalacticMapDivisionLevel::generate_division_levels`).
-    /// - `universe.fixed_age`: must be higher or equal to 0.4 and lower than 100000.
-    /// - `star.fixed_age` / `star.fixed_mass`: must not be negative.
+    /// - `universe.fixed_age` / `universe.age_before` / `universe.age_after`: each, when set,
+    ///   must be between 0.4 and 99999.99 inclusive (one 0.01 Gyr roll quantum below the
+    ///   exclusive 100000 era bound, matching the generation clamp) and not NaN.
+    ///   Note: `age_after` is the LOWER bound ("at least younger than") and `age_before` the
+    ///   UPPER bound ("at least older than") on the rolled age — see
+    ///   `crate::universe::types::UniverseSettings`. Conflicting bounds
+    ///   (`age_after > age_before`) are NOT a validation error: generation clamps them to the
+    ///   rolled era's bounds and reports an `AgeOutOfRange` warning instead.
+    /// - `star.fixed_age` / `star.fixed_mass`: must not be negative or NaN.
+    /// - `galaxy.fixed_age`: must not be negative or NaN. (A positive age beyond the
+    ///   universe's age is not rejected here: generation falls back to a rolled age with a
+    ///   warning.)
     ///
     /// # Errors
     /// Returns the list of every violation found, if any.
@@ -82,19 +92,42 @@ impl GenerationSettings {
         if let Some(age) = self.universe.fixed_age {
             // NaN is checked explicitly: it fails the range check anyway, but
             // spelling it out guards the intent — a NaN age used to slip past
-            // generation and silently fall back to our universe's age.
-            if age.is_nan() || !(0.4..100_000.0).contains(&age) {
+            // generation and silently fall back to our universe's age. The
+            // upper bound matches the generation clamp: one 0.01 Gyr roll
+            // quantum below the exclusive 100000 era bound.
+            if age.is_nan() || !(0.4..=99_999.99).contains(&age) {
+                errors.push(SettingsError::InvalidUniverseAge(age));
+            }
+        }
+        // `age_after` is the lower bound and `age_before` the upper bound on the
+        // rolled age. Conflicting bounds (age_after > age_before) are accepted
+        // here on purpose: generation clamps them to the rolled era's bounds and
+        // reports an `AgeOutOfRange` warning (see `crate::universe::generator`).
+        for age in [self.universe.age_after, self.universe.age_before]
+            .into_iter()
+            .flatten()
+        {
+            if age.is_nan() || !(0.4..=99_999.99).contains(&age) {
                 errors.push(SettingsError::InvalidUniverseAge(age));
             }
         }
         if let Some(age) = self.star.fixed_age {
-            if age < 0.0 {
+            if age.is_nan() || age < 0.0 {
                 errors.push(SettingsError::InvalidStarAge(age));
             }
         }
         if let Some(mass) = self.star.fixed_mass {
-            if mass < 0.0 {
+            if mass.is_nan() || mass < 0.0 {
                 errors.push(SettingsError::InvalidStarMass(mass));
+            }
+        }
+        if let Some(age) = self.galaxy.fixed_age {
+            // The -1.0 sentinel of `get_fixed_age` is internal (None maps to it);
+            // a user-supplied negative or NaN age is invalid. A positive age
+            // beyond the universe's age is not rejected here: generation falls
+            // back to a rolled age with a warning.
+            if age.is_nan() || age < 0.0 {
+                errors.push(SettingsError::InvalidGalaxyAge(age));
             }
         }
 
@@ -260,7 +293,7 @@ mod tests {
                 Err(vec![SettingsError::InvalidUniverseAge(age)])
             );
         }
-        for age in [0.4, 13.8, 99999.9] {
+        for age in [0.4, 13.8, 99_999.99] {
             let settings = GenerationSettings {
                 universe: UniverseSettings {
                     fixed_age: Some(age),
@@ -287,6 +320,160 @@ mod tests {
             Err(errors) if errors.len() == 1
                 && matches!(errors[0], SettingsError::InvalidUniverseAge(age) if age.is_nan())
         ));
+    }
+
+    #[test]
+    fn catches_out_of_range_universe_age_before_and_after() {
+        for age in [0.39, 100_000.0, -1.0] {
+            let settings = GenerationSettings {
+                universe: UniverseSettings {
+                    age_before: Some(age),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            assert_eq!(
+                settings.validate(),
+                Err(vec![SettingsError::InvalidUniverseAge(age)])
+            );
+            let settings = GenerationSettings {
+                universe: UniverseSettings {
+                    age_after: Some(age),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            assert_eq!(
+                settings.validate(),
+                Err(vec![SettingsError::InvalidUniverseAge(age)])
+            );
+        }
+        for age in [0.4, 13.8, 99_999.99] {
+            let settings = GenerationSettings {
+                universe: UniverseSettings {
+                    age_before: Some(age),
+                    age_after: Some(age),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            assert_eq!(settings.validate(), Ok(()));
+        }
+    }
+
+    #[test]
+    fn catches_a_nan_universe_age_before_or_after() {
+        for settings in [
+            GenerationSettings {
+                universe: UniverseSettings {
+                    age_before: Some(f32::NAN),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            GenerationSettings {
+                universe: UniverseSettings {
+                    age_after: Some(f32::NAN),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        ] {
+            // NaN never equals itself, so match on the shape instead of assert_eq.
+            assert!(matches!(
+                settings.validate(),
+                Err(errors) if errors.len() == 1
+                    && matches!(errors[0], SettingsError::InvalidUniverseAge(age) if age.is_nan())
+            ));
+        }
+    }
+
+    #[test]
+    fn accepts_conflicting_universe_age_bounds_at_validation() {
+        // age_after (lower bound) > age_before (upper bound) inverts the effective
+        // range, but that is NOT a validation error: generation clamps the bounds
+        // to the rolled era's full bounds and reports an `AgeOutOfRange` warning
+        // (see `conflicting_age_bounds_fall_back_to_the_era_bounds_with_a_warning`
+        // in crate::universe::generator).
+        let settings = GenerationSettings {
+            universe: UniverseSettings {
+                age_after: Some(13.9),
+                age_before: Some(13.5),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(settings.validate(), Ok(()));
+    }
+
+    #[test]
+    fn catches_a_nan_star_fixed_age_and_mass() {
+        let settings = GenerationSettings {
+            star: StarSettings {
+                fixed_age: Some(f32::NAN),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(matches!(
+            settings.validate(),
+            Err(errors) if errors.len() == 1
+                && matches!(errors[0], SettingsError::InvalidStarAge(age) if age.is_nan())
+        ));
+
+        let settings = GenerationSettings {
+            star: StarSettings {
+                fixed_mass: Some(f64::NAN),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(matches!(
+            settings.validate(),
+            Err(errors) if errors.len() == 1
+                && matches!(errors[0], SettingsError::InvalidStarMass(mass) if mass.is_nan())
+        ));
+    }
+
+    #[test]
+    fn catches_a_negative_or_nan_galaxy_fixed_age() {
+        // The -1.0 sentinel of `get_fixed_age` is internal only (it is what None
+        // maps to); a user-supplied Some(negative) is invalid.
+        let settings = GenerationSettings {
+            galaxy: GalaxySettings {
+                fixed_age: Some(-1.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(
+            settings.validate(),
+            Err(vec![SettingsError::InvalidGalaxyAge(-1.0)])
+        );
+
+        let settings = GenerationSettings {
+            galaxy: GalaxySettings {
+                fixed_age: Some(f32::NAN),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(matches!(
+            settings.validate(),
+            Err(errors) if errors.len() == 1
+                && matches!(errors[0], SettingsError::InvalidGalaxyAge(age) if age.is_nan())
+        ));
+
+        // A positive age, even beyond the universe's age, is not a validation
+        // error: generation falls back to a rolled age with a warning.
+        let settings = GenerationSettings {
+            galaxy: GalaxySettings {
+                fixed_age: Some(99_999.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(settings.validate(), Ok(()));
     }
 
     #[test]
@@ -370,6 +557,11 @@ mod tests {
 
     #[test]
     fn catches_all_star_chances_at_zero() {
+        // WARNING: this must zero EVERY `*_gen_chance` field of `StarSettings`
+        // (15 today). If a 16th chance field is ever added, it must be added
+        // BOTH here AND to the `total_star_chance` sum in
+        // `GenerationSettings::validate` — otherwise the "all chances at zero"
+        // rejection silently stops being reachable/tested for the new field.
         let settings = GenerationSettings {
             star: StarSettings {
                 brown_dwarf_gen_chance: 0,
