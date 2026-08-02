@@ -1,5 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::fmt::Display;
 
 /// The average age of a [StellarNeighborhood].
 #[derive(

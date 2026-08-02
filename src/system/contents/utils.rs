@@ -1,11 +1,15 @@
-use crate::internal::ConversionUtils;
+use crate::utils::conversion::ConversionUtils;
 
+#[cfg(test)]
 use super::elements::ChemicalComponent;
 
 /// Returns a value in Kelvin
 pub(crate) fn calculate_blackbody_temperature(luminosity: f32, orbital_radius: f64) -> u32 {
     if orbital_radius <= 0.0 {
-        panic!("Orbital radius should be greater than 0");
+        // Unreachable for generated bodies (orbits always have a positive distance).
+        // A body at the star's center would be maximally hot, so return the same
+        // saturated value the `as u32` cast below yields for huge temperatures.
+        return u32::MAX;
     }
 
     let b = 278.0 * ((luminosity as f64).powf(0.25)) / (orbital_radius).sqrt();
@@ -71,6 +75,7 @@ pub(crate) fn calculate_hill_sphere_radius(
 ///
 /// # Returns
 /// The escape velocity in meters per second (m/s).
+#[cfg(test)]
 pub(crate) fn escape_velocity(mass_earth: f64, radius_earth: f64) -> f64 {
     const G: f64 = 6.67430e-11; // Gravitational constant in m^3 kg^-1 s^-2
     const EARTH_MASS: f64 = 5.972e24; // Earth mass in kg
@@ -92,6 +97,7 @@ pub(crate) fn escape_velocity(mass_earth: f64, radius_earth: f64) -> f64 {
 ///
 /// # Returns
 /// The rms speed in meters per second (m/s).
+#[cfg(test)]
 fn rms_speed(temperature: i32, molecular_mass: f64) -> f64 {
     const K_B: f64 = 1.380649e-23; // Boltzmann constant in J/K
     ((3.0 * K_B * temperature as f64) / molecular_mass).sqrt()
@@ -110,6 +116,7 @@ fn rms_speed(temperature: i32, molecular_mass: f64) -> f64 {
 ///
 /// # Returns
 /// The Jeans parameter (dimensionless).
+#[cfg(test)]
 fn jeans_parameter(
     mass_earth: f64,
     radius_earth: f64,

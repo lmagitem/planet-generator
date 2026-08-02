@@ -1,7 +1,14 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::world::types::WorldTemperatureCategory;
 use crate::system::celestial_body::world::utils::get_category_from_temperature;
 use crate::system::contents::utils::calculate_distance_for_temperature;
+use crate::system::orbital_point::types::AstronomicalObject;
+use crate::system::orbital_point::types::Orbit;
+use crate::system::orbital_point::OrbitalPoint;
+use crate::system::star::types::StarZone;
+use crate::system::star::types::ZoneType;
+use crate::system::star::Star;
+use crate::utils::conversion::ConversionUtils;
+use ordered_float::OrderedFloat;
 use std::cmp::Ordering;
 
 pub fn generate_star_zones(all_objects: &mut Vec<OrbitalPoint>) {
@@ -124,7 +131,7 @@ fn calculate_outer_zone(star: &mut Star) {
 }
 
 fn adjust_zones_for_bio(star: &mut Star) {
-    if let Some(bio_zone) = star
+    if let Some(_bio_zone) = star
         .zones
         .iter_mut()
         .find(|zone| zone.zone_type == ZoneType::BioZone)
@@ -156,7 +163,11 @@ fn calculate_forbidden_zone(
     orbital_point: &OrbitalPoint,
     all_objects: &[OrbitalPoint],
 ) {
-    let companion = get_closest_companion(orbital_point, all_objects);
+    // None is unreachable for a star in a binary relationship; skip the forbidden
+    // zone rather than panic if the invariant is ever broken.
+    let Some(companion) = get_closest_companion(orbital_point, all_objects) else {
+        return;
+    };
     let min_separation = get_min_star_separation(orbital_point, &companion);
     let max_separation = get_max_star_separation(orbital_point, &companion);
 
@@ -170,60 +181,50 @@ fn calculate_forbidden_zone(
 }
 
 /// In the case of a multiple star system, returns the closest star from the given one.
-fn get_closest_companion(star: &OrbitalPoint, all_objects: &[OrbitalPoint]) -> OrbitalPoint {
+/// Returns [None] if no other star with an orbit exists, which cannot happen when the
+/// given star is in a binary relationship (the only caller checks that first).
+fn get_closest_companion(
+    star: &OrbitalPoint,
+    all_objects: &[OrbitalPoint],
+) -> Option<OrbitalPoint> {
     let other_stars: Vec<_> = all_objects.iter().filter(|&o| o.id != star.id).collect();
 
+    // The caller only invokes this for stars in a binary relationship, which always
+    // have their own orbit filled; 0.0 is a deterministic, unreachable stand-in.
     let star_distance = star
         .own_orbit
         .as_ref()
-        .expect("Expected star to have an orbit")
-        .average_distance_from_system_center;
+        .map_or(0.0, |orbit| orbit.average_distance_from_system_center);
 
-    let (closest_star, _) = other_stars
+    other_stars
         .iter()
-        .filter(|object| object.own_orbit.is_some())
-        .map(|object| {
-            let distance = (object
-                .own_orbit
-                .as_ref()
-                .expect("Expected object to have an orbit")
-                .average_distance_from_system_center
-                - star_distance)
-                .abs();
-            (object, distance)
+        .filter_map(|object| {
+            object.own_orbit.as_ref().map(|orbit| {
+                let distance = (orbit.average_distance_from_system_center - star_distance).abs();
+                (object, distance)
+            })
         })
         .min_by_key(|&(_, distance)| OrderedFloat(distance))
-        .expect("Expected at least one other star");
-
-    (*closest_star).clone()
+        .map(|(closest_star, _)| (*closest_star).clone())
 }
 
 /// Get the radius before which planets could have a stable orbit around the first star of a binary pair.
 fn get_min_star_separation(object1: &OrbitalPoint, object2: &OrbitalPoint) -> f64 {
-    let orbit1 = object1
-        .own_orbit
-        .as_ref()
-        .expect("An OrbitalPoint's own orbit should always be filled.");
+    // Both objects are binary-pair members and always have their own orbit filled;
+    // a default orbit is a deterministic, unreachable stand-in.
+    let orbit1 = object1.own_orbit.clone().unwrap_or_default();
     let perihelion_distance_object1 = (1.0 - orbit1.eccentricity as f64) * orbit1.average_distance;
-    let orbit2 = object2
-        .own_orbit
-        .as_ref()
-        .expect("An OrbitalPoint's own orbit should always be filled.");
+    let orbit2 = object2.own_orbit.clone().unwrap_or_default();
     let aphelion_distance_object2 = (1.0 + orbit2.eccentricity as f64) * orbit2.average_distance;
     (aphelion_distance_object2 - perihelion_distance_object1).abs()
 }
 
 /// Get the radius after which planets could have a stable orbit around the first star of a binary pair.
 fn get_max_star_separation(object1: &OrbitalPoint, object2: &OrbitalPoint) -> f64 {
-    let orbit1 = object1
-        .own_orbit
-        .as_ref()
-        .expect("An OrbitalPoint's own orbit should always be filled.");
+    // See `get_min_star_separation`: the default-orbit stand-in is unreachable.
+    let orbit1 = object1.own_orbit.clone().unwrap_or_default();
     let aphelion_distance_object1 = (1.0 + orbit1.eccentricity as f64) * orbit1.average_distance;
-    let orbit2 = object2
-        .own_orbit
-        .as_ref()
-        .expect("An OrbitalPoint's own orbit should always be filled.");
+    let orbit2 = object2.own_orbit.clone().unwrap_or_default();
     let perihelion_distance_object2 = (1.0 - orbit2.eccentricity as f64) * orbit2.average_distance;
     (aphelion_distance_object1 - perihelion_distance_object2).abs()
 }

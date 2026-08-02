@@ -1,6 +1,11 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::CelestialBody;
+use crate::system::celestial_disk::CelestialDisk;
+use crate::system::star::types::ZoneType;
+use crate::system::star::Star;
+use crate::utils::string::StringUtils;
+use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::fmt::Display;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Orbit {
@@ -34,6 +39,9 @@ pub struct Orbit {
     /// around itself.
     pub rotation: f32,
     /// The time it takes in terran days between two sunrises on the object in this orbit.
+    /// [`f32::INFINITY`] is used as a sentinel (empty slots, binary barycentres, tide-locked
+    /// bodies); the serde adapter writes it as `null` and reads `null` back as infinity.
+    #[serde(with = "crate::utils::serde_helpers::non_finite_f32")]
     pub day_length: f32,
 }
 
@@ -77,7 +85,7 @@ impl Display for Orbit {
         write!(
             f,
             "{} around {} - {} AU ({} AU), ecc: {}, min sep: {} AU, max sep: {} AU, incl: {}, tilt: {}°, period: {} day⊕, rota°: {} day⊕, day: {} day⊕",
-            if self.id.is_some() { format!("{:03}", self.id.unwrap()) } else { String::from("EMPTY") },
+            self.id.map_or_else(|| String::from("EMPTY"), |id| format!("{id:03}")),
             format!("{:03}", self.primary_body_id),
             StringUtils::to_significant_decimals(self.average_distance),
             StringUtils::to_significant_decimals(self.average_distance_from_system_center),

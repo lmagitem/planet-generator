@@ -1,5 +1,25 @@
-use crate::internal::*;
-use crate::prelude::*;
+#[cfg(test)]
+use crate::diagnostics::types::{Diagnostics, GenerationError};
+#[cfg(test)]
+use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::types::GalacticRegion;
+#[cfg(test)]
+use crate::galaxy::map::types::SectorSettings;
+#[cfg(test)]
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+#[cfg(test)]
+use crate::galaxy::types::GalaxyCategory;
+#[cfg(test)]
+use crate::galaxy::types::GalaxySettings;
+use crate::galaxy::Galaxy;
+#[cfg(test)]
+use crate::generator::types::GenerationSettings;
+#[cfg(test)]
+use crate::universe::types::UniverseSettings;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::rc::Rc;
 pub mod generator;
 
 /// Represents a specific part of the [Galaxy].
@@ -64,21 +84,6 @@ impl GalacticMapDivision {
         self.get_top_left_up(galaxy) + self.get_size(galaxy)
     }
 
-    /// Returns the full width of this division in parsecs.
-    pub fn get_width(&mut self, galaxy: &Galaxy) -> i64 {
-        self.get_size(galaxy).x
-    }
-
-    /// Returns the full height of this division in parsecs.
-    pub fn get_height(&mut self, galaxy: &Galaxy) -> i64 {
-        self.get_size(galaxy).y
-    }
-
-    /// Returns the full depth of this division in parsecs.
-    pub fn get_depth(&mut self, galaxy: &Galaxy) -> i64 {
-        self.get_size(galaxy).z
-    }
-
     /// Returns the full size of this division in parsecs.
     pub fn get_size(&mut self, galaxy: &Galaxy) -> SpaceCoordinates {
         if self.size.x < 1 || self.size.y < 1 || self.size.z < 1 {
@@ -106,6 +111,7 @@ impl GalacticMapDivision {
 mod tests {
     use super::super::constants;
     use super::*;
+    use std::collections::BTreeMap;
 
     /// Builds a galaxy shaped like the one used in the map tests: an
     /// Irregular(100, 5, 1) whose map starts at (-49, -2, 0) and ends at
@@ -143,19 +149,20 @@ mod tests {
             sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         }
     }
 
     #[test]
-    fn computes_level_1_division_corners_and_center_on_a_flat_map() {
+    fn computes_level_1_division_corners_and_center_on_a_flat_map() -> Result<(), GenerationError> {
         let mut galaxy = test_galaxy(true);
         let mut division = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)
-            .expect("Should return a div.");
+            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)?
+            .clone();
         assert_eq!(division.index, SpaceCoordinates::new(4, 0, 0));
         // On a flat map the z axis is not subdivided past the hex level, so
         // this division spans 8*4*4 parsecs.
@@ -172,14 +179,16 @@ mod tests {
             division.get_center(&galaxy),
             SpaceCoordinates::new(-13, 0, 2)
         );
+        Ok(())
     }
 
     #[test]
-    fn computes_level_1_division_corners_and_center_without_flat_map() {
+    fn computes_level_1_division_corners_and_center_without_flat_map() -> Result<(), GenerationError>
+    {
         let mut galaxy = test_galaxy(false);
         let mut division = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)
-            .expect("Should return a div.");
+            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)?
+            .clone();
         assert_eq!(division.index, SpaceCoordinates::new(4, 0, 0));
         // Without a flat map the z axis is subdivided like the others, so
         // this division spans 8*4*8 parsecs.
@@ -196,14 +205,15 @@ mod tests {
             division.get_center(&galaxy),
             SpaceCoordinates::new(-13, 0, 4)
         );
+        Ok(())
     }
 
     #[test]
-    fn computes_last_level_1_division_corner() {
+    fn computes_last_level_1_division_corner() -> Result<(), GenerationError> {
         let mut galaxy = test_galaxy(true);
         let mut division = galaxy
-            .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 1)
-            .expect("Should return a div.");
+            .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 1)?
+            .clone();
         assert_eq!(division.index, SpaceCoordinates::new(12, 1, 0));
         assert_eq!(
             division.get_top_left_up(&galaxy),
@@ -215,18 +225,20 @@ mod tests {
             division.get_bottom_right_down(&galaxy),
             SpaceCoordinates::new(55, 6, 4)
         );
+        Ok(())
     }
 
     #[test]
-    fn computes_hex_corners_and_center() {
+    fn computes_hex_corners_and_center() -> Result<(), GenerationError> {
         let mut galaxy = test_galaxy(true);
-        let divisions = galaxy
-            .get_divisions_for_coord(SpaceCoordinates::new(-10, -2, 0))
-            .expect("Should return divisions.");
+        let divisions = galaxy.get_divisions_for_coord(SpaceCoordinates::new(-10, -2, 0))?;
+        // `get_divisions_for_coord` returns one division per level 0..=9, so
+        // the hex-level division is always there.
         let mut hex = divisions
             .into_iter()
             .find(|d| d.level == 0)
-            .expect("Should contain a hex-level division.");
+            .ok_or(GenerationError::InvalidDivisionLevel(0))?
+            .clone();
         assert_eq!(hex.index, SpaceCoordinates::new(9, 0, 0));
         assert_eq!(hex.get_size(&galaxy), SpaceCoordinates::new(4, 2, 4));
         assert_eq!(
@@ -238,6 +250,7 @@ mod tests {
             SpaceCoordinates::new(-9, 0, 4)
         );
         assert_eq!(hex.get_center(&galaxy), SpaceCoordinates::new(-11, -1, 2));
+        Ok(())
     }
 
     #[test]
@@ -261,10 +274,11 @@ mod tests {
             sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: vec![GalacticMapDivisionLevel::new(0, 3, 5, 7)],
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         };
         let mut division = GalacticMapDivision::new(
             "default".into(),

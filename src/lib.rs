@@ -1,5 +1,5 @@
 #![warn(clippy::all, clippy::pedantic)]
-#![allow(dead_code, unused_imports, unused)]
+mod diagnostics;
 mod galaxy;
 mod generator;
 mod life;
@@ -12,10 +12,12 @@ extern crate lazy_static;
 extern crate log;
 extern crate simple_logger;
 
+#[cfg(test)]
 use log::LevelFilter;
 use std::sync::Once;
 
 pub mod prelude {
+    pub use crate::diagnostics::types::*;
     pub use crate::galaxy::map::division::GalacticMapDivision;
     pub use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
     pub use crate::galaxy::map::hex::types::*;
@@ -26,7 +28,7 @@ pub mod prelude {
     pub use crate::galaxy::neighborhood::GalacticNeighborhood;
     pub use crate::galaxy::types::*;
     pub use crate::galaxy::Galaxy;
-    pub use crate::galaxy::EXAMPLE_REGION_MAP_SVG;
+    pub use crate::galaxy::{DEFAULT_REGION_MAP_SPIRAL, EXAMPLE_REGION_MAP_SVG};
     pub use crate::generator::types::*;
     pub use crate::generator::Generator;
     pub use crate::life::types::*;
@@ -62,29 +64,12 @@ pub mod prelude {
     pub use crate::universe::Universe;
 }
 
-mod internal {
-    pub use crate::system::celestial_body::moon::*;
-    pub use crate::utils::conversion::ConversionUtils;
-    pub use crate::utils::harmonics::OrbitalHarmonicsUtils;
-    pub use crate::utils::math::MathUtils;
-    pub use crate::utils::string::StringUtils;
-    pub use log::*;
-    pub use ordered_float::OrderedFloat;
-    pub use seeded_dice_roller::*;
-    pub use serde::{Deserialize, Serialize};
-    pub use smart_default::SmartDefault;
-    pub use std::fmt::Display;
-    pub use std::mem::discriminant;
-    pub use std::rc::Rc;
-    pub use strum::IntoEnumIterator;
-    pub use strum_macros::EnumIter;
-}
-
 lazy_static! {
     static ref LOGGER_INITIALIZED: Once = Once::new();
 }
 
 #[cfg(test)]
+#[allow(dead_code)] // Kept for manual debugging: called from commented-out lines in tests.
 fn init_logger(level: LevelFilter) {
     LOGGER_INITIALIZED.call_once(|| {
         simple_logger::SimpleLogger::new()
@@ -96,19 +81,34 @@ fn init_logger(level: LevelFilter) {
 
 #[cfg(test)]
 mod tests {
-    use super::internal::*;
-    use super::prelude::*;
     use super::*;
+    use crate::diagnostics::types::{Diagnostics, GenerationError};
+    use crate::galaxy::map::hex::types::SpaceCoordinates;
+    use crate::galaxy::map::types::GalacticRegion;
+    use crate::galaxy::neighborhood::GalacticNeighborhood;
+    use crate::galaxy::types::GalaxyCategory;
+    use crate::galaxy::types::GalaxySettings;
+    use crate::galaxy::Galaxy;
+    use crate::generator::types::GenerationSettings;
+    use crate::system::orbital_point::types::AstronomicalObject;
+    use crate::system::orbital_point::OrbitalPoint;
     use crate::system::star::get_star_color_code;
+    use crate::system::types::SystemSettings;
+    use crate::system::StarSystem;
+    use crate::universe::types::UniverseSettings;
+    use crate::universe::Universe;
+    use crate::utils::string::StringUtils;
     use std::collections::HashSet;
+    use std::rc::Rc;
 
     // #[test]
+    #[allow(dead_code)] // Disabled test kept for manual log inspection.
     fn add_logs_to_run() {
         init_logger(LevelFilter::Debug);
     }
 
     #[test]
-    fn generate_example_systems() {
+    fn generate_example_systems() -> Result<(), GenerationError> {
         // init_logger(LevelFilter::Debug);
         for i in 0..50 {
             let settings = &GenerationSettings {
@@ -123,16 +123,15 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let universe = Universe::generate(&settings);
-            let neighborhood = GalacticNeighborhood::generate(universe, &settings);
+            let universe = Universe::generate(&settings, &mut Diagnostics::default());
+            let neighborhood =
+                GalacticNeighborhood::generate(universe, &settings, &mut Diagnostics::default());
             let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let coord = SpaceCoordinates::new(0, 0, 0);
-            let sub_sector = galaxy
-                .get_division_at_level(coord, 1)
-                .expect("Should have returned a sub-sector.");
-            let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
-            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
-            let main_star = system
+            let sub_sector = galaxy.get_division_at_level(coord, 1)?.clone();
+            let hex = galaxy.get_hex(coord)?.clone();
+            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy)?;
+            let _main_star = system
                 .clone()
                 .all_objects
                 .iter()
@@ -143,13 +142,14 @@ mod tests {
 
             print_system_bodies(i, system);
         }
+        Ok(())
     }
 
     /// End-to-end check of SVG-defined galactic regions: a galaxy generated with a user-provided
     /// single-layer SVG map (left half Arm, right half empty) must produce divisions whose regions
     /// match the painted zones.
     #[test]
-    fn generate_divisions_from_svg_region_map() {
+    fn generate_divisions_from_svg_region_map() -> Result<(), GenerationError> {
         let region_map_svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect x="0" y="0" width="50" height="100" fill="#0000FF" /></svg>"##;
         let settings = &GenerationSettings {
             seed: Rc::from("svg-regions-end-to-end"),
@@ -160,23 +160,26 @@ mod tests {
             },
             ..Default::default()
         };
-        let universe = Universe::generate(&settings);
-        let neighborhood = GalacticNeighborhood::generate(universe, &settings);
+        let universe = Universe::generate(&settings, &mut Diagnostics::default());
+        let neighborhood =
+            GalacticNeighborhood::generate(universe, &settings, &mut Diagnostics::default());
         let mut galaxy = Galaxy::generate(neighborhood, 0, &settings);
 
         let left_division = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-200, 0, 0), 1)
-            .expect("Should have returned a sub-sector.");
+            .get_division_at_level(SpaceCoordinates::new(-200, 0, 0), 1)?
+            .clone();
         let right_division = galaxy
-            .get_division_at_level(SpaceCoordinates::new(200, 0, 0), 1)
-            .expect("Should have returned a sub-sector.");
+            .get_division_at_level(SpaceCoordinates::new(200, 0, 0), 1)?
+            .clone();
 
         assert_eq!(left_division.region, GalacticRegion::Arm);
         assert_eq!(right_division.region, GalacticRegion::Void);
+        Ok(())
     }
 
     // #[test]
-    fn generate_interesting_example_systems() {
+    #[allow(dead_code)] // Disabled test kept for manual inspection of interesting systems.
+    fn generate_interesting_example_systems() -> Result<(), GenerationError> {
         // init_logger(LevelFilter::Debug);
         for i in 0..50 {
             let settings = &GenerationSettings {
@@ -187,16 +190,15 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let universe = Universe::generate(&settings);
-            let neighborhood = GalacticNeighborhood::generate(universe, &settings);
+            let universe = Universe::generate(&settings, &mut Diagnostics::default());
+            let neighborhood =
+                GalacticNeighborhood::generate(universe, &settings, &mut Diagnostics::default());
             let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let coord = SpaceCoordinates::new(0, 0, 0);
-            let sub_sector = galaxy
-                .get_division_at_level(coord, 1)
-                .expect("Should have returned a sub-sector.");
-            let hex = galaxy.get_hex(coord).expect("Should have returned an hex.");
-            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy);
-            let main_star = system
+            let sub_sector = galaxy.get_division_at_level(coord, 1)?.clone();
+            let hex = galaxy.get_hex(coord)?.clone();
+            let system = StarSystem::generate(i as u16, coord, &hex, &sub_sector, &mut galaxy)?;
+            let _main_star = system
                 .clone()
                 .all_objects
                 .iter()
@@ -207,6 +209,7 @@ mod tests {
 
             print_system_bodies(i, system);
         }
+        Ok(())
     }
 
     fn print_system_bodies(i: usize, system: StarSystem) {

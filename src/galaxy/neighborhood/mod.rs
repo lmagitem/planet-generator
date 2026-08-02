@@ -1,5 +1,7 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::neighborhood::types::GalacticNeighborhoodDensity;
+use crate::universe::Universe;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 pub mod generator;
 pub mod types;
 

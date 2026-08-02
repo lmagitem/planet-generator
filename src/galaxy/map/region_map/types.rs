@@ -1,5 +1,5 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::types::GalacticRegion;
 
 /// A rasterized, queryable map of [`GalacticRegion`]s built from SVG layers stretched over a galaxy's bounds.
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default)]

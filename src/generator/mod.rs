@@ -1,5 +1,11 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::types::{Diagnostics, GenerationError};
+use crate::galaxy::neighborhood::types::GalacticNeighborhoodDensity;
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+use crate::galaxy::Galaxy;
+use crate::generator::types::GeneratedUniverse;
+use crate::generator::types::GenerationSettings;
+use crate::universe::Universe;
+use serde::{Deserialize, Serialize};
 pub mod types;
 
 /// The generator itself, depending on the given settings, can generate a full blown universe with multiple galaxies, sectors, systems,
@@ -9,17 +15,27 @@ pub struct Generator {}
 
 impl Generator {
     /// Generates a full blown universe with multiple galaxies, sectors, systems, planets and the species living in those following the
-    /// given [GenerationSettings], in a deterministic way thanks to the given **seed**.
-    pub fn generate(settings: GenerationSettings) -> GeneratedUniverse {
-        let universe = Universe::generate(&settings);
-        let galactic_neighborhood = GalacticNeighborhood::generate(universe, &settings);
+    /// given [`GenerationSettings`], in a deterministic way thanks to the given **seed**. Validates the settings first and returns
+    /// [`GenerationError::InvalidSettings`] listing every violation found if any.
+    ///
+    /// # Errors
+    /// Returns [`GenerationError::InvalidSettings`] if the given settings fail validation.
+    pub fn generate(settings: GenerationSettings) -> Result<GeneratedUniverse, GenerationError> {
+        if let Err(violations) = settings.validate() {
+            return Err(GenerationError::InvalidSettings(violations));
+        }
+        let mut diagnostics = Diagnostics::default();
+        let universe = Universe::generate(&settings, &mut diagnostics);
+        let galactic_neighborhood =
+            GalacticNeighborhood::generate(universe, &settings, &mut diagnostics);
         let galaxies: Vec<Galaxy> = generate_galaxies(galactic_neighborhood, settings);
 
-        GeneratedUniverse {
+        Ok(GeneratedUniverse {
             universe,
             galactic_neighborhood,
             galaxies,
-        }
+            diagnostics,
+        })
     }
 }
 

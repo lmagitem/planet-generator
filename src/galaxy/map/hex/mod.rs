@@ -1,5 +1,8 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::system::neighborhood::StellarNeighborhood;
+use crate::system::StarSystem;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 pub mod generator;
 pub mod types;
 

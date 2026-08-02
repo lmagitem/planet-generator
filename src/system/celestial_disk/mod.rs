@@ -1,7 +1,8 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_disk::types::CelestialDiskType;
+use crate::system::orbital_point::types::Orbit;
+use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 pub mod belt;
-pub mod generator;
 pub mod ring;
 pub mod types;
 

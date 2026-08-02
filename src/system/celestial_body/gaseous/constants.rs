@@ -1,6 +1,4 @@
 #![allow(dead_code)]
-use crate::internal::*;
-use crate::prelude::*;
 
 /// The following array contains equivalencies between masses and densities.
 /// Masses are in Earth masses, and density in gram per cubic centimeter.

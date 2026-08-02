@@ -1,7 +1,9 @@
-use crate::internal::{ConversionUtils, MathUtils, StringUtils};
 use crate::prelude::{AstronomicalObject, CelestialBodyDetails, StarSpectralType};
+use crate::utils::conversion::ConversionUtils;
+use crate::utils::math::MathUtils;
+use crate::utils::string::StringUtils;
 use std::fmt;
-use std::fmt::{format, Display};
+use std::fmt::Display;
 use std::mem::discriminant;
 
 impl Display for AstronomicalObject {

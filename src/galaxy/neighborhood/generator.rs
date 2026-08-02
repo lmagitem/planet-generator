@@ -1,9 +1,28 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::types::Diagnostics;
+use crate::galaxy::neighborhood::types::GalacticNeighborhoodDensity;
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+#[cfg(test)]
+use crate::galaxy::types::GalaxySettings;
+use crate::generator::types::GenerationSettings;
+use crate::universe::types::StelliferousEra;
+#[cfg(test)]
+use crate::universe::types::UniverseSettings;
+use crate::universe::Universe;
+use seeded_dice_roller::SeededDiceRoller;
+#[cfg(test)]
+use seeded_dice_roller::{CopyableRollToProcess, RollMethod};
+#[cfg(test)]
+use std::rc::Rc;
 
 impl GalacticNeighborhood {
     /// Generates a brand new [GalacticNeighborhood] using the given seed and [GenerationSettings].
-    pub fn generate(universe: Universe, settings: &GenerationSettings) -> Self {
+    /// Takes the generation-wide [`Diagnostics`] collector (nothing is reported from here yet;
+    /// the parameter keeps the universe -> neighborhood -> galaxy threading uniform).
+    pub fn generate(
+        universe: Universe,
+        settings: &GenerationSettings,
+        _diagnostics: &mut Diagnostics,
+    ) -> Self {
         let density;
 
         if let Some(fixed_neighborhood) = settings.galaxy.fixed_neighborhood {
@@ -112,8 +131,11 @@ mod tests {
                 seed: Rc::from(i.to_string()),
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             match neighborhood.density {
                 GalacticNeighborhoodDensity::Void(galaxies, _) => assert!(galaxies < 4),
                 GalacticNeighborhoodDensity::Group(galaxies, _) => {
@@ -141,8 +163,11 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             assert_eq!(
                 neighborhood.density,
                 GalacticNeighborhoodDensity::Group(2, 36)
@@ -188,8 +213,11 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             assert_eq!(neighborhood.density, fixed_neighborhood);
         }
     }

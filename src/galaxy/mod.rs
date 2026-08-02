@@ -1,9 +1,25 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::Diagnostics;
+use crate::galaxy::map::division::GalacticMapDivision;
+use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::hex::GalacticHex;
+use crate::galaxy::map::region_map::types::GalacticRegionMap;
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+use crate::galaxy::types::GalaxyCategory;
+use crate::galaxy::types::GalaxySpecialTrait;
+use crate::galaxy::types::GalaxySubCategory;
+use crate::generator::types::GenerationSettings;
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
+use std::fmt::Display;
+use std::rc::Rc;
 #[path = "./constants.rs"]
 mod constants;
-pub use constants::EXAMPLE_REGION_MAP_SVG;
-use constants::*;
+pub use constants::{DEFAULT_REGION_MAP_SPIRAL, EXAMPLE_REGION_MAP_SVG};
+use constants::{
+    NO_SPECIAL_TRAIT, OUR_GALAXYS_AGE, OUR_GALAXYS_CATEGORY, OUR_GALAXYS_NAME,
+    OUR_GALAXYS_SUB_CATEGORY,
+};
 pub mod generator;
 pub mod map;
 pub mod neighborhood;
@@ -34,10 +50,13 @@ pub struct Galaxy {
     pub special_traits: Vec<GalaxySpecialTrait>,
     /// The specific division levels used to map this galaxy's content.
     pub division_levels: Vec<GalacticMapDivisionLevel>,
-    /// This galaxy's already generated divisions.
-    pub divisions: Vec<GalacticMapDivision>,
-    /// This galaxy's already generated hexagons.
-    pub hexes: Vec<GalacticHex>,
+    /// This galaxy's already generated divisions, keyed by `(level, index)`.
+    /// Serialized as `(key, value)` pairs: JSON maps require string keys, which coordinates are not.
+    #[serde(with = "crate::galaxy::map::serde_helpers")]
+    pub divisions: BTreeMap<(u8, SpaceCoordinates), GalacticMapDivision>,
+    /// This galaxy's already generated hexagons, keyed by hex index.
+    #[serde(with = "crate::galaxy::map::serde_helpers")]
+    pub hexes: BTreeMap<SpaceCoordinates, GalacticHex>,
     /// The SVG layers effectively used for this galaxy's region map (the user's, or the category's default map).
     /// This field is the authoritative source when the region map is rebuilt.
     #[serde(default)]
@@ -47,6 +66,10 @@ pub struct Galaxy {
     /// `None`) compares unequal to a healed one until the first map query rebuilds it.
     #[serde(skip)]
     pub region_map: Option<GalacticRegionMap>,
+    /// The non-fatal issues raised while generating this galaxy (e.g. unusable
+    /// user-provided SVG map layers). Transient: deliberately not serialized.
+    #[serde(skip)]
+    pub diagnostics: Diagnostics,
 }
 
 impl Default for Galaxy {
@@ -67,10 +90,11 @@ impl Default for Galaxy {
             sub_category: OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![NO_SPECIAL_TRAIT],
             division_levels: vec![],
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         }
     }
 }
@@ -92,39 +116,5 @@ impl Display for Galaxy {
                 .collect::<Vec<String>>()
                 .join(", ")
         )
-    }
-}
-
-impl Galaxy {
-    /// Returns a new [Galaxy] using the given arguments.
-    pub fn new(
-        settings: GenerationSettings,
-        neighborhood: GalacticNeighborhood,
-        index: u16,
-        name: Rc<str>,
-        age: f32,
-        is_dominant: bool,
-        is_major: bool,
-        category: GalaxyCategory,
-        sub_category: GalaxySubCategory,
-        special_traits: Vec<GalaxySpecialTrait>,
-    ) -> Self {
-        Self {
-            settings,
-            neighborhood,
-            index,
-            name,
-            age,
-            is_dominant,
-            is_major,
-            category,
-            sub_category,
-            special_traits,
-            division_levels: vec![],
-            divisions: vec![],
-            hexes: vec![],
-            galactic_map_layers: vec![],
-            region_map: None,
-        }
     }
 }

@@ -1,5 +1,4 @@
-use crate::internal::*;
-use crate::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// A list of settings used to configure the Icy Bodies (like ice giants) generation.
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]

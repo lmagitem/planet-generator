@@ -1,5 +1,10 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::division::GalacticMapDivision;
+use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::types::GalacticRegion;
+#[cfg(test)]
+use crate::galaxy::types::GalaxyCategory;
+use crate::galaxy::Galaxy;
 use std::collections::HashMap;
 
 impl GalacticMapDivision {
@@ -64,8 +69,11 @@ fn get_region(division: &mut GalacticMapDivision, galaxy: &Galaxy) -> GalacticRe
 
     // If there was only one region in the whole division, set that division's region to it, otherwise use Multiple.
     if region_count.len() == 1 {
-        let (region, _) = region_count.into_iter().next().unwrap();
-        region
+        // `len() == 1` guarantees exactly one entry; Multiple is only a stand-in.
+        region_count
+            .into_iter()
+            .next()
+            .map_or(GalacticRegion::Multiple, |(region, _)| region)
     } else {
         GalacticRegion::Multiple
     }

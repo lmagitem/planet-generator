@@ -1,14 +1,48 @@
-use crate::internal::types::MoonDistance;
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::generator::types::GenerationSettings;
 use crate::system::celestial_body::generator::{
     generate_acceptable_telluric_parameters, get_world_type,
 };
+use crate::system::celestial_body::moon::types::{MoonDistance, ParentBodyInfo};
+use crate::system::celestial_body::moon::MoonGenerator;
+use crate::system::celestial_body::telluric::types::TelluricBodyComposition;
+use crate::system::celestial_body::telluric::TelluricBodyDetails;
+use crate::system::celestial_body::traits::types::TelluricAxialTiltDifference;
+use crate::system::celestial_body::traits::types::TelluricCoreDifference;
+use crate::system::celestial_body::traits::types::TelluricGeologicActivity;
+use crate::system::celestial_body::traits::types::TelluricMagneticFieldDifference;
+use crate::system::celestial_body::traits::types::TelluricRotationDifference;
+use crate::system::celestial_body::traits::types::TelluricTerrainRelief;
+use crate::system::celestial_body::traits::types::TelluricVolatileDensityDifference;
+use crate::system::celestial_body::traits::CelestialBodySpecialTrait;
+use crate::system::celestial_body::types::CelestialBodyComposition;
+use crate::system::celestial_body::types::CelestialBodyDetails;
+use crate::system::celestial_body::types::CelestialBodySize;
+use crate::system::celestial_body::world::types::CelestialBodyCoreHeat;
+use crate::system::celestial_body::world::types::CelestialBodyWorldType;
+use crate::system::celestial_body::world::types::MagneticFieldStrength;
+use crate::system::celestial_body::world::types::WorldClimateType;
+use crate::system::celestial_body::world::types::WorldTemperatureCategory;
+use crate::system::celestial_body::world::WorldGenerator;
+use crate::system::celestial_body::CelestialBody;
+use crate::system::celestial_disk::belt::types::CelestialBeltType;
+use crate::system::celestial_disk::belt::CelestialBeltDetails;
+use crate::system::celestial_disk::types::CelestialDiskType;
+use crate::system::celestial_disk::CelestialDisk;
 use crate::system::contents::utils::{calculate_blackbody_temperature, calculate_surface_gravity};
 use crate::system::contents::zones::get_orbit_with_updated_zone;
 use crate::system::orbital_point::generator::{
     complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
+use crate::system::orbital_point::types::AstronomicalObject;
+use crate::system::orbital_point::types::Orbit;
+use crate::system::orbital_point::OrbitalPoint;
+use crate::system::star::types::StarGenContext;
+use crate::utils::conversion::ConversionUtils;
+use crate::utils::string::StringUtils;
+use seeded_dice_roller::SeededDiceRoller;
+use std::mem::discriminant;
+use std::rc::Rc;
 
 impl TelluricBodyDetails {
     /// Generates a barebone rocky body to use in system generation.
@@ -48,36 +82,22 @@ impl TelluricBodyDetails {
 
     /// Generates a fully fledged telluric body.
     pub fn generate_rocky_body(
+        ctx: &StarGenContext,
         body_id: u32,
-        coord: SpaceCoordinates,
-        system_traits: &Vec<SystemPeculiarity>,
-        system_index: u16,
-        star_id: u32,
-        star_name: Rc<str>,
-        star_age: f32,
-        star_mass: f64,
-        star_type: &StarSpectralType,
-        star_class: &StarLuminosityClass,
-        star_luminosity: f32,
-        star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f64,
-        gas_giant_arrangement: GasGiantArrangement,
-        next_id: &mut u32,
         populated_orbit_index: u32,
         own_orbit: Option<Orbit>,
         orbit_distance: f64,
-        mut orbits: Vec<Orbit>,
-        seed: Rc<str>,
-        settings: GenerationSettings,
+        orbits: Vec<Orbit>,
+        next_id: &mut u32,
         size_modifier: i32,
         is_moon: bool,
         fixed_size: Option<CelestialBodySize>,
     ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
         let mut rng = SeededDiceRoller::new(
-            &settings.seed,
+            &ctx.system.settings.seed,
             &format!(
                 "sys_{}_{}_str_{}_bdy{}",
-                coord, system_index, star_id, body_id
+                ctx.system.coord, ctx.system.system_index, ctx.star_id, body_id
             ),
         );
         let rolled_size = rng.roll(1, 400, size_modifier);
@@ -85,7 +105,7 @@ impl TelluricBodyDetails {
         let mut moons = Vec::new();
         let mut special_traits = Vec::new();
         let size_parameters = Self::determine_rocky_body_size(
-            &star_name,
+            &ctx.star_name,
             populated_orbit_index,
             body_id,
             &own_orbit,
@@ -102,24 +122,25 @@ impl TelluricBodyDetails {
         } else {
             size_parameters.3
         };
-        let mut mass = 0.0;
-        let mut density = 0.0;
-        let mut radius = 0.0;
+        let _mass = 0.0;
+        let _density = 0.0;
+        let _radius = 0.0;
 
         if discriminant(&to_return.object) == discriminant(&AstronomicalObject::Void) {
             generate_peculiarities(
-                &coord,
-                &system_index,
-                &star_id,
+                &ctx.system.coord,
+                &ctx.system.system_index,
+                &ctx.star_id,
                 &body_id,
-                &settings,
+                ctx.settings(),
                 &mut min_density,
                 &mut max_density,
                 &mut size,
                 &mut special_traits,
             );
 
-            let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
+            let blackbody_temp =
+                calculate_blackbody_temperature(ctx.star_luminosity, orbit_distance);
             let (density, new_size, radius, mass) = generate_acceptable_telluric_parameters(
                 size_modifier,
                 &mut rng,
@@ -137,18 +158,18 @@ impl TelluricBodyDetails {
                 size,
                 CelestialBodyComposition::Rocky,
                 blackbody_temp,
-                primary_star_mass,
-                star_age,
+                ctx.primary_star_mass,
+                ctx.star_age,
                 &mut rng,
             );
 
             let mut this_orbit = if !is_moon {
                 complete_orbit_with_orbital_period(
-                    coord,
-                    system_index,
-                    star_id,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
-                    gas_giant_arrangement,
+                    ctx.system.coord,
+                    ctx.system.system_index,
+                    ctx.star_id,
+                    ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
+                    ctx.gas_giant_arrangement,
                     body_id,
                     &own_orbit,
                     orbit_distance,
@@ -161,7 +182,7 @@ impl TelluricBodyDetails {
                     mass,
                     size,
                     is_moon,
-                    &settings,
+                    ctx.settings(),
                 )
             } else {
                 own_orbit.clone().unwrap_or_default()
@@ -169,44 +190,32 @@ impl TelluricBodyDetails {
             this_orbit = get_orbit_with_updated_zone(this_orbit.clone(), blackbody_temp);
 
             moons = MoonGenerator::generate_planets_moons(
-                system_traits,
-                system_index,
-                star_id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_luminosity,
-                star_type,
-                star_class,
-                star_traits,
-                primary_star_mass,
-                own_orbit.clone().unwrap(),
-                coord,
-                &seed.clone(),
-                next_id,
-                gas_giant_arrangement,
+                ctx,
+                &ParentBodyInfo {
+                    parent_orbit: own_orbit.clone().unwrap_or_default(),
+                    planet_id: body_id,
+                    planet_size: size,
+                    planet_mass: mass,
+                    planet_density: density,
+                    planet_radius: radius,
+                    planet_orbital_period: this_orbit.orbital_period,
+                    blackbody_temperature: blackbody_temp,
+                },
                 populated_orbit_index,
-                body_id,
-                size,
-                mass,
-                density,
-                radius,
-                this_orbit.orbital_period,
-                blackbody_temp,
-                &settings,
                 is_moon,
+                next_id,
             );
 
             this_orbit = if !is_moon {
                 complete_orbit_with_rotation_and_axis(
-                    coord,
-                    system_index,
-                    star_id,
-                    star_age,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                    ctx.system.coord,
+                    ctx.system.system_index,
+                    ctx.star_id,
+                    ctx.star_age,
+                    ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
                     None,
-                    gas_giant_arrangement,
-                    system_traits,
+                    ctx.gas_giant_arrangement,
+                    ctx.system.system_traits,
                     body_id,
                     &Some(this_orbit),
                     orbit_distance,
@@ -219,14 +228,14 @@ impl TelluricBodyDetails {
                     &moons,
                     is_moon,
                     MoonDistance::Any,
-                    &settings,
+                    ctx.settings(),
                 )
             } else {
                 this_orbit
             };
 
             to_return = WorldGenerator::bundle_world_first_pass(
-                star_name,
+                ctx.star_name.clone(),
                 populated_orbit_index,
                 body_id,
                 this_orbit,
@@ -384,43 +393,29 @@ impl TelluricBodyDetails {
 
     /// Generates a fully fledged metallic body.
     pub fn generate_metallic_body(
+        ctx: &StarGenContext,
         body_id: u32,
-        coord: SpaceCoordinates,
-        system_traits: &Vec<SystemPeculiarity>,
-        system_index: u16,
-        star_id: u32,
-        star_name: Rc<str>,
-        star_age: f32,
-        star_mass: f64,
-        star_type: &StarSpectralType,
-        star_class: &StarLuminosityClass,
-        star_luminosity: f32,
-        star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f64,
-        gas_giant_arrangement: GasGiantArrangement,
-        next_id: &mut u32,
         populated_orbit_index: u32,
         own_orbit: Option<Orbit>,
         orbit_distance: f64,
-        mut orbits: Vec<Orbit>,
-        seed: Rc<str>,
-        settings: GenerationSettings,
+        orbits: Vec<Orbit>,
+        next_id: &mut u32,
         size_modifier: i32,
         is_moon: bool,
         fixed_size: Option<CelestialBodySize>,
     ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
         let mut rng = SeededDiceRoller::new(
-            &settings.seed,
+            &ctx.system.settings.seed,
             &format!(
                 "sys_{}_{}_str_{}_bdy{}",
-                coord, system_index, star_id, body_id
+                ctx.system.coord, ctx.system.system_index, ctx.star_id, body_id
             ),
         );
         let rolled_size = rng.roll(1, 400, size_modifier);
         let mut moons = Vec::new();
         let mut special_traits = Vec::new();
         let size_parameters = Self::determine_metallic_body_size(
-            &star_name,
+            &ctx.star_name,
             populated_orbit_index,
             body_id,
             &own_orbit,
@@ -436,24 +431,25 @@ impl TelluricBodyDetails {
         } else {
             size_parameters.3
         };
-        let mut mass = 0.0;
-        let mut density = 0.0;
-        let mut radius = 0.0;
+        let _mass = 0.0;
+        let _density = 0.0;
+        let _radius = 0.0;
 
         if discriminant(&to_return.object) == discriminant(&AstronomicalObject::Void) {
             generate_peculiarities(
-                &coord,
-                &system_index,
-                &star_id,
+                &ctx.system.coord,
+                &ctx.system.system_index,
+                &ctx.star_id,
                 &body_id,
-                &settings,
+                ctx.settings(),
                 &mut min_density,
                 &mut max_density,
                 &mut size,
                 &mut special_traits,
             );
 
-            let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
+            let blackbody_temp =
+                calculate_blackbody_temperature(ctx.star_luminosity, orbit_distance);
             let (density, new_size, radius, mass) = generate_acceptable_telluric_parameters(
                 size_modifier,
                 &mut rng,
@@ -471,18 +467,18 @@ impl TelluricBodyDetails {
                 size,
                 CelestialBodyComposition::Metallic,
                 blackbody_temp,
-                primary_star_mass,
-                star_age,
+                ctx.primary_star_mass,
+                ctx.star_age,
                 &mut rng,
             );
 
             let mut this_orbit = if !is_moon {
                 complete_orbit_with_orbital_period(
-                    coord,
-                    system_index,
-                    star_id,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
-                    gas_giant_arrangement,
+                    ctx.system.coord,
+                    ctx.system.system_index,
+                    ctx.star_id,
+                    ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
+                    ctx.gas_giant_arrangement,
                     body_id,
                     &own_orbit,
                     orbit_distance,
@@ -495,7 +491,7 @@ impl TelluricBodyDetails {
                     mass,
                     size,
                     is_moon,
-                    &settings,
+                    ctx.settings(),
                 )
             } else {
                 own_orbit.clone().unwrap_or_default()
@@ -503,44 +499,32 @@ impl TelluricBodyDetails {
             this_orbit = get_orbit_with_updated_zone(this_orbit.clone(), blackbody_temp);
 
             moons = MoonGenerator::generate_planets_moons(
-                system_traits,
-                system_index,
-                star_id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_luminosity,
-                star_type,
-                star_class,
-                star_traits,
-                primary_star_mass,
-                own_orbit.clone().unwrap(),
-                coord,
-                &seed.clone(),
-                next_id,
-                gas_giant_arrangement,
+                ctx,
+                &ParentBodyInfo {
+                    parent_orbit: own_orbit.clone().unwrap_or_default(),
+                    planet_id: body_id,
+                    planet_size: size,
+                    planet_mass: mass,
+                    planet_density: density,
+                    planet_radius: radius,
+                    planet_orbital_period: this_orbit.orbital_period,
+                    blackbody_temperature: blackbody_temp,
+                },
                 populated_orbit_index,
-                body_id,
-                size,
-                mass,
-                density,
-                radius,
-                this_orbit.orbital_period,
-                blackbody_temp,
-                &settings,
                 is_moon,
+                next_id,
             );
 
             this_orbit = if !is_moon {
                 complete_orbit_with_rotation_and_axis(
-                    coord,
-                    system_index,
-                    star_id,
-                    star_age,
-                    ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                    ctx.system.coord,
+                    ctx.system.system_index,
+                    ctx.star_id,
+                    ctx.star_age,
+                    ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
                     None,
-                    gas_giant_arrangement,
-                    system_traits,
+                    ctx.gas_giant_arrangement,
+                    ctx.system.system_traits,
                     body_id,
                     &Some(this_orbit),
                     orbit_distance,
@@ -553,14 +537,14 @@ impl TelluricBodyDetails {
                     &moons,
                     is_moon,
                     MoonDistance::Any,
-                    &settings,
+                    ctx.settings(),
                 )
             } else {
                 this_orbit
             };
 
             to_return = WorldGenerator::bundle_world_first_pass(
-                star_name,
+                ctx.star_name.clone(),
                 populated_orbit_index,
                 body_id,
                 this_orbit,

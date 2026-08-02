@@ -16,20 +16,10 @@ impl MathUtils {
     /// # Arguments
     ///
     /// * `num` - The `f32` number to check.
+    #[cfg(test)]
     pub fn does_f32_equal_zero(num: f32) -> bool {
         let epsilon = 1e-6;
         num.abs() < epsilon
-    }
-
-    /// Rounds a `f64` number to a specified number of decimal places.
-    ///
-    /// # Arguments
-    ///
-    /// * `num` - The `f64` number to round.
-    /// * `zeroes` - The number of decimal places to round to.
-    pub fn round_f64_to_precision(num: f64, zeroes: u32) -> f64 {
-        let scale = 10f64.powi(zeroes as i32);
-        (num * scale).round() / scale
     }
 
     /// Checks if an `f64` number is almost equal to zero.
@@ -42,6 +32,7 @@ impl MathUtils {
         num.abs() < epsilon
     }
 
+    #[cfg(test)]
     pub fn get_difference_percentage(number: f64, compare_to: f64) -> f64 {
         let result = if compare_to <= 0.0 && number >= 0.0 {
             (number - compare_to) / compare_to.abs()

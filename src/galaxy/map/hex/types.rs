@@ -1,6 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
-use std::ops::*;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
+use std::ops::{Add, Div, Mul, Sub};
 
 /// Coordinates of a point in a galactic map, in parsecs.
 #[derive(

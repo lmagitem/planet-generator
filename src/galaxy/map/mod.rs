@@ -1,22 +1,48 @@
-use crate::internal::*;
-use crate::prelude::*;
+#[cfg(test)]
+use crate::diagnostics::types::Diagnostics;
+use crate::diagnostics::types::{GenerationError, GenerationWarning};
+use crate::galaxy::map::division::GalacticMapDivision;
+use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::hex::GalacticHex;
+use crate::galaxy::map::region_map::types::GalacticRegionMap;
+#[cfg(test)]
+use crate::galaxy::map::types::GalacticRegion;
+#[cfg(test)]
+use crate::galaxy::map::types::SectorSettings;
+#[cfg(test)]
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+use crate::galaxy::types::GalaxyCategory;
+#[cfg(test)]
+use crate::galaxy::types::GalaxySettings;
+use crate::galaxy::Galaxy;
+#[cfg(test)]
+use crate::generator::types::GenerationSettings;
+#[cfg(test)]
+use crate::universe::types::UniverseSettings;
+use log::error;
 #[path = "../constants.rs"]
 mod constants;
 pub mod division;
 pub mod division_level;
 pub mod hex;
 pub mod region_map;
+pub mod serde_helpers;
 pub mod types;
 
 impl Galaxy {
     /// Returns the [GalacticHex] whose coordinates have been given in parameters.
     /// TODO: Add a boolean "populate" parameter that generates life in the hex if needed.
-    pub fn get_hex(&mut self, coord: SpaceCoordinates) -> Result<GalacticHex, Rc<str>> {
+    ///
+    /// # Errors
+    /// Returns [`GenerationError::InvalidCoordinates`] if the coordinates are outside the bounds of
+    /// the galaxy, or propagates any error from the hex's generation.
+    pub fn get_hex(&mut self, coord: SpaceCoordinates) -> Result<&GalacticHex, GenerationError> {
+        if !self.are_coord_valid(coord) {
+            return Err(GenerationError::InvalidCoordinates(coord));
+        }
         if self.region_map.is_none() && !self.galactic_map_layers.is_empty() {
             self.rebuild_region_map();
-        }
-        if !self.are_coord_valid(coord) {
-            return Err("Invalid coordinates.".into());
         }
 
         let starting_point = self.get_galactic_start();
@@ -25,72 +51,74 @@ impl Galaxy {
             .division_levels
             .iter()
             .find(|l| l.level == 0)
-            .expect("The division levels should be set")
+            .ok_or(GenerationError::InternalInvariant(
+                "division level 0 (hex size) must be set",
+            ))?
             .as_coord();
         let index = abs_coord / hex_size;
-        let possible_hex = self.hexes.iter().find(|hex| hex.index == index);
 
-        if let Some(hex) = possible_hex {
-            Ok(hex.clone())
-        } else {
-            let new_hex = GalacticHex::generate(coord, index, self);
-            self.hexes.push(new_hex.clone());
-            Ok(new_hex)
+        if !self.hexes.contains_key(&index) {
+            let new_hex = GalacticHex::generate(coord, index, self)?;
+            self.hexes.insert(index, new_hex);
         }
+        self.hexes
+            .get(&index)
+            .ok_or(GenerationError::InternalInvariant(
+                "hex must exist right after being found or generated",
+            ))
     }
 
     /// Returns the [GalacticMapDivision] at the level and coordinates given in parameters. 0 being the hex level and 9 being the highest
     /// possible division level.
+    ///
+    /// # Errors
+    /// Returns [`GenerationError::InvalidCoordinates`] if the coordinates are outside the bounds of
+    /// the galaxy, or [`GenerationError::InvalidDivisionLevel`] if the level is not in 1..=9.
     pub fn get_division_at_level(
         &mut self,
         coord: SpaceCoordinates,
         level: u8,
-    ) -> Result<GalacticMapDivision, Rc<str>> {
+    ) -> Result<&GalacticMapDivision, GenerationError> {
         if !self.are_coord_valid(coord) {
-            return Err("Invalid coordinates.".into());
+            return Err(GenerationError::InvalidCoordinates(coord));
         }
         if level <= 0 || level >= 10 {
-            return Err("Level must be higher than 0 and less than 10.".into());
+            return Err(GenerationError::InvalidDivisionLevel(level));
         }
 
-        let divisions = self
-            .get_divisions_for_coord(coord)
-            .expect("Divisions should have been found or generated.");
+        let divisions = self.get_divisions_for_coord(coord)?;
+        // `level` was validated above and `get_divisions_for_coord` returns one
+        // division per level 0..=9, so this lookup cannot actually fail.
         let division = divisions
-            .iter()
+            .into_iter()
             .find(|div| div.level == level)
-            .expect("A division should have been found or generated.");
-        Ok(division.clone())
+            .ok_or(GenerationError::InvalidDivisionLevel(level))?;
+        Ok(division)
     }
 
     /// Returns the list of [GalacticMapDivision] the given coordinates are a part of.
+    ///
+    /// # Errors
+    /// Returns [`GenerationError::InvalidCoordinates`] if the coordinates are outside the bounds of
+    /// the galaxy.
     pub fn get_divisions_for_coord(
         &mut self,
         coord: SpaceCoordinates,
-    ) -> Result<Vec<GalacticMapDivision>, Rc<str>> {
+    ) -> Result<Vec<&GalacticMapDivision>, GenerationError> {
+        if !self.are_coord_valid(coord) {
+            return Err(GenerationError::InvalidCoordinates(coord));
+        }
         if self.region_map.is_none() && !self.galactic_map_layers.is_empty() {
             self.rebuild_region_map();
         }
-        if !self.are_coord_valid(coord) {
-            return Err("Invalid coordinates.".into());
-        }
 
-        let mut result = Vec::new();
         let starting_point = self.get_galactic_start();
         let abs_coord = coord.abs(starting_point);
 
         let mut index = abs_coord;
         for i in 0..=9 {
-            index = calculate_next_index(self, i, index);
-            let possible_division = self
-                .divisions
-                .iter()
-                .filter(|div| div.level == i)
-                .find(|div| div.index == index);
-
-            if let Some(division) = possible_division {
-                result.push(division.clone())
-            } else {
+            index = calculate_next_index(&self.division_levels, i, index);
+            if !self.divisions.contains_key(&(i, index)) {
                 let new_division = GalacticMapDivision::generate(
                     index,
                     i,
@@ -101,9 +129,19 @@ impl Galaxy {
                         .unwrap_or(&GalacticMapDivisionLevel::new(10, 255, 255, 255)),
                     self,
                 );
-                self.divisions.push(new_division.clone());
-                result.push(new_division)
+                self.divisions.insert((i, index), new_division);
             }
+        }
+
+        let mut result = Vec::new();
+        let mut index = abs_coord;
+        for i in 0..=9 {
+            index = calculate_next_index(&self.division_levels, i, index);
+            result.push(self.divisions.get(&(i, index)).ok_or(
+                GenerationError::InternalInvariant(
+                    "division must exist right after being found or generated",
+                ),
+            )?);
         }
 
         Ok(result)
@@ -203,19 +241,40 @@ impl Galaxy {
     /// divisions and hexes (their cached regions would otherwise go stale). On parse
     /// failure, falls back to the category's default map; if that also fails, clears
     /// `galactic_map_layers` (no map will be used) and logs an error.
+    ///
+    /// Note that this also runs automatically on the first map query of a galaxy whose
+    /// region map is missing (e.g. freshly deserialized, since the cache is not
+    /// serialized): the deserialized division and hex caches are cleared and their
+    /// content is regenerated on demand. Regeneration is deterministic, but any
+    /// consumer-side mutation of cached systems is discarded.
     pub fn rebuild_region_map(&mut self) {
         let start = self.get_galactic_start();
         let end = self.get_galactic_end();
-        self.region_map = GalacticRegionMap::build(&self.galactic_map_layers, start, end);
+        let region_map = GalacticRegionMap::build_with_diagnostics(
+            &self.galactic_map_layers,
+            start,
+            end,
+            &mut self.diagnostics,
+        );
+        self.region_map = region_map;
         if self.region_map.is_none() {
             self.galactic_map_layers = constants::default_layers_for(self.category);
-            self.region_map = GalacticRegionMap::build(&self.galactic_map_layers, start, end);
+            let region_map = GalacticRegionMap::build_with_diagnostics(
+                &self.galactic_map_layers,
+                start,
+                end,
+                &mut self.diagnostics,
+            );
+            self.region_map = region_map;
             if self.region_map.is_none() {
                 error!(
                     "Failed to build any region map for galaxy {}; falling back to no map.",
                     self.name
                 );
                 self.galactic_map_layers.clear();
+            } else {
+                self.diagnostics
+                    .push_warning(GenerationWarning::RegionMapRebuiltFromDefault);
             }
         }
         self.divisions.clear();
@@ -225,22 +284,27 @@ impl Galaxy {
 
 /// Calculates the index of a [GalacticMapDivision] when iterating over division levels to determine the index of higher levels.
 fn calculate_next_index(
-    galaxy: &mut Galaxy,
+    division_levels: &[GalacticMapDivisionLevel],
     level: u8,
     index: SpaceCoordinates,
 ) -> SpaceCoordinates {
-    let size = galaxy
-        .division_levels
+    // Unreachable fallback (division levels always cover 0..=9): the same dummy
+    // level used by `get_divisions_for_coord` when a level is missing.
+    let size = division_levels
         .iter()
         .find(|l| l.level == level)
-        .expect("The division levels should be set.")
-        .as_coord();
+        .map_or_else(
+            || GalacticMapDivisionLevel::new(10, 255, 255, 255).as_coord(),
+            |l| l.as_coord(),
+        );
     index / size
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde::{Deserialize, Serialize};
+    use std::collections::BTreeMap;
 
     #[test]
     fn returns_proper_start_center_and_end_points() {
@@ -261,10 +325,11 @@ mod tests {
             sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: vec![],
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         };
         let start = galaxy.get_galactic_start();
         let center = galaxy.get_galactic_center();
@@ -293,10 +358,11 @@ mod tests {
             sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: vec![],
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         };
         let start = galaxy.get_galactic_start();
         let center = galaxy.get_galactic_center();
@@ -326,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn hexes_and_divs_are_at_expected_coordinates() {
+    fn hexes_and_divs_are_at_expected_coordinates() -> Result<(), GenerationError> {
         let settings = GenerationSettings {
             seed: "default".into(),
             universe: UniverseSettings {
@@ -359,98 +425,77 @@ mod tests {
             sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         };
-        let first_hex = galaxy
-            .get_hex(SpaceCoordinates::new(-49, -2, 0))
-            .expect("Should return a hex.");
+        let first_hex = galaxy.get_hex(SpaceCoordinates::new(-49, -2, 0))?;
         assert_eq!(first_hex.index, SpaceCoordinates::new(0, 0, 0));
-        let first_hex_but_second_parsec = galaxy
-            .get_hex(SpaceCoordinates::new(-48, -2, 0))
-            .expect("Should return a hex.");
+        let first_hex_but_second_parsec = galaxy.get_hex(SpaceCoordinates::new(-48, -2, 0))?;
         assert_eq!(
             first_hex_but_second_parsec.index,
             SpaceCoordinates::new(0, 0, 0)
         );
-        let another_hex = galaxy
-            .get_hex(SpaceCoordinates::new(-10, -2, 0))
-            .expect("Should return a hex.");
+        let another_hex = galaxy.get_hex(SpaceCoordinates::new(-10, -2, 0))?;
         assert_eq!(another_hex.index, SpaceCoordinates::new(9, 0, 0));
-        let another_hex_with_different_y = galaxy
-            .get_hex(SpaceCoordinates::new(-10, 0, 0))
-            .expect("Should return a hex.");
+        let another_hex_with_different_y = galaxy.get_hex(SpaceCoordinates::new(-10, 0, 0))?;
         assert_eq!(
             another_hex_with_different_y.index,
             SpaceCoordinates::new(9, 1, 0)
         );
-        let last_hex = galaxy
-            .get_hex(SpaceCoordinates::new(50, 2, 0))
-            .expect("Should return a hex.");
+        let last_hex = galaxy.get_hex(SpaceCoordinates::new(50, 2, 0))?;
         assert_eq!(last_hex.index, SpaceCoordinates::new(24, 2, 0));
 
-        let first_div = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 1)
-            .expect("Should return a div.");
+        let first_div = galaxy.get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 1)?;
         assert_eq!(first_div.index, SpaceCoordinates::new(0, 0, 0));
-        let first_div_but_fourth_parsec = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 1)
-            .expect("Should return a div.");
+        let first_div_but_fourth_parsec =
+            galaxy.get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 1)?;
         assert_eq!(
             first_div_but_fourth_parsec.index,
             SpaceCoordinates::new(0, 0, 0)
         );
-        let another_div = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)
-            .expect("Should return a div.");
+        let another_div = galaxy.get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)?;
         assert_eq!(another_div.index, SpaceCoordinates::new(4, 0, 0));
-        let another_div_with_different_y = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 1)
-            .expect("Should return a div.");
+        let another_div_with_different_y =
+            galaxy.get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 1)?;
         assert_eq!(
             another_div_with_different_y.index,
             SpaceCoordinates::new(4, 0, 0)
         );
-        let last_div = galaxy
-            .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 1)
-            .expect("Should return a div.");
+        let last_div = galaxy.get_division_at_level(SpaceCoordinates::new(50, 2, 0), 1)?;
         assert_eq!(last_div.index, SpaceCoordinates::new(12, 1, 0));
 
-        let first_second_level_div = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 2)
-            .expect("Should return a div.");
+        let first_second_level_div =
+            galaxy.get_division_at_level(SpaceCoordinates::new(-49, -2, 0), 2)?;
         assert_eq!(first_second_level_div.index, SpaceCoordinates::new(0, 0, 0));
-        let first_second_level_div_but_fourth_parsec = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 2)
-            .expect("Should return a div.");
+        let first_second_level_div_but_fourth_parsec =
+            galaxy.get_division_at_level(SpaceCoordinates::new(-46, -2, 0), 2)?;
         assert_eq!(
             first_second_level_div_but_fourth_parsec.index,
             SpaceCoordinates::new(0, 0, 0)
         );
-        let another_second_level_div = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 2)
-            .expect("Should return a div.");
+        let another_second_level_div =
+            galaxy.get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 2)?;
         assert_eq!(
             another_second_level_div.index,
             SpaceCoordinates::new(1, 0, 0)
         );
-        let another_second_level_div_with_different_y = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 2)
-            .expect("Should return a div.");
+        let another_second_level_div_with_different_y =
+            galaxy.get_division_at_level(SpaceCoordinates::new(-10, 0, 0), 2)?;
         assert_eq!(
             another_second_level_div_with_different_y.index,
             SpaceCoordinates::new(1, 0, 0)
         );
-        let last_second_level_div = galaxy
-            .get_division_at_level(SpaceCoordinates::new(50, 2, 0), 2)
-            .expect("Should return a div.");
+        let last_second_level_div =
+            galaxy.get_division_at_level(SpaceCoordinates::new(50, 2, 0), 2)?;
         assert_eq!(last_second_level_div.index, SpaceCoordinates::new(4, 0, 0));
+        Ok(())
     }
 
     #[test]
-    fn rebuild_clears_caches() {
+    fn rebuild_clears_caches() -> Result<(), GenerationError> {
         let settings = GenerationSettings {
             seed: "default".into(),
             universe: UniverseSettings {
@@ -483,14 +528,13 @@ mod tests {
             sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         };
-        galaxy
-            .get_hex(SpaceCoordinates::new(-10, -2, 0))
-            .expect("Should return a hex.");
+        galaxy.get_hex(SpaceCoordinates::new(-10, -2, 0))?;
         assert!(
             !galaxy.divisions.is_empty() && !galaxy.hexes.is_empty(),
             "Generating a hex should have populated the division and hex caches."
@@ -506,10 +550,83 @@ mod tests {
             galaxy.divisions.is_empty() && galaxy.hexes.is_empty(),
             "Rebuilding the region map should clear the stale division and hex caches."
         );
+        Ok(())
     }
 
     #[test]
-    fn map_queries_heal_a_missing_region_map() {
+    fn caches_survive_a_serde_round_trip() -> Result<(), GenerationError> {
+        #[derive(Serialize, Deserialize)]
+        struct Caches {
+            #[serde(with = "crate::galaxy::map::serde_helpers")]
+            divisions: BTreeMap<(u8, SpaceCoordinates), GalacticMapDivision>,
+            #[serde(with = "crate::galaxy::map::serde_helpers")]
+            hexes: BTreeMap<SpaceCoordinates, GalacticHex>,
+        }
+
+        let settings = GenerationSettings {
+            seed: "default".into(),
+            universe: UniverseSettings {
+                ..Default::default()
+            },
+            galaxy: GalaxySettings {
+                ..Default::default()
+            },
+            sector: SectorSettings {
+                hex_size: (4, 2, 4),
+                level_1_size: (2, 2, 2),
+                level_2_size: (3, 3, 3),
+                level_3_size: (2, 2, 2),
+                flat_map: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut galaxy = Galaxy {
+            settings: settings.clone(),
+            neighborhood: GalacticNeighborhood {
+                ..Default::default()
+            },
+            index: 0,
+            name: constants::OUR_GALAXYS_NAME.into(),
+            age: constants::OUR_GALAXYS_AGE,
+            is_dominant: false,
+            is_major: true,
+            category: GalaxyCategory::Irregular(100, 5, 1),
+            sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
+            special_traits: vec![constants::NO_SPECIAL_TRAIT],
+            division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
+            galactic_map_layers: vec![],
+            region_map: None,
+            diagnostics: Diagnostics::default(),
+        };
+        galaxy.get_hex(SpaceCoordinates::new(-10, -2, 0))?;
+        galaxy.get_hex(SpaceCoordinates::new(10, 1, 0))?;
+        assert!(
+            !galaxy.divisions.is_empty() && !galaxy.hexes.is_empty(),
+            "The caches should be populated for the round-trip to be meaningful."
+        );
+
+        let caches = Caches {
+            divisions: galaxy.divisions.clone(),
+            hexes: galaxy.hexes.clone(),
+        };
+        let json = serde_json::to_string(&caches).expect("Should serialize.");
+        let deserialized: Caches = serde_json::from_str(&json).expect("Should deserialize.");
+
+        assert_eq!(deserialized.divisions, galaxy.divisions);
+        assert_eq!(deserialized.hexes, galaxy.hexes);
+        assert_eq!(
+            serde_json::to_string(&deserialized).expect("Should serialize."),
+            json,
+            "Serializing the round-tripped caches should give the same JSON."
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn map_queries_heal_a_missing_region_map() -> Result<(), GenerationError> {
         // Simulates a freshly deserialized galaxy: layers are set but the rasterized cache is gone.
         let settings = GenerationSettings {
             seed: "default".into(),
@@ -538,23 +655,21 @@ mod tests {
             sub_category: constants::OUR_GALAXYS_SUB_CATEGORY,
             special_traits: vec![constants::NO_SPECIAL_TRAIT],
             division_levels: GalacticMapDivisionLevel::generate_division_levels(&settings),
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers: vec![full_arm_svg.to_string()],
             region_map: None,
+            diagnostics: Diagnostics::default(),
         };
 
-        galaxy
-            .get_hex(SpaceCoordinates::new(-10, -2, 0))
-            .expect("Should return a hex.");
+        galaxy.get_hex(SpaceCoordinates::new(-10, -2, 0))?;
         assert!(
             galaxy.region_map.is_some(),
             "A map query should rebuild a missing region map from the galaxy's layers."
         );
 
-        let division = galaxy
-            .get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)
-            .expect("Should return a division.");
+        let division = galaxy.get_division_at_level(SpaceCoordinates::new(-10, -2, 0), 1)?;
         assert_eq!(division.region, GalacticRegion::Arm);
+        Ok(())
     }
 }

@@ -1,5 +1,17 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::generator::types::GenerationSettings;
+use crate::system::contents::types::GasGiantArrangement;
+use crate::system::orbital_point::types::Orbit;
+use crate::system::star::types::StarGenContext;
+use crate::system::star::types::StarLuminosityClass;
+use crate::system::star::types::StarPeculiarity;
+use crate::system::star::types::StarSpectralType;
+use crate::system::star::types::StarZone;
+use crate::system::types::StellarEvolution;
+use crate::system::types::SystemGenContext;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::mem::discriminant;
+use std::rc::Rc;
 pub mod generator;
 pub mod types;
 
@@ -126,6 +138,37 @@ impl Star {
     }
 }
 
+impl<'a> StarGenContext<'a> {
+    pub(crate) fn new(
+        system: &'a SystemGenContext<'a>,
+        star: &Star,
+        star_id: u32,
+        primary_star_mass: f64,
+        gas_giant_arrangement: GasGiantArrangement,
+    ) -> Self {
+        Self {
+            system,
+            star_id,
+            star_name: star.name.clone(),
+            star_age: star.age,
+            star_mass: star.mass,
+            star_luminosity: star.luminosity,
+            star_type: star.spectral_type,
+            star_class: star.luminosity_class,
+            star_traits: star.special_traits.clone(),
+            primary_star_mass,
+            gas_giant_arrangement,
+        }
+    }
+
+    /// The base settings. `generate_gas_giant` is the ONLY consumer that may
+    /// receive an overridden value; it keeps an explicit param instead (§4).
+    pub(crate) fn settings(&self) -> &'a GenerationSettings {
+        self.system.settings
+    }
+}
+
+#[cfg(test)]
 pub(crate) fn get_star_color_code(star: &Star) -> &'static str {
     match star.spectral_type {
         StarSpectralType::WR(_) | StarSpectralType::O(_) => "\x1b[34m", // Blue

@@ -1,6 +1,10 @@
 #![allow(dead_code)]
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::orbital_point::types::Orbit;
+use crate::system::star::types::StarLuminosityClass;
+use crate::system::star::types::StarSpectralType;
+use crate::system::star::Star;
+use crate::system::types::StellarEvolution;
+use serde::{Deserialize, Serialize};
 
 pub const BROWN_DWARF_MIN_MASS: f64 = 0.015;
 pub const RED_DWARF_POP_HYPERDWARF_MIN_MASS: f64 = 1.0 / 25.0;

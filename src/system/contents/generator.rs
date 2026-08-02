@@ -1,23 +1,57 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::types::{GenerationError, GenerationWarning};
+use crate::generator::types::GenerationSettings;
+use crate::system::celestial_body::gaseous::types::GaseousBodySettings;
+use crate::system::celestial_body::gaseous::GaseousBodyDetails;
+use crate::system::celestial_body::icy::IcyBodyDetails;
+use crate::system::celestial_body::telluric::types::TelluricBodyComposition;
+use crate::system::celestial_body::telluric::TelluricBodyDetails;
+use crate::system::celestial_body::traits::CelestialBodySpecialTrait;
+use crate::system::celestial_body::types::CelestialBodyComposition;
+use crate::system::celestial_body::types::CelestialBodyDetails;
+use crate::system::celestial_body::types::CelestialBodySettings;
+use crate::system::celestial_body::types::CelestialBodySize;
+use crate::system::celestial_body::world::WorldGenerator;
+#[cfg(test)]
+use crate::system::celestial_body::CelestialBody;
 use crate::system::contents::get_next_id;
+use crate::system::contents::types::GasGiantArrangement;
 use crate::system::contents::zones::collect_all_zones;
+use crate::system::orbital_point::types::AstronomicalObject;
+use crate::system::orbital_point::types::Orbit;
 use crate::system::orbital_point::utils::sort_orbital_points_by_average_distance;
+use crate::system::orbital_point::OrbitalPoint;
+use crate::system::star::types::RotationAnomalySpeed;
+use crate::system::star::types::StarAgeDifference;
+use crate::system::star::types::StarGenContext;
+use crate::system::star::types::StarMetallicityDifference;
+use crate::system::star::types::StarPeculiarity;
+use crate::system::star::types::StarSpectralType;
+use crate::system::star::types::StarZone;
+use crate::system::star::types::VariableStarInterval;
+use crate::system::star::types::ZoneType;
+use crate::system::star::Star;
+use crate::system::types::CataclysmSeverity;
+use crate::system::types::DebrisDensity;
+use crate::system::types::NebulaeApparentSize;
+use crate::system::types::StellarEvolution;
+use crate::system::types::SystemGenContext;
+use crate::system::types::SystemPeculiarity;
+use crate::utils::harmonics::OrbitalHarmonicsUtils;
+use crate::utils::string::StringUtils;
+use log::debug;
+use seeded_dice_roller::{
+    CopyableRollToProcess, CopyableWeightedResult, PreparedRoll, RollMethod, RollToProcess,
+    SeededDiceRoller, WeightedResult,
+};
+use std::mem::discriminant;
 
-pub fn generate_stars_systems(
-    system_gen_try: u32,
-    all_objects: &mut Vec<OrbitalPoint>,
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
-) {
-    let seed: Rc<str> = format!("{}{}", system_gen_try, &galaxy.settings.seed).into();
+pub fn generate_stars_systems(ctx: &SystemGenContext, all_objects: &mut Vec<OrbitalPoint>) {
     let mut next_id = get_next_id(all_objects);
     let all_zones = collect_all_zones(all_objects);
 
-    let mut number_of_bodies_per_star =
-        collect_number_of_bodies_per_star(all_objects, &system_index, &coord, &*seed);
+    let mut number_of_bodies_per_star = collect_number_of_bodies_per_star(ctx, all_objects);
+    // A system always contains at least one star by construction; the fallback is
+    // unreachable but recorded if the invariant is ever broken.
     let primary_star_mass = all_objects
         .iter()
         .filter_map(|o| {
@@ -27,20 +61,21 @@ pub fn generate_stars_systems(
                 None
             }
         })
-        .max_by(|a, b| a.partial_cmp(b).expect("Should be able to compare masses."))
-        .expect("Should have found at least one star.");
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .unwrap_or_else(|| {
+            ctx.fail(GenerationError::InternalInvariant(
+                "a star system must contain at least one star",
+            ));
+            0.0
+        });
 
     let mut new_objects = Vec::new();
     number_of_bodies_per_star
         .iter_mut()
         .for_each(|(major_bodies_left, star_index)| {
             new_objects.append(&mut generate_orbits_and_bodies(
+                ctx,
                 all_objects,
-                system_traits,
-                system_index,
-                coord,
-                galaxy,
-                seed.clone(),
                 &all_zones,
                 &mut Vec::new(),
                 major_bodies_left,
@@ -54,23 +89,19 @@ pub fn generate_stars_systems(
     //       If so, change the rotations to more sensible values. Otherwise smash them into an asteroid belt.
 
     all_objects.extend(new_objects);
+    ctx.report();
 }
 
 fn collect_number_of_bodies_per_star(
+    ctx: &SystemGenContext,
     all_objects: &mut Vec<OrbitalPoint>,
-    system_index: &u16,
-    coord: &SpaceCoordinates,
-    seed: &str,
 ) -> Vec<(i32, usize)> {
     all_objects
         .iter_mut()
         .enumerate()
         .filter_map(|(index, o)| {
             if let AstronomicalObject::Star(ref mut star) = o.object {
-                Some((
-                    generate_number_of_bodies(system_index, coord, seed, star),
-                    index,
-                ))
+                Some((generate_number_of_bodies(ctx, star), index))
             } else {
                 None
             }
@@ -79,14 +110,10 @@ fn collect_number_of_bodies_per_star(
 }
 
 fn generate_orbits_and_bodies(
+    ctx: &SystemGenContext,
     all_objects: &mut Vec<OrbitalPoint>,
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
-    seed: Rc<str>,
-    all_zones: &Vec<StarZone>,
-    mut new_objects: &mut Vec<OrbitalPoint>,
+    all_zones: &[StarZone],
+    new_objects: &mut Vec<OrbitalPoint>,
     major_bodies_left: &mut i32,
     star_index: &mut usize,
     primary_star_mass: f64,
@@ -96,24 +123,17 @@ fn generate_orbits_and_bodies(
     let star_orbital_point = &mut all_objects[*star_index];
     let mut result: Vec<OrbitalPoint> = Vec::new();
     if let AstronomicalObject::Star(star) = &star_orbital_point.object {
-        let star_id = star_orbital_point.id;
-        let star_name = star.name.clone();
-        let star_age = star.age;
-        let star_mass = star.mass;
-        let star_luminosity = star.luminosity;
-        let star_type = star.spectral_type.clone();
-        let star_class = star.luminosity_class.clone();
-        let star_traits = star.special_traits.clone();
-        let gas_giant_arrangement = generate_gas_giant_arrangement(
-            *major_bodies_left,
-            star.orbital_point_id,
-            &star.special_traits,
-            &star.spectral_type,
-            &star.population,
-            system_traits,
-            &system_index,
-            &coord,
-            galaxy,
+        let gas_giant_arrangement = generate_gas_giant_arrangement(ctx, *major_bodies_left, star);
+        // Per-star snapshot, built AFTER `generate_number_of_bodies` has run (it may
+        // push `CircumstellarDisk` into `star.special_traits`, §6.3) and after the
+        // arrangement roll. Star fields are OWNED clones: the star lives inside
+        // `star_orbital_point`, borrowed mutably throughout the orbit loops.
+        let star_ctx = StarGenContext::new(
+            ctx,
+            star,
+            star_orbital_point.id,
+            primary_star_mass,
+            gas_giant_arrangement,
         );
 
         debug!(
@@ -122,37 +142,18 @@ fn generate_orbits_and_bodies(
         );
 
         let mut reference_orbit_radius =
-            generate_reference_orbit_radius(system_index, coord, galaxy, major_bodies_left, &star);
+            generate_reference_orbit_radius(ctx, major_bodies_left, star);
 
-        let mut generated_proto_giant_id = None;
-        if let Some(orbit_radius) = generate_proto_gas_giant_position(
-            &gas_giant_arrangement,
-            star,
-            system_index,
-            coord,
-            galaxy,
-        ) {
+        if let Some(orbit_radius) =
+            generate_proto_gas_giant_position(ctx, &gas_giant_arrangement, star)
+        {
             let (orbit_radius, orbit, point, mut moons) = handle_proto_gas_giant_placement(
-                &all_zones,
-                system_traits,
-                system_index,
-                star_orbital_point.id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_luminosity,
-                &star.spectral_type,
-                &star.luminosity_class,
-                &star.special_traits,
-                primary_star_mass,
+                &star_ctx,
+                all_zones,
                 orbit_radius,
-                coord,
-                &galaxy,
-                seed.clone(),
                 major_bodies_left,
                 &mut next_id,
                 star.orbit.clone(),
-                gas_giant_arrangement,
                 reference_orbit_radius,
                 orbit_radius,
             );
@@ -162,7 +163,6 @@ fn generate_orbits_and_bodies(
                 star_orbital_point.orbits.push(o);
             }
             if let Some(p) = point {
-                generated_proto_giant_id = Some(p.id);
                 new_objects.push(p);
             }
             new_objects.append(&mut moons);
@@ -170,10 +170,8 @@ fn generate_orbits_and_bodies(
 
         // Generate all possible orbits
         let mut new_orbits = generate_orbits(
+            ctx,
             all_zones,
-            system_index,
-            coord,
-            galaxy,
             &star_orbital_point,
             star,
             &mut reference_orbit_radius,
@@ -181,9 +179,11 @@ fn generate_orbits_and_bodies(
         star_orbital_point.orbits.append(&mut new_orbits);
 
         // Sort all zones by increasing distance
-        star_orbital_point
-            .orbits
-            .sort_by(|a, b| a.average_distance.partial_cmp(&b.average_distance).unwrap());
+        star_orbital_point.orbits.sort_by(|a, b| {
+            a.average_distance
+                .partial_cmp(&b.average_distance)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         let spawn_chances = if star_orbital_point.orbits.len() == 0 || initial_number_of_bodies == 0
         {
@@ -194,28 +194,14 @@ fn generate_orbits_and_bodies(
         };
         let orbits_with_gas_giants_data =
             get_orbits_with_gas_giants(new_objects, star_orbital_point);
-        let mut orbit_contents: Vec<(usize, f64, Option<u32>)> = vec![];
+        let orbit_contents: Vec<(usize, f64, Option<u32>)> = vec![];
         if spawn_chances > 0 {
-            let mut orbit_contents = place_body_stubs(
-                system_traits,
-                system_index,
-                star_id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_luminosity,
-                &star_type,
-                &star_class,
-                &star_traits,
-                primary_star_mass,
-                coord,
-                galaxy,
-                seed.clone(),
+            let orbit_contents = place_body_stubs(
+                &star_ctx,
                 new_objects,
                 major_bodies_left,
                 &mut next_id,
                 star_orbital_point,
-                gas_giant_arrangement,
                 spawn_chances,
                 orbits_with_gas_giants_data,
                 orbit_contents,
@@ -224,25 +210,11 @@ fn generate_orbits_and_bodies(
                 get_orbits_with_gas_giants(new_objects, star_orbital_point);
 
             result.append(&mut replace_stubs(
-                system_traits,
-                system_index,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_luminosity,
-                &star_type,
-                &star_class,
-                &star_traits,
-                primary_star_mass,
-                coord,
-                galaxy,
-                seed.clone(),
+                &star_ctx,
                 new_objects,
                 major_bodies_left,
                 &mut next_id,
                 star_orbital_point,
-                gas_giant_arrangement,
-                spawn_chances,
                 orbits_with_gas_giants_data,
                 orbit_contents,
             ));
@@ -258,7 +230,7 @@ fn generate_orbits_and_bodies(
 }
 
 fn get_orbits_with_gas_giants(
-    mut new_objects: &mut Vec<OrbitalPoint>,
+    new_objects: &mut Vec<OrbitalPoint>,
     star_orbital_point: &mut OrbitalPoint,
 ) -> Vec<(usize, f64)> {
     let orbits_with_gas_giants_data: Vec<(usize, f64)> = star_orbital_point
@@ -280,24 +252,26 @@ fn get_orbits_with_gas_giants(
 }
 
 fn generate_reference_orbit_radius(
-    system_index: u16,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    ctx: &SystemGenContext,
     major_bodies_left: &mut i32,
     star: &Star,
 ) -> f64 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &ctx.settings.seed,
         &format!(
             "sys_{}_{}_str_{}_bdy{}_loc",
-            coord, system_index, star.orbital_point_id, major_bodies_left
+            ctx.coord, ctx.system_index, star.orbital_point_id, major_bodies_left
         ),
     );
-    let mut reference_orbit_radius = star
+    let reference_orbit_radius = star
         .zones
         .iter()
         .filter(|&o| o.zone_type != ZoneType::ForbiddenZone)
-        .max_by(|a, b| a.end.partial_cmp(&b.end).unwrap())
+        .max_by(|a, b| {
+            a.end
+                .partial_cmp(&b.end)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
         .unwrap_or(&StarZone::new(0.0, 0.0, ZoneType::ForbiddenZone))
         .end
         / (rng.roll(1, 6, 0) as f64 * 0.05 + 1.0);
@@ -305,19 +279,17 @@ fn generate_reference_orbit_radius(
 }
 
 fn generate_orbits(
-    all_zones: &Vec<StarZone>,
-    system_index: u16,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    ctx: &SystemGenContext,
+    all_zones: &[StarZone],
     star_orbital_point: &OrbitalPoint,
     star: &Star,
     reference_orbit_radius: &mut f64,
 ) -> Vec<Orbit> {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &ctx.settings.seed,
         &format!(
             "sys_{}_{}_str_{}_orbt_loc",
-            coord, system_index, star.orbital_point_id
+            ctx.coord, ctx.system_index, star.orbital_point_id
         ),
     );
     let mut orbits = vec![];
@@ -345,7 +317,7 @@ fn generate_orbits(
 }
 
 fn generate_inner_orbits(
-    all_zones: &Vec<StarZone>,
+    all_zones: &[StarZone],
     orbits: &mut Vec<Orbit>,
     star_id: u32,
     star_orbit: &Orbit,
@@ -360,7 +332,6 @@ fn generate_inner_orbits(
             next_orbit = *last_orbit - 0.15 + rng.roll(1, 301, -151) as f64 / 10000.0;
         }
         if next_orbit <= 0.0 {
-            inner_orbits_done = true;
             break;
         }
         *last_orbit = next_orbit;
@@ -378,25 +349,25 @@ fn generate_inner_orbits(
 }
 
 fn get_orbit_multiplier(rng: &mut SeededDiceRoller) -> f64 {
-    let multiplier = rng
-        .get_result(&CopyableRollToProcess::new(
-            vec![
-                CopyableWeightedResult::new(1.4, 1),
-                CopyableWeightedResult::new(1.5, 7),
-                CopyableWeightedResult::new(1.6, 16),
-                CopyableWeightedResult::new(1.7, 48),
-                CopyableWeightedResult::new(1.8, 16),
-                CopyableWeightedResult::new(1.9, 7),
-                CopyableWeightedResult::new(2.0, 1),
-            ],
-            RollMethod::SimpleRoll,
-        ))
-        .expect("A multiplier should have been picked.");
-    multiplier
+    let table = CopyableRollToProcess::new(
+        vec![
+            CopyableWeightedResult::new(1.4, 1),
+            CopyableWeightedResult::new(1.5, 7),
+            CopyableWeightedResult::new(1.6, 16),
+            CopyableWeightedResult::new(1.7, 48),
+            CopyableWeightedResult::new(1.8, 16),
+            CopyableWeightedResult::new(1.9, 7),
+            CopyableWeightedResult::new(2.0, 1),
+        ],
+        RollMethod::SimpleRoll,
+    );
+    // Unreachable fallback (hardcoded non-empty table): first entry.
+    rng.get_result(&table)
+        .unwrap_or(table.possible_results[0].result)
 }
 
 fn generate_outer_orbits(
-    all_zones: &Vec<StarZone>,
+    all_zones: &[StarZone],
     orbits: &mut Vec<Orbit>,
     star_id: u32,
     star_orbit: &Orbit,
@@ -422,7 +393,7 @@ fn generate_outer_orbits(
 }
 
 fn place_orbit_if_possible(
-    all_zones: &Vec<StarZone>,
+    all_zones: &[StarZone],
     orbits: &mut Vec<Orbit>,
     star_id: u32,
     is_done: &mut bool,
@@ -464,25 +435,11 @@ fn place_orbit_if_possible(
 
 /// Iterates over all orbits and place all gas giants other than the first one, and body stubs for the other types of planets.
 fn place_body_stubs(
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    star_id: u32,
-    star_name: Rc<str>,
-    star_age: f32,
-    star_mass: f64,
-    star_luminosity: f32,
-    star_type: &StarSpectralType,
-    star_class: &StarLuminosityClass,
-    star_traits: &Vec<StarPeculiarity>,
-    primary_star_mass: f64,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
-    seed: Rc<str>,
-    mut new_objects: &mut Vec<OrbitalPoint>,
+    ctx: &StarGenContext,
+    new_objects: &mut Vec<OrbitalPoint>,
     major_bodies_left: &mut i32,
     next_id: &mut u32,
     star_orbital_point: &mut OrbitalPoint,
-    gas_giant_arrangement: GasGiantArrangement,
     spawn_chances: i32,
     outwards_orbits_with_gas_giants_data: Vec<(usize, f64)>,
     mut orbit_contents: Vec<(usize, f64, Option<u32>)>,
@@ -495,11 +452,11 @@ fn place_body_stubs(
         .for_each(|(possible_orbit_index, orbit)| {
             if orbit.id.is_none() {
                 let mut rng = SeededDiceRoller::new(
-                    &galaxy.settings.seed,
+                    &ctx.settings().seed,
                     &format!(
                         "sys_{}_{}_str_{}_bdy{}_orbit{}_gen",
-                        coord,
-                        system_index,
+                        ctx.system.coord,
+                        ctx.system.system_index,
                         star_orbital_point.id,
                         major_bodies_left,
                         possible_orbit_index
@@ -530,9 +487,9 @@ fn place_body_stubs(
                         "Should spawn one of {} bodies left in {}, nextId is: {}",
                         *major_bodies_left, orbit.zone, next_id
                     );
-                    let settings = &galaxy.settings;
+                    let settings = ctx.settings();
                     let celestial_body_settings = &settings.celestial_body;
-                    match gas_giant_arrangement {
+                    match ctx.gas_giant_arrangement {
                         GasGiantArrangement::NoGasGiant => {
                             match orbit.zone {
                                 ZoneType::InnerZone | ZoneType::BioZone => {
@@ -549,27 +506,12 @@ fn place_body_stubs(
                                         ..settings.clone()
                                     };
 
-                                    let body_type = generate_inner_body_type(&mut rng, settings);
+                                    let body_type = generate_inner_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
+                                        ctx,
                                         body_id,
-                                        system_traits,
-                                        system_index,
-                                        star_id,
-                                        star_name.clone(),
-                                        star_age,
-                                        star_mass,
-                                        star_luminosity,
-                                        star_type,
-                                        star_class,
-                                        star_traits,
-                                        primary_star_mass,
-                                        gas_giant_arrangement,
-                                        possible_orbit_index as u32,
                                         populated_orbit_index as u32,
                                         orbit.average_distance,
-                                        coord,
-                                        galaxy,
-                                        seed.clone(),
                                         next_id,
                                         orbit,
                                         body_type,
@@ -579,7 +521,7 @@ fn place_body_stubs(
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
-                                        gas_giant_arrangement, orbit.zone, body_type
+                                        ctx.gas_giant_arrangement, orbit.zone, body_type
                                     );
 
                                     // Book-keeping
@@ -603,27 +545,12 @@ fn place_body_stubs(
                                     };
 
                                     let body_type =
-                                        generate_outer_body_type(&mut rng, settings.clone());
+                                        generate_outer_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
+                                        ctx,
                                         body_id,
-                                        system_traits,
-                                        system_index,
-                                        star_id,
-                                        star_name.clone(),
-                                        star_age,
-                                        star_mass,
-                                        star_luminosity,
-                                        star_type,
-                                        star_class,
-                                        star_traits,
-                                        primary_star_mass,
-                                        gas_giant_arrangement,
-                                        possible_orbit_index as u32,
                                         populated_orbit_index as u32,
                                         orbit.average_distance,
-                                        coord,
-                                        galaxy,
-                                        seed.clone(),
                                         next_id,
                                         orbit,
                                         body_type,
@@ -633,7 +560,7 @@ fn place_body_stubs(
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
-                                        gas_giant_arrangement, orbit.zone, body_type
+                                        ctx.gas_giant_arrangement, orbit.zone, body_type
                                     );
 
                                     // Book-keeping
@@ -658,27 +585,12 @@ fn place_body_stubs(
                                         ..settings.clone()
                                     };
 
-                                    let body_type = generate_inner_body_type(&mut rng, settings);
+                                    let body_type = generate_inner_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
+                                        ctx,
                                         body_id,
-                                        system_traits,
-                                        system_index,
-                                        star_id,
-                                        star_name.clone(),
-                                        star_age,
-                                        star_mass,
-                                        star_luminosity,
-                                        star_type,
-                                        star_class,
-                                        star_traits,
-                                        primary_star_mass,
-                                        gas_giant_arrangement,
-                                        possible_orbit_index as u32,
                                         populated_orbit_index as u32,
                                         orbit.average_distance,
-                                        coord,
-                                        galaxy,
-                                        seed.clone(),
                                         next_id,
                                         orbit,
                                         body_type,
@@ -688,7 +600,7 @@ fn place_body_stubs(
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
-                                        gas_giant_arrangement, orbit.zone, body_type
+                                        ctx.gas_giant_arrangement, orbit.zone, body_type
                                     );
 
                                     // Book-keeping
@@ -717,27 +629,12 @@ fn place_body_stubs(
                                         ..settings.clone()
                                     };
 
-                                    let body_type = generate_outer_body_type(&mut rng, settings);
+                                    let body_type = generate_outer_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
+                                        ctx,
                                         body_id,
-                                        system_traits,
-                                        system_index,
-                                        star_id,
-                                        star_name.clone(),
-                                        star_age,
-                                        star_mass,
-                                        star_luminosity,
-                                        star_type,
-                                        star_class,
-                                        star_traits,
-                                        primary_star_mass,
-                                        gas_giant_arrangement,
-                                        possible_orbit_index as u32,
                                         populated_orbit_index as u32,
                                         orbit.average_distance,
-                                        coord,
-                                        galaxy,
-                                        seed.clone(),
                                         next_id,
                                         orbit,
                                         body_type,
@@ -747,7 +644,7 @@ fn place_body_stubs(
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
-                                        gas_giant_arrangement, orbit.zone, body_type
+                                        ctx.gas_giant_arrangement, orbit.zone, body_type
                                     );
 
                                     // Book-keeping
@@ -778,27 +675,12 @@ fn place_body_stubs(
                                         ..settings.clone()
                                     };
 
-                                    let body_type = generate_inner_body_type(&mut rng, settings);
+                                    let body_type = generate_inner_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
+                                        ctx,
                                         body_id,
-                                        system_traits,
-                                        system_index,
-                                        star_id,
-                                        star_name.clone(),
-                                        star_age,
-                                        star_mass,
-                                        star_luminosity,
-                                        star_type,
-                                        star_class,
-                                        star_traits,
-                                        primary_star_mass,
-                                        gas_giant_arrangement,
-                                        possible_orbit_index as u32,
                                         populated_orbit_index as u32,
                                         orbit.average_distance,
-                                        coord,
-                                        galaxy,
-                                        seed.clone(),
                                         next_id,
                                         orbit,
                                         body_type,
@@ -808,7 +690,7 @@ fn place_body_stubs(
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
-                                        gas_giant_arrangement, orbit.zone, body_type
+                                        ctx.gas_giant_arrangement, orbit.zone, body_type
                                     );
 
                                     // Book-keeping
@@ -836,27 +718,12 @@ fn place_body_stubs(
                                         ..settings.clone()
                                     };
 
-                                    let body_type = generate_outer_body_type(&mut rng, settings);
+                                    let body_type = generate_outer_body_type(&mut rng, &settings);
                                     let mut body_orbital_point = generate_new_body_and_moons(
+                                        ctx,
                                         body_id,
-                                        system_traits,
-                                        system_index,
-                                        star_id,
-                                        star_name.clone(),
-                                        star_age,
-                                        star_mass,
-                                        star_luminosity,
-                                        star_type,
-                                        star_class,
-                                        star_traits,
-                                        primary_star_mass,
-                                        gas_giant_arrangement,
-                                        possible_orbit_index as u32,
                                         populated_orbit_index as u32,
                                         orbit.average_distance,
-                                        coord,
-                                        galaxy,
-                                        seed.clone(),
                                         next_id,
                                         orbit,
                                         body_type,
@@ -866,7 +733,7 @@ fn place_body_stubs(
 
                                     debug!(
                                         "{} - {} - Generate a {:?}",
-                                        gas_giant_arrangement, orbit.zone, body_type
+                                        ctx.gas_giant_arrangement, orbit.zone, body_type
                                     );
 
                                     // Book-keeping
@@ -900,31 +767,20 @@ fn place_body_stubs(
 /// Iterates over all orbits replace stubs by proper worlds. The nature of each world is influenced
 /// by nearby gas giants..
 fn replace_stubs(
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    star_name: Rc<str>,
-    star_age: f32,
-    star_mass: f64,
-    star_luminosity: f32,
-    star_type: &StarSpectralType,
-    star_class: &StarLuminosityClass,
-    star_traits: &Vec<StarPeculiarity>,
-    primary_star_mass: f64,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
-    seed: Rc<str>,
-    mut new_objects: &mut Vec<OrbitalPoint>,
+    ctx: &StarGenContext,
+    new_objects: &mut Vec<OrbitalPoint>,
     major_bodies_left: &mut i32,
     next_id: &mut u32,
     star_orbital_point: &mut OrbitalPoint,
-    gas_giant_arrangement: GasGiantArrangement,
-    spawn_chances: i32,
     orbits_with_gas_giants_data: Vec<(usize, f64)>,
-    mut orbit_contents: Vec<(usize, f64, Option<u32>)>,
+    orbit_contents: Vec<(usize, f64, Option<u32>)>,
 ) -> Vec<OrbitalPoint> {
-    let star_orbits = star_orbital_point.orbits.clone();
-    let star_object = star_orbital_point.object.clone();
-    let number_of_orbits = star_orbits.len();
+    let number_of_orbits = star_orbital_point.orbits.len();
+    let orbits_before_outer_zone = star_orbital_point
+        .orbits
+        .iter()
+        .take_while(|o| o.zone != ZoneType::OuterZone)
+        .count();
     let mut populated_orbit_index = 0;
     star_orbital_point
         .orbits
@@ -938,15 +794,20 @@ fn replace_stubs(
                     nearest_forbidden_distance,
                     zone_change_orbits_proximity,
                 ) = calculate_stub_orbital_relationships(
-                    star_object.clone(),
-                    orbits_with_gas_giants_data.clone(),
-                    &mut orbit_contents,
-                    star_orbits.clone(),
+                    &star_orbital_point.object,
+                    &orbits_with_gas_giants_data,
+                    &orbit_contents,
+                    orbits_before_outer_zone,
                     number_of_orbits,
                     orbit_index,
                     orbit,
                 );
-                let (_, _, object_id) = orbit_contents.iter().find(|o| o.0 == orbit_index).unwrap();
+                // Unreachable: orbit_contents covers every orbit index; skip this
+                // orbit instead of panicking if the invariant is ever broken.
+                let Some((_, _, object_id)) = orbit_contents.iter().find(|o| o.0 == orbit_index)
+                else {
+                    return;
+                };
 
                 debug!(
                     "Looking at orbit n°{}, object_id: {:?}, distance: {}au",
@@ -956,47 +817,26 @@ fn replace_stubs(
                     populated_orbit_index += 1;
                     let index_to_replace = new_objects.iter().position(|o| o.id == *id);
                     if let Some(new_object_index) = index_to_replace {
-                        let mut current_stub: &mut OrbitalPoint =
-                            &mut new_objects[new_object_index];
-                        if match current_stub.object.clone() {
+                        let current_stub: &mut OrbitalPoint = &mut new_objects[new_object_index];
+                        if match &current_stub.object {
                             AstronomicalObject::TelluricBody(body) => body.is_stub(),
                             AstronomicalObject::IcyBody(body) => body.is_stub(),
                             AstronomicalObject::GaseousBody(body) => body.is_stub(),
                             _ => false,
                         } {
                             let size_modifier = get_body_size_modifier(
-                                coord,
-                                system_index,
-                                star_orbital_point.id,
-                                star_mass,
-                                star_type,
+                                ctx,
                                 orbit_index,
                                 major_bodies_left,
                                 gas_giant_orbits_inwards_proximity,
                                 gas_giant_orbits_outwards_proximity,
                                 nearest_forbidden_distance,
                                 zone_change_orbits_proximity,
-                                &seed,
                             );
                             let possibly_generated = generate_body_and_moons(
-                                system_traits,
-                                system_index,
-                                star_orbital_point.id,
-                                star_name.clone(),
-                                star_age,
-                                star_mass,
-                                star_luminosity,
-                                star_type,
-                                star_class,
-                                star_traits,
-                                primary_star_mass,
-                                coord,
-                                galaxy,
-                                &seed,
+                                ctx,
                                 next_id,
-                                gas_giant_arrangement,
                                 populated_orbit_index,
-                                orbit_index,
                                 current_stub,
                                 size_modifier,
                             );
@@ -1010,27 +850,14 @@ fn replace_stubs(
             }
         });
 
-    replace_telluric_stubs(
-        system_traits,
-        system_index,
-        star_age,
-        star_type,
-        star_class,
-        star_traits,
-        coord,
-        galaxy,
-        seed,
-        new_objects,
-        star_orbital_point,
-        populated_orbit_index,
-    )
+    replace_telluric_stubs(ctx, new_objects, star_orbital_point, populated_orbit_index)
 }
 
 fn calculate_stub_orbital_relationships(
-    star_object: AstronomicalObject,
-    orbits_with_gas_giants_data: Vec<(usize, f64)>,
-    mut orbit_contents: &mut Vec<(usize, f64, Option<u32>)>,
-    star_orbits: Vec<Orbit>,
+    star_object: &AstronomicalObject,
+    orbits_with_gas_giants_data: &[(usize, f64)],
+    orbit_contents: &[(usize, f64, Option<u32>)],
+    orbits_before_outer_zone: usize,
     number_of_orbits: usize,
     orbit_index: usize,
     orbit: &mut Orbit,
@@ -1063,10 +890,7 @@ fn calculate_stub_orbital_relationships(
         f64::INFINITY
     };
     let zone_change_orbits_proximity = if orbit.zone != ZoneType::OuterZone {
-        star_orbits
-            .iter()
-            .take_while(|o| o.zone != ZoneType::OuterZone)
-            .count()
+        orbits_before_outer_zone
     } else {
         number_of_orbits - orbit_index
     };
@@ -1079,29 +903,13 @@ fn calculate_stub_orbital_relationships(
 }
 
 fn replace_telluric_stubs(
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    star_age: f32,
-    star_type: &StarSpectralType,
-    star_class: &StarLuminosityClass,
-    star_traits: &Vec<StarPeculiarity>,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
-    seed: Rc<str>,
+    ctx: &StarGenContext,
     new_objects: &mut Vec<OrbitalPoint>,
-    star_orbital_point: &mut OrbitalPoint,
-    mut populated_orbit_index: u32,
+    _star_orbital_point: &mut OrbitalPoint,
+    _populated_orbit_index: u32,
 ) -> Vec<OrbitalPoint> {
-    let mut non_finished_objects: Vec<OrbitalPoint> = new_objects
-        .iter()
-        .filter(|o| !is_finished(o))
-        .cloned()
-        .collect();
-    let mut finished_objects: Vec<OrbitalPoint> = new_objects
-        .iter()
-        .filter(|o| is_finished(o))
-        .cloned()
-        .collect();
+    let (mut finished_objects, mut non_finished_objects): (Vec<OrbitalPoint>, Vec<OrbitalPoint>) =
+        new_objects.drain(..).partition(is_finished);
 
     let new_objects_ids = non_finished_objects
         .iter()
@@ -1130,43 +938,35 @@ fn replace_telluric_stubs(
 
             match stub_body {
                 AstronomicalObject::TelluricBody(stub_body) => {
-                    if (stub_body.clone().is_stub()) {
+                    if stub_body.is_stub() {
                         let moons = finished_objects
                             .iter_mut()
                             .filter(|possible_moon_point| {
-                                possible_moon_point.own_orbit.is_some()
-                                    && stub_id
-                                        == possible_moon_point
-                                            .own_orbit
-                                            .clone()
-                                            .unwrap()
-                                            .primary_body_id
+                                possible_moon_point
+                                    .own_orbit
+                                    .as_ref()
+                                    .map_or(false, |orbit| stub_id == orbit.primary_body_id)
                             })
                             .map(|o| o.clone())
                             .collect::<Vec<OrbitalPoint>>();
 
                         // TODO: Tidal heating should also happen when eccentric orbit near to parent
                         let tidal_heating = tidal_heating_array[new_object_index];
+                        // A stub always has its own orbit; 0.0 is a deterministic,
+                        // unreachable stand-in if the invariant is ever broken.
+                        let distance_from_star = stub_orbit
+                            .as_ref()
+                            .map_or(0.0, |orbit| orbit.average_distance);
                         let generated = WorldGenerator::generate_world(
-                            coord,
-                            system_traits,
-                            system_index,
-                            star_orbital_point.id,
-                            star_age,
-                            star_type,
-                            star_class,
-                            star_traits,
-                            stub_orbit.clone().unwrap().average_distance,
-                            populated_orbit_index,
-                            stub_id,
+                            ctx,
+                            stub_body,
                             stub_orbit.unwrap_or_default(),
                             stub_orbits,
-                            stub_body,
-                            false,
                             &moons,
+                            distance_from_star,
+                            stub_id,
                             tidal_heating,
-                            seed.clone(),
-                            galaxy.settings.clone(),
+                            false,
                         );
                         non_finished_objects[new_object_index] = generated;
                     }
@@ -1181,38 +981,22 @@ fn replace_telluric_stubs(
 }
 
 fn is_finished(o: &OrbitalPoint) -> bool {
-    if let AstronomicalObject::TelluricBody(body)
-    | AstronomicalObject::GaseousBody(body)
-    | AstronomicalObject::IcyBody(body) = o.object.clone()
-    {
-        body.is_stub();
+    match &o.object {
+        AstronomicalObject::TelluricBody(body)
+        | AstronomicalObject::GaseousBody(body)
+        | AstronomicalObject::IcyBody(body) => !body.is_stub(),
+        _ => false,
     }
-    false
 }
 
 fn generate_body_and_moons(
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    star_id: u32,
-    star_name: Rc<str>,
-    star_age: f32,
-    star_mass: f64,
-    star_luminosity: f32,
-    star_type: &StarSpectralType,
-    star_class: &StarLuminosityClass,
-    star_traits: &Vec<StarPeculiarity>,
-    primary_star_mass: f64,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
-    seed: &Rc<str>,
+    ctx: &StarGenContext,
     next_id: &mut u32,
-    gas_giant_arrangement: GasGiantArrangement,
-    mut populated_orbit_index: u32,
-    orbit_index: usize,
-    mut current_stub: &mut OrbitalPoint,
+    populated_orbit_index: u32,
+    current_stub: &mut OrbitalPoint,
     size_modifier: i32,
 ) -> Option<(OrbitalPoint, Vec<OrbitalPoint>)> {
-    let mut to_return = None;
+    let mut to_return;
     let mut body_type = TelluricBodyComposition::Rocky;
     let body_id = current_stub.id;
     let orbit = current_stub.own_orbit.clone();
@@ -1222,7 +1006,6 @@ fn generate_body_and_moons(
         .unwrap_or_default()
         .average_distance;
     let orbited_by = current_stub.orbits.clone();
-    let settings = galaxy.settings.clone();
     let is_moon = false;
     let fixed_size = None;
 
@@ -1233,14 +1016,14 @@ fn generate_body_and_moons(
             }
             to_return = None;
         }
-        AstronomicalObject::IcyBody(body) => {
+        AstronomicalObject::IcyBody(_body) => {
             body_type = TelluricBodyComposition::Icy;
             to_return = None;
         }
         AstronomicalObject::GaseousBody(ref mut body) => {
             body.name = format!(
                 "{}{}",
-                star_name,
+                ctx.star_name,
                 StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
             )
             .into();
@@ -1262,21 +1045,8 @@ fn generate_body_and_moons(
 
     if to_return.is_none() {
         to_return = Some(generate_body_from_type(
-            system_traits,
-            system_index,
-            star_id,
-            star_name,
-            star_age,
-            star_mass,
-            star_luminosity,
-            star_type,
-            star_class,
-            star_traits,
-            primary_star_mass,
-            coord,
-            seed,
+            ctx,
             next_id,
-            gas_giant_arrangement,
             populated_orbit_index,
             size_modifier,
             body_type,
@@ -1284,7 +1054,6 @@ fn generate_body_and_moons(
             orbit,
             orbit_distance,
             orbited_by,
-            settings,
             is_moon,
             fixed_size,
         ));
@@ -1294,158 +1063,84 @@ fn generate_body_and_moons(
 }
 
 pub(crate) fn generate_body_from_type(
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    star_id: u32,
-    star_name: Rc<str>,
-    star_age: f32,
-    star_mass: f64,
-    star_luminosity: f32,
-    star_type: &StarSpectralType,
-    star_class: &StarLuminosityClass,
-    star_traits: &Vec<StarPeculiarity>,
-    primary_star_mass: f64,
-    coord: SpaceCoordinates,
-    seed: &Rc<str>,
+    ctx: &StarGenContext,
     next_id: &mut u32,
-    gas_giant_arrangement: GasGiantArrangement,
-    mut populated_orbit_index: u32,
+    populated_orbit_index: u32,
     size_modifier: i32,
     body_type: TelluricBodyComposition,
     body_id: u32,
     orbit: Option<Orbit>,
     orbit_distance: f64,
     orbited_by: Vec<Orbit>,
-    settings: GenerationSettings,
     is_moon: bool,
     fixed_size: Option<CelestialBodySize>,
 ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
     if body_type == TelluricBodyComposition::Metallic {
         TelluricBodyDetails::generate_metallic_body(
+            ctx,
             body_id,
-            coord,
-            system_traits,
-            system_index,
-            star_id,
-            star_name.clone(),
-            star_age,
-            star_mass,
-            star_type,
-            star_class,
-            star_luminosity,
-            star_traits,
-            primary_star_mass,
-            gas_giant_arrangement,
-            next_id,
             populated_orbit_index,
             orbit.clone(),
             orbit_distance,
             orbited_by.clone(),
-            seed.clone(),
-            settings.clone(),
+            next_id,
             size_modifier,
             is_moon,
             fixed_size,
         )
     } else if body_type == TelluricBodyComposition::Rocky {
         TelluricBodyDetails::generate_rocky_body(
+            ctx,
             body_id,
-            coord,
-            system_traits,
-            system_index,
-            star_id,
-            star_name.clone(),
-            star_age,
-            star_mass,
-            star_type,
-            star_class,
-            star_luminosity,
-            star_traits,
-            primary_star_mass,
-            gas_giant_arrangement,
-            next_id,
             populated_orbit_index,
             orbit.clone(),
             orbit_distance,
             orbited_by.clone(),
-            seed.clone(),
-            settings.clone(),
+            next_id,
             size_modifier,
             is_moon,
             fixed_size,
         )
     } else if body_type == TelluricBodyComposition::Icy {
         IcyBodyDetails::generate_icy_body(
+            ctx,
             body_id,
-            coord,
-            system_traits,
-            system_index,
-            star_id,
-            star_name.clone(),
-            star_age,
-            star_mass,
-            star_type,
-            star_class,
-            star_luminosity,
-            star_traits,
-            primary_star_mass,
-            gas_giant_arrangement,
-            next_id,
             populated_orbit_index,
             orbit,
             orbit_distance,
             orbited_by.clone(),
-            seed.clone(),
-            settings.clone(),
+            next_id,
             size_modifier,
             is_moon,
             fixed_size,
         )
     } else {
         GaseousBodyDetails::generate_gas_giant(
+            ctx,
+            ctx.settings(),
             body_id,
-            system_traits,
-            system_index,
-            star_id,
-            star_name.clone(),
-            star_age,
-            star_mass,
-            star_type,
-            star_class,
-            star_luminosity,
-            star_traits,
-            primary_star_mass,
-            gas_giant_arrangement,
             orbit.unwrap_or_default(),
             orbit_distance,
             populated_orbit_index,
             next_id,
-            coord,
-            seed.clone(),
-            settings.clone(),
         )
     }
 }
 
 fn get_body_size_modifier(
-    coord: SpaceCoordinates,
-    system_index: u16,
-    star_id: u32,
-    star_mass: f64,
-    star_type: &StarSpectralType,
+    ctx: &StarGenContext,
     orbit_index: usize,
     major_bodies_left: &mut i32,
     gas_giant_orbits_inwards_proximity: Option<usize>,
     gas_giant_orbits_outwards_proximity: Option<usize>,
     nearest_forbidden_distance: f64,
     zone_change_orbits_proximity: usize,
-    seed: &Rc<str>,
 ) -> i32 {
     let mut rng = SeededDiceRoller::new(
-        &seed,
+        &ctx.system.seed,
         &format!(
             "sys_{}_{}_str_{}_bdy{}_orbit{}_rep",
-            coord, system_index, star_id, major_bodies_left, orbit_index
+            ctx.system.coord, ctx.system.system_index, ctx.star_id, major_bodies_left, orbit_index
         ),
     );
 
@@ -1468,7 +1163,7 @@ fn get_body_size_modifier(
     } else {
         0
     };
-    size_modifier += match star_type {
+    size_modifier += match &ctx.star_type {
         StarSpectralType::WR(_)
         | StarSpectralType::O(_)
         | StarSpectralType::B(_)
@@ -1476,7 +1171,7 @@ fn get_body_size_modifier(
             if rng.roll(1, 50, 0) == 1 {
                 0
             } else {
-                -(star_mass * 5.0) as i32
+                -(ctx.star_mass * 5.0) as i32
             }
         }
         StarSpectralType::F(_) => 10,
@@ -1494,33 +1189,16 @@ fn should_skip_gaseous_body_gen(
     gas_giant_au_inwards_proximity: Option<f64>,
     gas_giant_au_outwards_proximity: Option<f64>,
 ) -> bool {
-    ((inwards_gas_giant.is_some() && outwards_gas_giant.is_some())
-        || ((gas_giant_au_inwards_proximity.is_some()
-            && gas_giant_au_inwards_proximity.unwrap() < 0.5)
-            || (gas_giant_au_outwards_proximity.is_some()
-                && gas_giant_au_outwards_proximity.unwrap() < 0.5)))
+    (inwards_gas_giant.is_some() && outwards_gas_giant.is_some())
+        || (gas_giant_au_inwards_proximity.map_or(false, |proximity| proximity < 0.5)
+            || gas_giant_au_outwards_proximity.map_or(false, |proximity| proximity < 0.5))
 }
 
 fn generate_new_body_and_moons(
+    ctx: &StarGenContext,
     body_id: u32,
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    star_id: u32,
-    star_name: Rc<str>,
-    star_age: f32,
-    star_mass: f64,
-    star_luminosity: f32,
-    star_type: &StarSpectralType,
-    star_class: &StarLuminosityClass,
-    star_traits: &Vec<StarPeculiarity>,
-    primary_star_mass: f64,
-    gas_giant_arrangement: GasGiantArrangement,
-    orbit_id: u32,
     populated_orbit_index: u32,
     orbit_distance: f64,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
-    seed: Rc<str>,
     next_id: &mut u32,
     orbit: &mut Orbit,
     body_type: CelestialBodyComposition,
@@ -1551,26 +1229,13 @@ fn generate_new_body_and_moons(
         }
         CelestialBodyComposition::Gaseous => {
             let mut giant_and_moons = GaseousBodyDetails::generate_gas_giant(
+                ctx,
+                ctx.settings(),
                 body_id,
-                system_traits,
-                system_index,
-                star_id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_type,
-                star_class,
-                star_luminosity,
-                star_traits,
-                primary_star_mass,
-                gas_giant_arrangement,
                 orbit.clone(),
                 orbit_distance,
                 populated_orbit_index,
                 next_id,
-                coord,
-                seed.clone(),
-                galaxy.settings.clone(),
             );
             orbital_point = giant_and_moons.0;
             moons.append(&mut giant_and_moons.1);
@@ -1590,29 +1255,16 @@ fn generate_new_body_and_moons(
 }
 
 fn handle_proto_gas_giant_placement(
-    all_zones: &Vec<StarZone>,
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: u16,
-    star_id: u32,
-    star_name: Rc<str>,
-    star_age: f32,
-    star_mass: f64,
-    star_luminosity: f32,
-    star_type: &StarSpectralType,
-    star_class: &StarLuminosityClass,
-    star_traits: &Vec<StarPeculiarity>,
-    primary_star_mass: f64,
+    ctx: &StarGenContext,
+    all_zones: &[StarZone],
     orbit_distance: f64,
-    coord: SpaceCoordinates,
-    galaxy: &&mut Galaxy,
-    seed: Rc<str>,
     major_bodies_left: &mut i32,
     next_id: &mut u32,
     star_orbit: Option<Orbit>,
-    gas_giant_arrangement: GasGiantArrangement,
-    mut reference_orbit_radius: f64,
+    reference_orbit_radius: f64,
     orbit_radius: f64,
 ) -> (f64, Option<Orbit>, Option<OrbitalPoint>, Vec<OrbitalPoint>) {
+    let mut reference_orbit_radius = reference_orbit_radius;
     let mut moons: Vec<OrbitalPoint> = Vec::new();
     let orbit_from_center = orbit_radius
         + star_orbit
@@ -1627,8 +1279,8 @@ fn handle_proto_gas_giant_placement(
             *next_id += 1;
             reference_orbit_radius = orbit_radius;
             // Create an Orbit
-            let mut orbit = Orbit::new(
-                star_id,
+            let orbit = Orbit::new(
+                ctx.star_id,
                 Some(giant_id),
                 zone.zone_type,
                 orbit_radius,
@@ -1644,8 +1296,8 @@ fn handle_proto_gas_giant_placement(
             );
 
             // Generate Gas Giant Settings
-            let settings = &galaxy.settings;
-            let celestial_body_settings = &galaxy.settings.celestial_body;
+            let settings = ctx.settings();
+            let celestial_body_settings = &settings.celestial_body;
             let gaseous_body_settings = celestial_body_settings.gaseous_body_settings.clone();
             let mut fixed_special_traits = gaseous_body_settings
                 .fixed_special_traits
@@ -1668,33 +1320,20 @@ fn handle_proto_gas_giant_placement(
 
             // Generate the Gas Giant
             let mut giant_and_moons = GaseousBodyDetails::generate_gas_giant(
+                ctx,
+                &settings,
                 giant_id,
-                system_traits,
-                system_index,
-                star_id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_type,
-                star_class,
-                star_luminosity,
-                star_traits,
-                primary_star_mass,
-                gas_giant_arrangement,
                 orbit,
                 orbit_distance,
                 0,
                 next_id,
-                coord,
-                seed.clone(),
-                settings.clone(),
             );
             let gas_giant = giant_and_moons.0;
             moons.append(&mut giant_and_moons.1);
 
             // Book-keeping
             *major_bodies_left -= 1;
-            if gas_giant_arrangement == GasGiantArrangement::EpistellarGasGiant {
+            if ctx.gas_giant_arrangement == GasGiantArrangement::EpistellarGasGiant {
                 *major_bodies_left -= 1;
             }
 
@@ -1709,17 +1348,12 @@ fn handle_proto_gas_giant_placement(
     (reference_orbit_radius, None, None, moons)
 }
 
-fn generate_number_of_bodies(
-    system_index: &u16,
-    coord: &SpaceCoordinates,
-    seed: &str,
-    star: &mut Star,
-) -> i32 {
+fn generate_number_of_bodies(ctx: &SystemGenContext, star: &mut Star) -> i32 {
     let mut rng = SeededDiceRoller::new(
-        seed,
+        &ctx.seed,
         &format!(
             "sys_{}_{}_str_{}_nbr_bdy",
-            coord, system_index, star.orbital_point_id
+            ctx.coord, ctx.system_index, star.orbital_point_id
         ),
     );
 
@@ -1761,12 +1395,16 @@ fn generate_number_of_bodies(
         WeightedResult::new(rng.roll(1, 4, 10) as i32, 2),
     ];
 
+    // Unreachable (the table above is non-empty): index 0 is a deterministic stand-in.
     let number_of_bodies_index = rng
         .get_result_index(&RollToProcess::new(
             possible_results.clone(),
             RollMethod::PreparedRoll(PreparedRoll::new(2, 8, modifier)),
         ))
-        .expect("The roll should return a result.");
+        .unwrap_or_else(|| {
+            ctx.warn(GenerationWarning::RngTableFallback("number of bodies"));
+            0
+        });
 
     // Special cases
     if number_of_bodies_index == 1 {
@@ -1781,17 +1419,15 @@ fn generate_number_of_bodies(
 }
 
 fn generate_gas_giant_arrangement(
+    ctx: &SystemGenContext,
     number_of_major_bodies: i32,
-    star_id: u32,
-    star_traits: &Vec<StarPeculiarity>,
-    star_type: &StarSpectralType,
-    star_population: &StellarEvolution,
-    system_traits: &Vec<SystemPeculiarity>,
-    system_index: &u16,
-    coord: &SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    star: &Star,
 ) -> GasGiantArrangement {
-    if number_of_major_bodies == 0 || star_traits.contains(&StarPeculiarity::CircumstellarDisk) {
+    if number_of_major_bodies == 0
+        || star
+            .special_traits
+            .contains(&StarPeculiarity::CircumstellarDisk)
+    {
         GasGiantArrangement::NoGasGiant
     } else {
         let mut nothing_chances = 50;
@@ -1799,10 +1435,10 @@ fn generate_gas_giant_arrangement(
         let mut eccentric_chances = 15;
         let mut epistellar_chances = 5;
         let modifiers = apply_gas_giant_arrangement_modifiers(
-            system_traits,
-            star_traits,
-            star_type,
-            star_population,
+            ctx.system_traits,
+            &star.special_traits,
+            &star.spectral_type,
+            &star.population,
         );
         nothing_chances += modifiers.0;
         conventional_chances += modifiers.1;
@@ -1829,11 +1465,7 @@ fn generate_gas_giant_arrangement(
             epistellar_chances
         };
 
-        SeededDiceRoller::new(
-            &galaxy.settings.seed,
-            &format!("sys_{}_{}_str_{}_gas_arr", coord, system_index, star_id),
-        )
-        .get_result(&CopyableRollToProcess::new(
+        let table = CopyableRollToProcess::new(
             vec![
                 CopyableWeightedResult::new(
                     GasGiantArrangement::NoGasGiant,
@@ -1853,8 +1485,20 @@ fn generate_gas_giant_arrangement(
                 ),
             ],
             RollMethod::SimpleRoll,
-        ))
-        .expect("The roll should return a result.")
+        );
+        // Unreachable (the weights above always sum to at least 100): first entry.
+        SeededDiceRoller::new(
+            &ctx.settings.seed,
+            &format!(
+                "sys_{}_{}_str_{}_gas_arr",
+                ctx.coord, ctx.system_index, star.orbital_point_id
+            ),
+        )
+        .get_result(&table)
+        .unwrap_or_else(|| {
+            ctx.warn(GenerationWarning::RngTableFallback("gas giant arrangement"));
+            table.possible_results[0].result
+        })
     }
 }
 
@@ -2147,17 +1791,15 @@ fn apply_gas_giant_arrangement_modifiers(
 }
 
 fn generate_proto_gas_giant_position(
+    ctx: &SystemGenContext,
     arrangement: &GasGiantArrangement,
     star: &Star,
-    system_index: u16,
-    coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
 ) -> Option<f64> {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        &ctx.settings.seed,
         &format!(
             "sys_{}_{}_str_{}_gas_pos",
-            coord, system_index, star.orbital_point_id
+            ctx.coord, ctx.system_index, star.orbital_point_id
         ),
     );
 
@@ -2190,30 +1832,32 @@ fn generate_proto_gas_giant_position(
     }
 }
 
-fn should_spawn(mut rng: &mut SeededDiceRoller, spawn_chances: i32) -> bool {
-    let mut spawn_chances = if spawn_chances > 100 {
+fn should_spawn(rng: &mut SeededDiceRoller, spawn_chances: i32) -> bool {
+    let spawn_chances = if spawn_chances > 100 {
         100
     } else if spawn_chances < 0 {
         0
     } else {
         10 + (spawn_chances as f32 * 0.90) as u32
     };
-    rng.get_result(&CopyableRollToProcess::new(
+    let table = CopyableRollToProcess::new(
         vec![
             CopyableWeightedResult::new(false, 100 - spawn_chances),
             CopyableWeightedResult::new(true, spawn_chances),
         ],
         RollMethod::SimpleRoll,
-    ))
-    .expect("A boolean result should have been picked.")
+    );
+    // Unreachable fallback (weights always sum to 100): first entry.
+    rng.get_result(&table)
+        .unwrap_or(table.possible_results[0].result)
 }
 
 pub(crate) fn generate_inner_body_type(
-    mut rng: &mut SeededDiceRoller,
-    settings: GenerationSettings,
+    rng: &mut SeededDiceRoller,
+    settings: &GenerationSettings,
 ) -> CelestialBodyComposition {
     // TODO: Add modifier according to star population and metallicity
-    rng.get_result(&CopyableRollToProcess::new(
+    let table = CopyableRollToProcess::new(
         vec![
             // CopyableWeightedResult::new(
             //     CelestialBodySubType::Exotic,
@@ -2257,16 +1901,16 @@ pub(crate) fn generate_inner_body_type(
             ),
         ],
         RollMethod::SimpleRoll,
-    ))
-    .expect("A body type should have been picked.")
+    );
+    roll_body_type(rng, &table)
 }
 
 pub(crate) fn generate_outer_body_type(
-    mut rng: &mut SeededDiceRoller,
-    settings: GenerationSettings,
+    rng: &mut SeededDiceRoller,
+    settings: &GenerationSettings,
 ) -> CelestialBodyComposition {
     // TODO: Add modifier according to star population and metallicity
-    rng.get_result(&CopyableRollToProcess::new(
+    let table = CopyableRollToProcess::new(
         vec![
             // CopyableWeightedResult::new(
             //     CelestialBodySubType::Exotic,
@@ -2310,6 +1954,101 @@ pub(crate) fn generate_outer_body_type(
             ),
         ],
         RollMethod::SimpleRoll,
-    ))
-    .expect("A body type should have been picked.")
+    );
+    roll_body_type(rng, &table)
+}
+
+/// Rolls a body type in the given table. If every body type was disabled via the
+/// `do_not_generate_*` settings the table's weights are all 0, which would make the
+/// dice roller divide by zero; the first entry is then used as-is. (Rejecting that
+/// settings combination is a `GenerationSettings::validate` concern.)
+fn roll_body_type(
+    rng: &mut SeededDiceRoller,
+    table: &CopyableRollToProcess<CelestialBodyComposition>,
+) -> CelestialBodyComposition {
+    // Unreachable fallback otherwise (the table is hardcoded non-empty): first entry.
+    let fallback = table.possible_results[0].result;
+    if table.possible_results.iter().all(|r| r.weight == 0) {
+        fallback
+    } else {
+        rng.get_result(table).unwrap_or(fallback)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn body_point(id: u32, stub: bool, primary_body_id: u32) -> OrbitalPoint {
+        let body = if stub {
+            TelluricBodyDetails::generate_rocky_body_stub(id)
+        } else {
+            CelestialBody::default()
+        };
+        OrbitalPoint::new(
+            id,
+            Some(Orbit {
+                primary_body_id,
+                id: Some(id),
+                ..Default::default()
+            }),
+            AstronomicalObject::TelluricBody(body),
+            Vec::new(),
+        )
+    }
+
+    #[test]
+    fn is_finished_is_true_for_polished_bodies() {
+        // Moons are polished by `WorldGenerator::generate_world` as soon as they are
+        // generated, so they must read as finished to be associable to their planet later.
+        assert!(is_finished(&body_point(1, false, 0)));
+        // Gas giants are generated in a single pass and are never stubs.
+        let gas_giant = OrbitalPoint::new(
+            2,
+            None,
+            AstronomicalObject::GaseousBody(CelestialBody::default()),
+            Vec::new(),
+        );
+        assert!(is_finished(&gas_giant));
+        let icy = OrbitalPoint::new(
+            3,
+            None,
+            AstronomicalObject::IcyBody(CelestialBody::default()),
+            Vec::new(),
+        );
+        assert!(is_finished(&icy));
+    }
+
+    #[test]
+    fn is_finished_is_false_for_stubs_and_non_bodies() {
+        // Planet stubs still waiting for their `generate_world` pass are not finished.
+        assert!(!is_finished(&body_point(1, true, 0)));
+        // Non-body objects (disks, voids, stars) are never candidate moons.
+        let void = OrbitalPoint::new(2, None, AstronomicalObject::Void, Vec::new());
+        assert!(!is_finished(&void));
+    }
+
+    #[test]
+    fn partition_puts_a_polished_moon_among_finished_objects() {
+        // Mirrors the fix in `replace_telluric_stubs`: a previously generated moon
+        // (non-stub, orbiting the planet stub) must land in `finished_objects` so the
+        // moon association filter can find it, while the planet stub must not.
+        let planet_stub = body_point(10, true, 1);
+        let moon = body_point(11, false, 10);
+        let (finished, non_finished): (Vec<OrbitalPoint>, Vec<OrbitalPoint>) =
+            vec![planet_stub, moon].into_iter().partition(is_finished);
+
+        assert_eq!(finished.len(), 1);
+        assert_eq!(finished[0].id, 11);
+        assert_eq!(
+            finished[0]
+                .own_orbit
+                .clone()
+                .unwrap_or_default()
+                .primary_body_id,
+            10
+        );
+        assert_eq!(non_finished.len(), 1);
+        assert_eq!(non_finished[0].id, 10);
+    }
 }

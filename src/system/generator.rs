@@ -1,23 +1,54 @@
 use super::StarSystem;
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::types::GenerationError;
+use crate::diagnostics::Diagnostics;
+use crate::galaxy::map::division::GalacticMapDivision;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::hex::GalacticHex;
+use crate::galaxy::map::types::GalacticRegion;
+use crate::galaxy::types::GalaxyCategory;
+use crate::galaxy::types::GalaxySpecialTrait;
+use crate::galaxy::types::GalaxySubCategory;
+use crate::galaxy::Galaxy;
+use crate::system::celestial_body::types::CelestialBodyDetails;
+use crate::system::celestial_body::world::types::CelestialBodyWorldType;
+use crate::system::orbital_point::types::AstronomicalObject;
+use crate::system::orbital_point::types::Orbit;
+use crate::system::orbital_point::OrbitalPoint;
+use crate::system::star::types::ZoneType;
+use crate::system::star::Star;
+use crate::system::types::StellarEvolution;
+use crate::system::types::SystemGenContext;
+use crate::system::types::SystemPeculiarity;
+use crate::universe::types::StelliferousEra;
+use crate::utils::conversion::ConversionUtils;
+use seeded_dice_roller::{
+    CopyableRollToProcess, CopyableWeightedResult, PreparedRoll, RollMethod, SeededDiceRoller,
+};
 use std::collections::HashSet;
+use std::rc::Rc;
 
 #[path = "./constants.rs"]
 mod constants;
 use crate::system::contents::generator::generate_stars_systems;
 use crate::system::contents::zones::generate_star_zones;
-use constants::*;
+use constants::get_random_names;
 
 impl StarSystem {
     /// Generates a brand new star system at the given coordinates
+    ///
+    /// # Errors
+    /// Returns [`GenerationError::InvalidCoordinates`] if the coordinates are outside the galaxy,
+    /// or [`GenerationError::InterestingSystemNotFound`] if `only_interesting` is set and no
+    /// interesting system was found within 5000 tries.
+    ///
+    /// The galaxy's settings are expected to be valid (see [`GenerationSettings::validate`]).
     pub fn generate(
         system_index: u16,
         coord: SpaceCoordinates,
         hex: &GalacticHex,
         sub_sector: &GalacticMapDivision,
         galaxy: &mut Galaxy,
-    ) -> Self {
+    ) -> Result<Self, GenerationError> {
         let mut center_id: u32 = 0;
         let mut main_star_id: u32 = 0;
         let mut all_objects: Vec<OrbitalPoint> = Vec::new();
@@ -27,21 +58,40 @@ impl StarSystem {
         let name = get_system_name(system_index, coord, galaxy);
 
         let mut accept_system = false;
+        let mut diagnostics = Diagnostics::default();
         let mut i = 0;
         while !accept_system {
             all_objects = Vec::new();
             special_traits = Vec::new();
 
+            // `get_divisions_for_coord` is `&mut self` (lazy region-map rebuild +
+            // division cache): it must run BEFORE `ctx` immutably borrows
+            // `galaxy.settings`. Stays inside the loop (same per-try call
+            // frequency as today's lookup inside `generate_stars`). The refs it
+            // returns are cloned into an owned Vec for the same reason.
+            let divisions = galaxy
+                .get_divisions_for_coord(coord)?
+                .into_iter()
+                .cloned()
+                .collect::<Vec<_>>();
+            let ctx = SystemGenContext::new(
+                i,
+                &galaxy.settings,
+                coord,
+                system_index,
+                &special_traits,
+                hex,
+                galaxy.neighborhood.universe,
+            );
+
             let number_of_stars =
                 generate_number_of_stars_in_system(i, system_index, coord, galaxy);
             let mut stars = generate_stars(
-                i,
+                &ctx,
                 number_of_stars,
-                system_index,
                 name.clone(),
-                coord,
-                hex,
                 sub_sector,
+                &divisions,
                 galaxy,
             );
 
@@ -76,24 +126,15 @@ impl StarSystem {
             // TODO: Generate dynamic parameters for star orbits
             update_existing_orbits(&mut all_objects);
             generate_star_zones(&mut all_objects);
-            generate_stars_systems(
-                i,
-                &mut all_objects,
-                &special_traits,
-                system_index,
-                coord,
-                galaxy,
-            );
+            generate_stars_systems(&ctx, &mut all_objects);
             update_existing_orbits(&mut all_objects);
 
             accept_system = if galaxy.settings.system.only_interesting {
-                let mut is_interesting = false;
-
-                is_interesting = all_objects
+                let is_interesting = all_objects
                     .iter()
                     .find(|o| {
-                        if let AstronomicalObject::TelluricBody(body) = o.object.clone() {
-                            if let CelestialBodyDetails::Telluric(details) = body.details {
+                        if let AstronomicalObject::TelluricBody(body) = &o.object {
+                            if let CelestialBodyDetails::Telluric(details) = &body.details {
                                 details.world_type == CelestialBodyWorldType::Terrestrial
                                     || details.world_type == CelestialBodyWorldType::Ocean
                             } else {
@@ -109,12 +150,19 @@ impl StarSystem {
             } else {
                 true
             };
+            if accept_system {
+                // The accepted try's diagnostics ride along with the returned
+                // system; rejected tries' diagnostics are dropped (intended).
+                diagnostics = ctx.diagnostics.into_inner();
+            }
             i += 1;
             if i > 5000 {
-                panic!("There should be at least one interesting system in every 5000 tries!");
+                return Err(GenerationError::InterestingSystemNotFound { tries: 5000 });
             }
         }
-        Self::new(name, center_id, main_star_id, all_objects, special_traits)
+        let mut system = Self::new(name, center_id, main_star_id, all_objects, special_traits);
+        system.diagnostics = diagnostics;
+        Ok(system)
     }
 }
 
@@ -137,13 +185,13 @@ fn generate_number_of_stars_in_system(
     system_gen_try: u32,
     system_index: u16,
     coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    galaxy: &Galaxy,
 ) -> u16 {
     let mut rng = SeededDiceRoller::new(
         &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
         &format!("sys_{}_{}_ste_evo", coord, system_index),
     );
-    rng.get_result(&CopyableRollToProcess::new(
+    let table = CopyableRollToProcess::new(
         vec![
             CopyableWeightedResult::new(1, 400),
             CopyableWeightedResult::new(2, 280),
@@ -156,73 +204,60 @@ fn generate_number_of_stars_in_system(
             CopyableWeightedResult::new(9, 1),
         ],
         RollMethod::SimpleRoll,
-    ))
-    .unwrap()
+    );
+    // Unreachable fallback (hardcoded non-empty table): first entry.
+    rng.get_result(&table)
+        .unwrap_or(table.possible_results[0].result)
 }
 
 fn generate_stars(
-    system_gen_try: u32,
+    ctx: &SystemGenContext,
     number_of_stars: u16,
-    system_index: u16,
     system_name: Rc<str>,
-    coord: SpaceCoordinates,
-    hex: &GalacticHex,
     sub_sector: &GalacticMapDivision,
-    galaxy: &mut Galaxy,
+    divisions: &[GalacticMapDivision],
+    galaxy: &Galaxy, // identity fields for generate_stellar_evolution
 ) -> Vec<Star> {
     let mut stars = Vec::new();
     for star_index in 0..number_of_stars {
         let evolution = generate_stellar_evolution(
-            system_gen_try,
+            &ctx.seed,
             star_index,
-            system_index,
-            coord,
-            hex,
+            ctx.system_index,
+            ctx.coord,
+            ctx.hex,
             sub_sector,
+            divisions,
             galaxy,
         );
 
         stars.push(Star::generate(
-            system_gen_try,
+            ctx,
             star_index,
-            system_index,
             system_name.clone(),
-            coord,
             evolution,
-            hex,
-            galaxy,
-            &galaxy.settings,
         ));
     }
     stars
 }
 
 /// Generates the Population of stars in a system.
+#[allow(clippy::too_many_arguments)]
 fn generate_stellar_evolution(
-    system_gen_try: u32,
+    seed: &str, // try-seed: `format!("{}{}", system_gen_try, settings.seed)`
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
     hex: &GalacticHex,
     sub_sector: &GalacticMapDivision,
-    galaxy: &mut Galaxy,
+    divisions: &[GalacticMapDivision],
+    galaxy: &Galaxy,
 ) -> StellarEvolution {
-    let mut subsector_rng = SeededDiceRoller::new(
-        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
-        &format!("sys_{}_ste_evo", sub_sector.index),
-    );
-    let mut hex_rng = SeededDiceRoller::new(
-        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
-        &format!("sys_{}_ste_evo", hex.index),
-    );
-    let mut rng = SeededDiceRoller::new(
-        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
-        &format!("sys_{}_{}_ste_evo", coord, system_index),
-    );
-    let mut coord_rng = SeededDiceRoller::new(
-        &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
-        &format!("sys_{}_ste_evo", star_index),
-    );
+    let mut subsector_rng =
+        SeededDiceRoller::new(seed, &format!("sys_{}_ste_evo", sub_sector.index));
+    let mut hex_rng = SeededDiceRoller::new(seed, &format!("sys_{}_ste_evo", hex.index));
+    let mut rng = SeededDiceRoller::new(seed, &format!("sys_{}_{}_ste_evo", coord, system_index));
+    let mut coord_rng = SeededDiceRoller::new(seed, &format!("sys_{}_ste_evo", star_index));
 
     let mut modifier = 0;
     match galaxy.neighborhood.universe.era {
@@ -259,9 +294,6 @@ fn generate_stellar_evolution(
         GalaxySpecialTrait::Starburst => modifier += 2,
         _ => (),
     });
-    let divisions = galaxy
-        .get_divisions_for_coord(coord)
-        .expect("Should have returned divisions.");
     let mut regions = Vec::new();
     divisions.iter().for_each(|div| {
         if regions.iter().find(|r| **r == div.region).is_none() {
@@ -305,7 +337,7 @@ fn generate_binary_relations(
     all_objects: &mut Vec<OrbitalPoint>,
     system_index: u16,
     coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    galaxy: &Galaxy,
 ) -> (u32, u32, u32) {
     let mut rng = SeededDiceRoller::new(
         &*format!("{}{}", system_gen_try, &galaxy.settings.seed),
@@ -316,19 +348,17 @@ fn generate_binary_relations(
     let main_star_id = last_id;
     let number_of_stars = stars_left.len();
 
-    // Extract the biggest star of the bunch
+    // Extract the biggest star of the bunch (`stars_left` is never empty here: the
+    // number of stars rolled is at least 1; the fallbacks are unreachable).
     let biggest_mass_in_vec = stars_left
         .iter()
         .map(|star| star.mass)
-        .max_by(|a, b| {
-            a.partial_cmp(b)
-                .expect("There should be at least two stars to compare.")
-        })
-        .expect("There should be at least one star with some mass.");
+        .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+        .unwrap_or(0.0);
     let star_index = stars_left
         .iter()
         .position(|star| star.mass == biggest_mass_in_vec)
-        .expect("I should be able to find the index of a star.");
+        .unwrap_or(0);
     let most_massive = stars_left.remove(star_index);
 
     // Use it as our first primary member in pairs
@@ -479,7 +509,7 @@ fn make_binary_pair(
     star_index: usize,
     system_index: u16,
     coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    galaxy: &Galaxy,
     all_objects: &mut Vec<OrbitalPoint>,
 ) -> (u32, OrbitalPoint, f64, f64, f64) {
     // Switch stars if necessary so that most_massive_point is the most massive.
@@ -531,7 +561,7 @@ fn find_center_of_binary_pair(
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
-    galaxy: &mut Galaxy,
+    galaxy: &Galaxy,
 ) -> (OrbitalPoint, f64, f64, f64) {
     let mut center = OrbitalPoint::new(next_id, None, AstronomicalObject::Void, vec![]);
 
@@ -612,11 +642,13 @@ fn calculate_distance_from_system_center(
         return;
     }
 
-    // Find the orbital point in the list of all objects
-    let orbital_point_index = all_objects
-        .iter()
-        .position(|op| op.id == orbital_point_id)
-        .expect("OrbitalPoint not found");
+    // Find the orbital point in the list of all objects. Every id reaching this
+    // function comes from an orbit stored on one of those objects, so the lookup
+    // cannot fail; if the invariant is ever broken, skip instead of panicking.
+    let Some(orbital_point_index) = all_objects.iter().position(|op| op.id == orbital_point_id)
+    else {
+        return;
+    };
 
     let (orbit_option, orbital_point) = {
         let orbital_point = &all_objects[orbital_point_index];
@@ -652,12 +684,12 @@ fn calculate_distance_from_system_center(
 }
 
 fn get_primary_orbit_distance(orbit: &Orbit, all_objects: &[OrbitalPoint]) -> f64 {
+    // The primary body's id always refers to an existing orbital point; a missing
+    // one (broken invariant) deterministically yields the same 0.0 as no orbit.
     let primary_orbit_option = all_objects
         .iter()
         .find(|op| op.id == orbit.primary_body_id)
-        .expect("Primary Orbit not found")
-        .own_orbit
-        .as_ref();
+        .and_then(|op| op.own_orbit.as_ref());
 
     match primary_orbit_option {
         Some(primary_orbit) => primary_orbit.average_distance_from_system_center,
@@ -694,57 +726,59 @@ fn generate_distance_between_stars(
     } else {
         min_distance * 2.0
     };
+    let table = CopyableRollToProcess::new(
+        vec![
+            // Very close
+            CopyableWeightedResult {
+                result: (
+                    if min_distance < 15.0 {
+                        min_distance
+                    } else {
+                        min_distance_multiplied
+                    },
+                    min_distance_multiplied + 0.48,
+                ),
+                weight: 3,
+            },
+            // Close
+            CopyableWeightedResult {
+                result: (
+                    min_distance_multiplied + 0.48,
+                    min_distance_multiplied + 6.0,
+                ),
+                weight: 3,
+            },
+            // Moderate
+            CopyableWeightedResult {
+                result: (
+                    min_distance_multiplied + 6.0,
+                    min_distance_multiplied + 72.0,
+                ),
+                weight: 3,
+            },
+            // Wide
+            CopyableWeightedResult {
+                result: (
+                    min_distance_multiplied + 72.0,
+                    min_distance_multiplied + 120.0,
+                ),
+                weight: 2,
+            },
+            // Distant
+            CopyableWeightedResult {
+                result: (
+                    min_distance_multiplied + 120.0,
+                    min_distance_multiplied + 600.0,
+                ),
+                weight: 3,
+            },
+        ],
+        RollMethod::PreparedRoll(PreparedRoll::new(3, 6, modifier)),
+    );
+    // Unreachable fallback (hardcoded non-empty table): first entry.
     let range = rng
-        .get_result(&CopyableRollToProcess::new(
-            vec![
-                // Very close
-                CopyableWeightedResult {
-                    result: (
-                        if min_distance < 15.0 {
-                            min_distance
-                        } else {
-                            min_distance_multiplied
-                        },
-                        min_distance_multiplied + 0.48,
-                    ),
-                    weight: 3,
-                },
-                // Close
-                CopyableWeightedResult {
-                    result: (
-                        min_distance_multiplied + 0.48,
-                        min_distance_multiplied + 6.0,
-                    ),
-                    weight: 3,
-                },
-                // Moderate
-                CopyableWeightedResult {
-                    result: (
-                        min_distance_multiplied + 6.0,
-                        min_distance_multiplied + 72.0,
-                    ),
-                    weight: 3,
-                },
-                // Wide
-                CopyableWeightedResult {
-                    result: (
-                        min_distance_multiplied + 72.0,
-                        min_distance_multiplied + 120.0,
-                    ),
-                    weight: 2,
-                },
-                // Distant
-                CopyableWeightedResult {
-                    result: (
-                        min_distance_multiplied + 120.0,
-                        min_distance_multiplied + 600.0,
-                    ),
-                    weight: 3,
-                },
-            ],
-            RollMethod::PreparedRoll(PreparedRoll::new(3, 6, modifier)),
-        ))
-        .expect("Should return a range to generate a the distance between two stars.");
+        .get_result(&table)
+        .unwrap_or(table.possible_results[0].result);
     let generated = rng.gen_f64() % (range.1 - range.0) + range.0;
     generated
 }
@@ -752,4 +786,34 @@ fn generate_distance_between_stars(
 /// Finds where the barycentre between two stars or centers of mass is.
 fn calculate_barycentre(distance_between: f64, heaviest_mass: f64, lowest_mass: f64) -> f64 {
     distance_between * (lowest_mass as f64 / (heaviest_mass as f64 + lowest_mass as f64))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::galaxy::neighborhood::GalacticNeighborhood;
+    use crate::generator::types::GenerationSettings;
+    use crate::universe::Universe;
+
+    #[test]
+    fn a_generated_system_carries_its_diagnostics() -> Result<(), GenerationError> {
+        let settings = GenerationSettings {
+            seed: Rc::from("system-diagnostics"),
+            ..Default::default()
+        };
+        let mut diagnostics = Diagnostics::default();
+        let universe = Universe::generate(&settings, &mut diagnostics);
+        let neighborhood = GalacticNeighborhood::generate(universe, &settings, &mut diagnostics);
+        let mut galaxy = Galaxy::generate(neighborhood, 0, &settings);
+        let coord = SpaceCoordinates::new(0, 0, 0);
+        let sub_sector = galaxy.get_division_at_level(coord, 1)?.clone();
+        let hex = galaxy.get_hex(coord)?.clone();
+
+        let system = StarSystem::generate(0, coord, &hex, &sub_sector, &mut galaxy)?;
+
+        // The field rides along with the accepted generation try; nothing in the
+        // pipeline pushes diagnostics yet, so it is present but empty.
+        assert!(system.diagnostics.is_empty());
+        Ok(())
+    }
 }

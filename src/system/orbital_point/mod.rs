@@ -1,5 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::orbital_point::types::AstronomicalObject;
+use crate::system::orbital_point::types::Orbit;
+use serde::{Deserialize, Serialize};
 pub mod generator;
 pub mod types;
 pub mod utils;
@@ -47,9 +48,9 @@ impl OrbitalPoint {
             AstronomicalObject::TelluricBody(ref mut body) => body.orbit = Some(orbit),
             AstronomicalObject::GaseousBody(ref mut body) => body.orbit = Some(orbit),
             AstronomicalObject::IcyBody(ref mut body) => body.orbit = Some(orbit),
-            AstronomicalObject::TelluricDisk(ref mut ring) => {}
-            AstronomicalObject::GaseousDisk(ref mut ring) => {}
-            AstronomicalObject::IcyDisk(ref mut ring) => {}
+            AstronomicalObject::TelluricDisk(_ring) => {}
+            AstronomicalObject::GaseousDisk(_ring) => {}
+            AstronomicalObject::IcyDisk(_ring) => {}
             AstronomicalObject::Spacecraft => {}
         }
     }
@@ -75,9 +76,9 @@ impl OrbitalPoint {
                 body.orbit = orbit;
                 body.orbital_point_id = self.id;
             }
-            AstronomicalObject::TelluricDisk(ring) => {}
-            AstronomicalObject::GaseousDisk(ring) => {}
-            AstronomicalObject::IcyDisk(ring) => {}
+            AstronomicalObject::TelluricDisk(_ring) => {}
+            AstronomicalObject::GaseousDisk(_ring) => {}
+            AstronomicalObject::IcyDisk(_ring) => {}
             AstronomicalObject::Spacecraft => {}
         }
     }

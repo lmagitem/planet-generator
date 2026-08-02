@@ -1,5 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::traits::CelestialBodySpecialTrait;
+use crate::system::celestial_body::world::types::CelestialBodyWorldType;
+use serde::{Deserialize, Serialize};
 pub mod generator;
 pub mod types;
 

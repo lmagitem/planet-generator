@@ -1,15 +1,15 @@
 use super::types::{GalacticRegionMap, RegionGrid};
+use crate::diagnostics::types::{Diagnostics, GenerationWarning};
 use crate::galaxy::map::constants::REGION_GRID_RESOLUTION;
-#[allow(clippy::wildcard_imports)]
-// House style: every module file starts with this wildcard import.
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::types::GalacticRegion;
+use log::warn;
 
 /// The squared RGB distance under which a pixel is snapped to the nearest palette color.
 const MAX_PALETTE_SNAP_SQUARED_DISTANCE: i32 = 32 * 32;
 
 /// The regions one can paint in an SVG galactic region map; [`GalacticRegion::Multiple`] is not paintable.
-const PAINTABLE_REGIONS: [GalacticRegion; 15] = [
+pub(crate) const PAINTABLE_REGIONS: [GalacticRegion; 15] = [
     GalacticRegion::Core,
     GalacticRegion::Nucleus,
     GalacticRegion::Bulge,
@@ -30,29 +30,44 @@ const PAINTABLE_REGIONS: [GalacticRegion; 15] = [
 impl GalacticRegionMap {
     /// Builds a [`GalacticRegionMap`] by rasterizing the given SVG layers (top/max z first) over the given
     /// galaxy bounds in parsecs. Returns [None] if no layer is given or if any layer fails to parse.
-    ///
-    /// # Panics
-    /// Panics if the 256×256 rasterization pixmap cannot be allocated, which should never happen.
+    /// Diagnostics raised along the way are discarded; use [`GalacticRegionMap::build_with_diagnostics`]
+    /// to collect them.
     #[must_use]
     pub fn build(
         svgs: &[String],
         start: SpaceCoordinates,
         end: SpaceCoordinates,
     ) -> Option<GalacticRegionMap> {
+        Self::build_with_diagnostics(svgs, start, end, &mut Diagnostics::default())
+    }
+
+    /// Same as [`GalacticRegionMap::build`], but also reports into the given [`Diagnostics`]:
+    /// [`GenerationWarning::SvgLayerParseFailed`] (with the offending layer's index) when a layer
+    /// fails to parse, and [`GenerationWarning::SvgPixelsUnmatched`] (with the per-layer unmatched
+    /// pixel count) when pixels match no region color.
+    #[must_use]
+    pub fn build_with_diagnostics(
+        svgs: &[String],
+        start: SpaceCoordinates,
+        end: SpaceCoordinates,
+        diagnostics: &mut Diagnostics,
+    ) -> Option<GalacticRegionMap> {
         if svgs.is_empty() {
             return None;
         }
 
         let mut layers = Vec::with_capacity(svgs.len());
-        for svg in svgs {
+        for (layer_index, svg) in svgs.iter().enumerate() {
             let tree = match resvg::usvg::Tree::from_str(svg, &resvg::usvg::Options::default()) {
                 Ok(tree) => tree,
                 Err(error) => {
-                    warn!("Failed to parse an SVG galactic map layer: {error}");
+                    warn!("Failed to parse SVG galactic map layer {layer_index}: {error}");
+                    diagnostics
+                        .push_warning(GenerationWarning::SvgLayerParseFailed { layer_index });
                     return None;
                 }
             };
-            layers.push(rasterize_layer(&tree));
+            layers.push(rasterize_layer(&tree, layer_index, diagnostics)?);
         }
         Some(GalacticRegionMap { layers, start, end })
     }
@@ -61,15 +76,26 @@ impl GalacticRegionMap {
 /// Rasterizes one parsed SVG layer into a [`RegionGrid`], stretching it (non-uniformly if needed) so that its
 /// edges map exactly to the galaxy bounds.
 #[allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
-fn rasterize_layer(tree: &resvg::usvg::Tree) -> RegionGrid {
+fn rasterize_layer(
+    tree: &resvg::usvg::Tree,
+    layer_index: usize,
+    diagnostics: &mut Diagnostics,
+) -> Option<RegionGrid> {
     let size = tree.size();
     let transform = resvg::tiny_skia::Transform::from_scale(
         REGION_GRID_RESOLUTION as f32 / size.width(),
         REGION_GRID_RESOLUTION as f32 / size.height(),
     );
-    let mut pixmap =
+    // A 256x256 pixmap allocation can only fail under extreme memory pressure; give up on
+    // the map (the caller falls back to defaults) instead of panicking.
+    let Some(mut pixmap) =
         resvg::tiny_skia::Pixmap::new(REGION_GRID_RESOLUTION as u32, REGION_GRID_RESOLUTION as u32)
-            .expect("A 256x256 pixmap should always be allocatable.");
+    else {
+        warn!(
+            "Failed to allocate the rasterization pixmap for SVG galactic map layer {layer_index}."
+        );
+        return None;
+    };
     resvg::render(tree, transform, &mut pixmap.as_mut());
 
     let mut cells = Vec::with_capacity(REGION_GRID_RESOLUTION * REGION_GRID_RESOLUTION);
@@ -95,10 +121,14 @@ fn rasterize_layer(tree: &resvg::usvg::Tree) -> RegionGrid {
     }
     if unmatched_pixels > 0 {
         warn!(
-            "{unmatched_pixels} pixels matched no region color; use the exact palette documented on GalacticRegion."
+            "{unmatched_pixels} pixels of SVG galactic map layer {layer_index} matched no region color; use the exact palette documented on GalacticRegion."
         );
+        diagnostics.push_warning(GenerationWarning::SvgPixelsUnmatched {
+            layer_index,
+            count: unmatched_pixels,
+        });
     }
-    RegionGrid { cells }
+    Some(RegionGrid { cells })
 }
 
 /// Returns the paintable region whose palette color is the nearest to the given RGB color, if it lies

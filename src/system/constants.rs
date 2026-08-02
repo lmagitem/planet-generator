@@ -88802,6 +88802,6 @@ const NAMES: &'static [&'static str] = &[
     "Aalderink",
 ];
 
-pub fn get_random_names() -> Box<[&'static str]> {
-    NAMES.into()
+pub fn get_random_names() -> &'static [&'static str] {
+    NAMES
 }

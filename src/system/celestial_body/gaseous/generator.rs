@@ -1,8 +1,18 @@
-use crate::internal::types::MoonDistance;
-use crate::internal::*;
+use crate::generator::types::GenerationSettings;
 use crate::prelude::types::{TelluricRotationDifference, TideLockTarget};
-use crate::prelude::*;
 use crate::system::celestial_body::gaseous::constants::MASS_TO_DENSITY_DATASET;
+use crate::system::celestial_body::gaseous::GaseousBodyDetails;
+use crate::system::celestial_body::moon::types::{MoonDistance, ParentBodyInfo};
+use crate::system::celestial_body::moon::MoonGenerator;
+use crate::system::celestial_body::traits::CelestialBodySpecialTrait;
+use crate::system::celestial_body::types::CelestialBodyComposition;
+use crate::system::celestial_body::types::CelestialBodyDetails;
+use crate::system::celestial_body::types::CelestialBodySize;
+use crate::system::celestial_body::CelestialBody;
+use crate::system::celestial_disk::belt::types::CelestialBeltType;
+use crate::system::celestial_disk::belt::CelestialBeltDetails;
+use crate::system::celestial_disk::types::CelestialDiskType;
+use crate::system::celestial_disk::CelestialDisk;
 use crate::system::contents::utils::{
     calculate_blackbody_temperature, calculate_radius, calculate_surface_gravity,
 };
@@ -10,44 +20,40 @@ use crate::system::contents::zones::get_orbit_with_updated_zone;
 use crate::system::orbital_point::generator::{
     complete_orbit_with_orbital_period, complete_orbit_with_rotation_and_axis,
 };
+use crate::system::orbital_point::types::AstronomicalObject;
+use crate::system::orbital_point::types::Orbit;
+use crate::system::orbital_point::OrbitalPoint;
+use crate::system::star::types::StarGenContext;
+use crate::system::star::types::StarSpectralType;
+use crate::utils::conversion::ConversionUtils;
+use crate::utils::math::MathUtils;
+use crate::utils::string::StringUtils;
+use seeded_dice_roller::SeededDiceRoller;
+use std::mem::discriminant;
 
 impl GaseousBodyDetails {
     /// Returns the generated gas giant and its list of moons.
     pub(crate) fn generate_gas_giant(
+        ctx: &StarGenContext,
+        settings: &GenerationSettings,
         body_id: u32,
-        system_traits: &Vec<SystemPeculiarity>,
-        system_index: u16,
-        star_id: u32,
-        star_name: Rc<str>,
-        star_age: f32,
-        star_mass: f64,
-        star_type: &StarSpectralType,
-        star_class: &StarLuminosityClass,
-        star_luminosity: f32,
-        star_traits: &Vec<StarPeculiarity>,
-        primary_star_mass: f64,
-        gas_giant_arrangement: GasGiantArrangement,
         orbit: Orbit,
         orbit_distance: f64,
         populated_orbit_index: u32,
         next_id: &mut u32,
-        coord: SpaceCoordinates,
-        seed: Rc<str>,
-        settings: GenerationSettings,
     ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
         let mut rng = SeededDiceRoller::new(
             &settings.seed,
             &format!(
                 "sys_{}_{}_str_{}_gas_bdy{}",
-                coord, system_index, star_id, body_id
+                ctx.system.coord, ctx.system.system_index, ctx.star_id, body_id
             ),
         );
         let mut moons: Vec<OrbitalPoint> = Vec::new();
         let mut object = AstronomicalObject::Void;
         let mut this_orbit = orbit.clone();
         let mut special_traits: Vec<CelestialBodySpecialTrait>;
-        let is_proto_giant = if let Some(traits) = settings
-            .clone()
+        let is_proto_giant = if let Some(traits) = &settings
             .celestial_body
             .gaseous_body_settings
             .fixed_special_traits
@@ -61,13 +67,17 @@ impl GaseousBodyDetails {
             special_traits = Vec::new();
             false
         };
-        let size_modifier =
-            Self::get_gas_body_size_modifier(star_mass, star_type, &mut rng, is_proto_giant);
+        let size_modifier = Self::get_gas_body_size_modifier(
+            ctx.star_mass,
+            &ctx.star_type,
+            &mut rng,
+            is_proto_giant,
+        );
         let roll_result = rng.roll(1, 400, size_modifier);
 
         let mut mass: f64 = 0.0;
         let mut size = CelestialBodySize::Puny;
-        let blackbody_temp = calculate_blackbody_temperature(star_luminosity, orbit_distance);
+        let blackbody_temp = calculate_blackbody_temperature(ctx.star_luminosity, orbit_distance);
         if !is_proto_giant && roll_result <= 2 {
             // TODO: Gas cloud
             object = AstronomicalObject::GaseousBody(CelestialBody::new(
@@ -75,7 +85,7 @@ impl GaseousBodyDetails {
                 body_id,
                 format!(
                     "{}{}",
-                    star_name,
+                    ctx.star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
@@ -95,7 +105,7 @@ impl GaseousBodyDetails {
                 body_id,
                 format!(
                     "{}{}",
-                    star_name,
+                    ctx.star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
@@ -133,11 +143,11 @@ impl GaseousBodyDetails {
             // TODO: Atmospheric composition
 
             this_orbit = complete_orbit_with_orbital_period(
-                coord,
-                system_index,
-                star_id,
-                ConversionUtils::solar_mass_to_earth_mass(star_mass),
-                gas_giant_arrangement,
+                ctx.system.coord,
+                ctx.system.system_index,
+                ctx.star_id,
+                ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
+                ctx.gas_giant_arrangement,
                 body_id,
                 &Some(orbit.clone()),
                 orbit_distance,
@@ -147,49 +157,37 @@ impl GaseousBodyDetails {
                 mass,
                 size,
                 false,
-                &settings,
+                settings,
             );
             this_orbit = get_orbit_with_updated_zone(this_orbit.clone(), blackbody_temp);
 
             moons = MoonGenerator::generate_giants_moons(
-                system_traits,
-                system_index,
-                star_id,
-                star_name.clone(),
-                star_age,
-                star_mass,
-                star_luminosity,
-                star_type,
-                star_class,
-                star_traits,
-                primary_star_mass,
-                this_orbit.clone(),
-                coord,
-                &seed.clone(),
-                next_id,
-                gas_giant_arrangement,
+                ctx,
+                &ParentBodyInfo {
+                    parent_orbit: this_orbit.clone(),
+                    planet_id: body_id,
+                    planet_size: size,
+                    planet_mass: mass,
+                    planet_density: density,
+                    planet_radius: radius,
+                    planet_orbital_period: this_orbit.orbital_period,
+                    blackbody_temperature: blackbody_temp,
+                },
                 populated_orbit_index,
-                body_id,
-                size,
-                mass,
-                density,
-                radius,
-                this_orbit.orbital_period,
-                blackbody_temp,
-                settings.clone(),
                 false,
+                next_id,
             );
 
             let mut telluric_special_traits = Vec::new();
             this_orbit = complete_orbit_with_rotation_and_axis(
-                coord,
-                system_index,
-                star_id,
-                star_age,
-                ConversionUtils::solar_mass_to_earth_mass(star_mass),
+                ctx.system.coord,
+                ctx.system.system_index,
+                ctx.star_id,
+                ctx.star_age,
+                ConversionUtils::solar_mass_to_earth_mass(ctx.star_mass),
                 None,
-                gas_giant_arrangement,
-                system_traits,
+                ctx.gas_giant_arrangement,
+                ctx.system.system_traits,
                 body_id,
                 &Some(this_orbit),
                 orbit_distance,
@@ -202,7 +200,7 @@ impl GaseousBodyDetails {
                 &moons,
                 false,
                 MoonDistance::Any,
-                &settings,
+                settings,
             );
             if telluric_special_traits.contains(&CelestialBodySpecialTrait::UnusualRotation(
                 TelluricRotationDifference::Resonant,
@@ -238,7 +236,7 @@ impl GaseousBodyDetails {
                 body_id,
                 format!(
                     "{}{}",
-                    star_name,
+                    ctx.star_name,
                     StringUtils::number_to_lowercase_letter(populated_orbit_index as u8 + 1)
                 )
                 .into(),
@@ -310,5 +308,11 @@ pub fn interpolate_density(mass: f64) -> f64 {
         }
         prev_point = point;
     }
-    panic!("Mass value is out of range!");
+    // The dataset spans (f64::MAX, _) down to (0.0, _): only a negative (or NaN)
+    // mass falls through, which used to panic. Clamp to the dataset's edge instead.
+    if mass > MASS_TO_DENSITY_DATASET[0].0 {
+        MASS_TO_DENSITY_DATASET[0].1
+    } else {
+        MASS_TO_DENSITY_DATASET[MASS_TO_DENSITY_DATASET.len() - 1].1
+    }
 }

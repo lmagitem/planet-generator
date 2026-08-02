@@ -1,5 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::neighborhood::types::StellarNeighborhoodAge;
+use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 pub mod generator;
 pub mod types;
 

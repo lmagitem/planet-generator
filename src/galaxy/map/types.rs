@@ -1,5 +1,5 @@
-use crate::internal::*;
-use crate::prelude::*;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 
 /// A list of settings used to configure the [GalacticMapDivisionLevel], [GalacticMapDivision]s and [GalacticHex]es generation.
 #[derive(
@@ -183,25 +183,8 @@ impl GalacticRegion {
 
 #[cfg(test)]
 mod tests {
+    use super::super::region_map::generator::PAINTABLE_REGIONS;
     use super::*;
-
-    const PAINTABLE_REGIONS: [GalacticRegion; 15] = [
-        GalacticRegion::Core,
-        GalacticRegion::Nucleus,
-        GalacticRegion::Bulge,
-        GalacticRegion::Bar,
-        GalacticRegion::Arm,
-        GalacticRegion::Disk,
-        GalacticRegion::Ellipse,
-        GalacticRegion::Halo,
-        GalacticRegion::Aura,
-        GalacticRegion::Void,
-        GalacticRegion::GlobularCluster,
-        GalacticRegion::OpenCluster,
-        GalacticRegion::Association,
-        GalacticRegion::Stream,
-        GalacticRegion::Exile,
-    ];
 
     #[test]
     fn palette_roundtrips_for_all_paintable_regions() {

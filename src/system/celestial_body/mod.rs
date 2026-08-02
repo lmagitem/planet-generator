@@ -1,5 +1,9 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::types::CelestialBodyDetails;
+use crate::system::celestial_body::types::CelestialBodySize;
+use crate::system::orbital_point::types::Orbit;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::rc::Rc;
 pub mod gaseous;
 pub mod generator;
 pub mod icy;
@@ -70,7 +74,7 @@ impl CelestialBody {
     }
 
     /// Indicates whether this body is a stub (a temporary body placed here before proper generation).
-    pub fn is_stub(self) -> bool {
+    pub fn is_stub(&self) -> bool {
         self.stub
     }
 }

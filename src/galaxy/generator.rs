@@ -1,11 +1,42 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::types::{Diagnostics, GenerationWarning};
+use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
+#[cfg(test)]
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::region_map::types::GalacticRegionMap;
+#[cfg(test)]
+use crate::galaxy::map::types::GalacticRegion;
+use crate::galaxy::neighborhood::types::GalacticNeighborhoodDensity;
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+use crate::galaxy::types::GalaxyCategory;
+use crate::galaxy::types::GalaxySatellites;
+#[cfg(test)]
+use crate::galaxy::types::GalaxySettings;
+use crate::galaxy::types::GalaxySpecialTrait;
+use crate::galaxy::types::GalaxySubCategory;
+use crate::galaxy::Galaxy;
+use crate::generator::types::GenerationSettings;
+use crate::universe::types::StelliferousEra;
+#[cfg(test)]
+use crate::universe::Universe;
+use log::debug;
+use seeded_dice_roller::{
+    CopyableRollToProcess, CopyableWeightedResult, RollMethod, SeededDiceRoller,
+};
+use std::collections::BTreeMap;
+use std::mem::discriminant;
+use std::rc::Rc;
 #[path = "./constants.rs"]
 mod constants;
-use constants::*;
+use constants::{
+    default_layers_for, get_opposite_traits, OppositeTraits, LOCAL_GROUP_GALAXIES, NO_SPECIAL_TRAIT,
+};
 
 impl Galaxy {
     /// Generates a brand new [Galaxy] using the given seed and [GenerationSettings].
+    ///
+    /// The given settings are expected to be valid (see
+    /// [`GenerationSettings::validate`]); [`Generator::generate`] performs that
+    /// check for you, direct callers of this method should do it first.
     pub fn generate(
         neighborhood: GalacticNeighborhood,
         index: u16,
@@ -91,20 +122,34 @@ impl Galaxy {
             sub_category,
             special_traits,
             division_levels,
-            divisions: vec![],
-            hexes: vec![],
+            divisions: BTreeMap::new(),
+            hexes: BTreeMap::new(),
             galactic_map_layers,
             region_map: None,
+            diagnostics: Diagnostics::default(),
         };
         // The bounds helpers are methods on Galaxy, so the region map is built once the struct exists.
         let start = galaxy.get_galactic_start();
         let end = galaxy.get_galactic_end();
-        galaxy.region_map = GalacticRegionMap::build(&galaxy.galactic_map_layers, start, end);
+        galaxy.region_map = GalacticRegionMap::build_with_diagnostics(
+            &galaxy.galactic_map_layers,
+            start,
+            end,
+            &mut galaxy.diagnostics,
+        );
         if galaxy.region_map.is_none() && !settings.galaxy.galactic_map_layers.is_empty() {
             // The user's SVG failed to parse (the warning was logged inside build): fall back to the
             // category's default map, which becomes the authoritative set of layers.
+            galaxy
+                .diagnostics
+                .push_warning(GenerationWarning::UserLayersReplacedWithDefault);
             galaxy.galactic_map_layers = default_layers_for(category);
-            galaxy.region_map = GalacticRegionMap::build(&galaxy.galactic_map_layers, start, end);
+            galaxy.region_map = GalacticRegionMap::build_with_diagnostics(
+                &galaxy.galactic_map_layers,
+                start,
+                end,
+                &mut galaxy.diagnostics,
+            );
         }
         debug!("generated: {}", galaxy);
         galaxy
@@ -153,185 +198,197 @@ fn generate_category(
         match neighborhood.density {
             GalacticNeighborhoodDensity::Void(_, _) => {
                 if is_major {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Intergalactic(0, 0, 0),
+                                weight: 1,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Irregular(0, 0, 0),
+                                weight: if age < 1.0 {
+                                    13
+                                } else if age < 5.0 {
+                                    4
+                                } else {
+                                    1
+                                },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Spiral(0, 0),
+                                weight: if age < 50.0 { 8 } else { 3 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Lenticular(0, 0),
+                                weight: if age < 50.0 { 4 } else { 7 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Elliptical(0),
+                                weight: if age < 50.0 {
+                                    1
+                                } else if age < 750.0 {
+                                    4
+                                } else {
+                                    12
+                                },
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Intergalactic(0, 0, 0),
-                                    weight: 1,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: if age < 1.0 {
-                                        13
-                                    } else if age < 5.0 {
-                                        4
-                                    } else {
-                                        1
-                                    },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Spiral(0, 0),
-                                    weight: if age < 50.0 { 8 } else { 3 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Lenticular(0, 0),
-                                    weight: if age < 50.0 { 4 } else { 7 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Elliptical(0),
-                                    weight: if age < 50.0 {
-                                        1
-                                    } else if age < 750.0 {
-                                        4
-                                    } else {
-                                        12
-                                    },
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 } else {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Intergalactic(0, 0, 0),
+                                weight: 1,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Irregular(0, 0, 0),
+                                weight: 6,
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Intergalactic(0, 0, 0),
-                                    weight: 1,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: 6,
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 }
             }
             GalacticNeighborhoodDensity::Group(_, _) => {
                 if is_major {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Intergalactic(0, 0, 0),
+                                weight: if age < 5.0 { 3 } else { 1 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Irregular(0, 0, 0),
+                                weight: if age < 1.0 {
+                                    13
+                                } else if age < 5.0 {
+                                    5
+                                } else {
+                                    2
+                                },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Spiral(0, 0),
+                                weight: if age < 50.0 { 9 } else { 3 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Lenticular(0, 0),
+                                weight: if age < 50.0 { 5 } else { 8 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Elliptical(0),
+                                weight: if age < 5.0 {
+                                    1
+                                } else if age < 50.0 {
+                                    3
+                                } else if age < 750.0 {
+                                    9
+                                } else {
+                                    12
+                                },
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Intergalactic(0, 0, 0),
-                                    weight: if age < 5.0 { 3 } else { 1 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: if age < 1.0 {
-                                        13
-                                    } else if age < 5.0 {
-                                        5
-                                    } else {
-                                        2
-                                    },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Spiral(0, 0),
-                                    weight: if age < 50.0 { 9 } else { 3 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Lenticular(0, 0),
-                                    weight: if age < 50.0 { 5 } else { 8 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Elliptical(0),
-                                    weight: if age < 5.0 {
-                                        1
-                                    } else if age < 50.0 {
-                                        3
-                                    } else if age < 750.0 {
-                                        9
-                                    } else {
-                                        12
-                                    },
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 } else {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Intergalactic(0, 0, 0),
+                                weight: 1,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Irregular(0, 0, 0),
+                                weight: 11,
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Intergalactic(0, 0, 0),
-                                    weight: 1,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: 11,
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 }
             }
             GalacticNeighborhoodDensity::Cluster(_, _, _) => {
                 if is_dominant {
                     category = GalaxyCategory::DominantElliptical(0);
                 } else if is_major {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Intracluster(0, 0, 0),
+                                weight: 2,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Irregular(0, 0, 0),
+                                weight: if age < 1.0 {
+                                    20
+                                } else if age < 5.0 {
+                                    5
+                                } else {
+                                    2
+                                },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Spiral(0, 0),
+                                weight: if age < 50.0 { 4 } else { 2 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Lenticular(0, 0),
+                                weight: if age < 5.0 { 5 } else { 11 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Elliptical(0),
+                                weight: if age < 5.0 {
+                                    1
+                                } else if age < 50.0 {
+                                    4
+                                } else if age < 750.0 {
+                                    10
+                                } else {
+                                    18
+                                },
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Intracluster(0, 0, 0),
-                                    weight: 2,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: if age < 1.0 {
-                                        20
-                                    } else if age < 5.0 {
-                                        5
-                                    } else {
-                                        2
-                                    },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Spiral(0, 0),
-                                    weight: if age < 50.0 { 4 } else { 2 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Lenticular(0, 0),
-                                    weight: if age < 5.0 { 5 } else { 11 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Elliptical(0),
-                                    weight: if age < 5.0 {
-                                        1
-                                    } else if age < 50.0 {
-                                        4
-                                    } else if age < 750.0 {
-                                        10
-                                    } else {
-                                        18
-                                    },
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 } else {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Intracluster(0, 0, 0),
+                                weight: 1,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxyCategory::Irregular(0, 0, 0),
+                                weight: 6,
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Intracluster(0, 0, 0),
-                                    weight: 1,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxyCategory::Irregular(0, 0, 0),
-                                    weight: 6,
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 }
             }
         }
@@ -533,138 +590,148 @@ fn generate_sub_category(
                 if is_major {
                     sub_category = GalaxySubCategory::Amorphous;
                 } else {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::DwarfAmorphous,
+                                weight: if age < 5.0 { 10 } else { 4 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::DwarfSpiral,
+                                weight: if age < 5.0 {
+                                    1
+                                } else if age < 50.0 {
+                                    4
+                                } else {
+                                    2
+                                },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::DwarfLenticular,
+                                weight: if age < 5.0 {
+                                    1
+                                } else if age < 50.0 {
+                                    2
+                                } else {
+                                    4
+                                },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::DwarfElliptical,
+                                weight: if age < 5.0 {
+                                    1
+                                } else if age < 50.0 {
+                                    2
+                                } else {
+                                    6
+                                },
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     sub_category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::DwarfAmorphous,
-                                    weight: if age < 5.0 { 10 } else { 4 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::DwarfSpiral,
-                                    weight: if age < 5.0 {
-                                        1
-                                    } else if age < 50.0 {
-                                        4
-                                    } else {
-                                        2
-                                    },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::DwarfLenticular,
-                                    weight: if age < 5.0 {
-                                        1
-                                    } else if age < 50.0 {
-                                        2
-                                    } else {
-                                        4
-                                    },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::DwarfElliptical,
-                                    weight: if age < 5.0 {
-                                        1
-                                    } else if age < 50.0 {
-                                        2
-                                    } else {
-                                        6
-                                    },
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a sub-category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 }
             }
             GalaxyCategory::Spiral(_, _) => {
                 if is_major {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::FlatSpiral,
+                                weight: 2,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::BarredSpiral,
+                                weight: if age > 5.0 && age < 50.0 { 7 } else { 3 },
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::ClassicSpiral,
+                                weight: 3,
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     sub_category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::FlatSpiral,
-                                    weight: 2,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::BarredSpiral,
-                                    weight: if age > 5.0 && age < 50.0 { 7 } else { 3 },
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::ClassicSpiral,
-                                    weight: 3,
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a sub-category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 } else {
                     sub_category = GalaxySubCategory::DwarfSpiral;
                 }
             }
             GalaxyCategory::Lenticular(_, _) => {
                 if is_major {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::CommonLenticular,
+                                weight: 7,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::GiantLenticular,
+                                weight: if age < 500.0 { 3 } else { 10 },
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     sub_category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::CommonLenticular,
-                                    weight: 7,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::GiantLenticular,
-                                    weight: if age < 500.0 { 3 } else { 10 },
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a sub-category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 } else {
                     sub_category = GalaxySubCategory::DwarfLenticular;
                 }
             }
             GalaxyCategory::Elliptical(_) => {
                 if is_major {
+                    let table = CopyableRollToProcess {
+                        possible_results: vec![
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::CommonElliptical,
+                                weight: 5,
+                            },
+                            CopyableWeightedResult {
+                                result: GalaxySubCategory::GiantElliptical,
+                                weight: if age < 500.0 { 3 } else { 8 },
+                            },
+                        ],
+                        roll_method: RollMethod::SimpleRoll,
+                    };
+                    // Unreachable fallback (hardcoded non-empty table): first entry.
                     sub_category = rng
-                        .get_result(&CopyableRollToProcess {
-                            possible_results: vec![
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::CommonElliptical,
-                                    weight: 5,
-                                },
-                                CopyableWeightedResult {
-                                    result: GalaxySubCategory::GiantElliptical,
-                                    weight: if age < 500.0 { 3 } else { 8 },
-                                },
-                            ],
-                            roll_method: RollMethod::SimpleRoll,
-                        })
-                        .expect("Should return a sub-category as result");
+                        .get_result(&table)
+                        .unwrap_or(table.possible_results[0].result);
                 } else {
                     sub_category = GalaxySubCategory::DwarfElliptical;
                 }
             }
             GalaxyCategory::DominantElliptical(_) => {
+                let table = CopyableRollToProcess {
+                    possible_results: vec![
+                        CopyableWeightedResult {
+                            result: GalaxySubCategory::CommonElliptical,
+                            weight: if age < 50.0 { 6 } else { 3 },
+                        },
+                        CopyableWeightedResult {
+                            result: GalaxySubCategory::GiantElliptical,
+                            weight: if age < 50.0 {
+                                3
+                            } else if age < 500.0 {
+                                8
+                            } else {
+                                12
+                            },
+                        },
+                    ],
+                    roll_method: RollMethod::SimpleRoll,
+                };
+                // Unreachable fallback (hardcoded non-empty table): first entry.
                 sub_category = rng
-                    .get_result(&CopyableRollToProcess {
-                        possible_results: vec![
-                            CopyableWeightedResult {
-                                result: GalaxySubCategory::CommonElliptical,
-                                weight: if age < 50.0 { 6 } else { 3 },
-                            },
-                            CopyableWeightedResult {
-                                result: GalaxySubCategory::GiantElliptical,
-                                weight: if age < 50.0 {
-                                    3
-                                } else if age < 500.0 {
-                                    8
-                                } else {
-                                    12
-                                },
-                            },
-                        ],
-                        roll_method: RollMethod::SimpleRoll,
-                    })
-                    .expect("Should return a sub-category as result");
+                    .get_result(&table)
+                    .unwrap_or(table.possible_results[0].result);
             }
         }
     }
@@ -742,6 +809,7 @@ fn get_full_list_of_traits(
         },
         CopyableWeightedResult {
             result: GalaxySpecialTrait::Compact(
+                // Unreachable fallback (hardcoded non-empty table): first entry.
                 rng.get_result(&CopyableRollToProcess {
                     possible_results: vec![
                         CopyableWeightedResult {
@@ -759,7 +827,7 @@ fn get_full_list_of_traits(
                     ],
                     roll_method: RollMethod::SimpleRoll,
                 })
-                .expect("Should return a density."),
+                .unwrap_or(200),
             ),
             weight: if sub_category == GalaxySubCategory::DwarfAmorphous
                 || sub_category == GalaxySubCategory::DwarfElliptical
@@ -793,6 +861,7 @@ fn get_full_list_of_traits(
         },
         CopyableWeightedResult {
             result: GalaxySpecialTrait::Expansive(
+                // Unreachable fallback (hardcoded non-empty table): first entry.
                 rng.get_result(&CopyableRollToProcess {
                     possible_results: vec![
                         CopyableWeightedResult {
@@ -810,7 +879,7 @@ fn get_full_list_of_traits(
                     ],
                     roll_method: RollMethod::SimpleRoll,
                 })
-                .expect("Should return a density."),
+                .unwrap_or(20),
             ),
             weight: if sub_category == GalaxySubCategory::DwarfAmorphous
                 || sub_category == GalaxySubCategory::DwarfElliptical
@@ -923,6 +992,7 @@ fn get_full_list_of_traits(
         },
         CopyableWeightedResult {
             result: GalaxySpecialTrait::Satellites(
+                // Unreachable fallback (hardcoded non-empty table): first entry.
                 rng.get_result(&CopyableRollToProcess {
                     possible_results: vec![
                         CopyableWeightedResult {
@@ -952,7 +1022,7 @@ fn get_full_list_of_traits(
                     ],
                     roll_method: RollMethod::SimpleRoll,
                 })
-                .expect("Should return a galaxy satellites qualifier."),
+                .unwrap_or(GalaxySatellites::MuchMore),
             ),
             weight: if discriminant(&category) == discriminant(&GalaxyCategory::Spiral(0, 0))
                 && sub_category != GalaxySubCategory::DwarfSpiral
@@ -991,6 +1061,7 @@ fn get_full_list_of_traits(
         },
         CopyableWeightedResult {
             result: GalaxySpecialTrait::SubSize(
+                // Unreachable fallback (hardcoded non-empty table): first entry.
                 rng.get_result(&CopyableRollToProcess {
                     possible_results: vec![
                         CopyableWeightedResult {
@@ -1012,7 +1083,7 @@ fn get_full_list_of_traits(
                     ],
                     roll_method: RollMethod::SimpleRoll,
                 })
-                .expect("Should return a percentage of mass."),
+                .unwrap_or(20),
             ),
             weight: if sub_category == GalaxySubCategory::DwarfAmorphous
                 || sub_category == GalaxySubCategory::DwarfElliptical
@@ -1026,6 +1097,7 @@ fn get_full_list_of_traits(
         },
         CopyableWeightedResult {
             result: GalaxySpecialTrait::SuperSize(
+                // Unreachable fallback (hardcoded non-empty table): first entry.
                 rng.get_result(&CopyableRollToProcess {
                     possible_results: vec![
                         CopyableWeightedResult {
@@ -1047,7 +1119,7 @@ fn get_full_list_of_traits(
                     ],
                     roll_method: RollMethod::SimpleRoll,
                 })
-                .expect("Should return a percentage of mass."),
+                .unwrap_or(150),
             ),
             weight: if discriminant(&category)
                 == discriminant(&GalaxyCategory::DominantElliptical(0))
@@ -1320,12 +1392,7 @@ fn get_number_of_random_traits(index: u16, seed: &Rc<str>) -> i32 {
 
 /// Retreives an age to use in [Galaxy] generation from the given [GenerationSettings].
 fn get_fixed_age(settings: &GenerationSettings) -> f32 {
-    let fixed_age = if settings.galaxy.fixed_age.is_some() {
-        settings.galaxy.fixed_age.expect("Fixed age should be set")
-    } else {
-        -1.0
-    };
-    fixed_age
+    settings.galaxy.fixed_age.unwrap_or(-1.0)
 }
 
 /// Is the [Galaxy] to be generated a dominant one in its local cluster?
@@ -1373,8 +1440,11 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             assert!(galaxy.age <= neighborhood.universe.age - 0.2)
         }
@@ -1389,8 +1459,11 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             let galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
 
             let category = galaxy.category;
@@ -1533,7 +1606,11 @@ mod tests {
             seed: "map-default".into(),
             ..Default::default()
         };
-        let neighborhood = GalacticNeighborhood::generate(Universe::generate(settings), settings);
+        let neighborhood = GalacticNeighborhood::generate(
+            Universe::generate(settings, &mut Diagnostics::default()),
+            settings,
+            &mut Diagnostics::default(),
+        );
         let galaxy = Galaxy::generate(neighborhood, 0, settings);
         assert!(
             !galaxy.galactic_map_layers.is_empty(),
@@ -1558,7 +1635,11 @@ mod tests {
             },
             ..Default::default()
         };
-        let neighborhood = GalacticNeighborhood::generate(Universe::generate(settings), settings);
+        let neighborhood = GalacticNeighborhood::generate(
+            Universe::generate(settings, &mut Diagnostics::default()),
+            settings,
+            &mut Diagnostics::default(),
+        );
         let galaxy = Galaxy::generate(neighborhood, 0, settings);
         assert_eq!(
             galaxy.galactic_map_layers,
@@ -1586,7 +1667,11 @@ mod tests {
             },
             ..Default::default()
         };
-        let neighborhood = GalacticNeighborhood::generate(Universe::generate(settings), settings);
+        let neighborhood = GalacticNeighborhood::generate(
+            Universe::generate(settings, &mut Diagnostics::default()),
+            settings,
+            &mut Diagnostics::default(),
+        );
         let galaxy = Galaxy::generate(neighborhood, 0, settings);
         assert_eq!(
             galaxy.galactic_map_layers,
@@ -1596,6 +1681,20 @@ mod tests {
         assert!(
             galaxy.region_map.is_some(),
             "The default map should have been built as a fallback."
+        );
+        assert!(
+            galaxy
+                .diagnostics
+                .warnings
+                .contains(&GenerationWarning::SvgLayerParseFailed { layer_index: 0 }),
+            "The parse failure should be reported in the galaxy's diagnostics."
+        );
+        assert!(
+            galaxy
+                .diagnostics
+                .warnings
+                .contains(&GenerationWarning::UserLayersReplacedWithDefault),
+            "The fallback to the default layers should be reported in the galaxy's diagnostics."
         );
     }
 }

@@ -1,5 +1,15 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::traits::types::TelluricAxialTiltDifference;
+use crate::system::celestial_body::traits::types::TelluricCoreDifference;
+use crate::system::celestial_body::traits::types::TelluricGeologicActivity;
+use crate::system::celestial_body::traits::types::TelluricMagneticFieldDifference;
+use crate::system::celestial_body::traits::types::TelluricRotationDifference;
+use crate::system::celestial_body::traits::types::TelluricTerrainRelief;
+use crate::system::celestial_body::traits::types::TelluricVolatileDensityDifference;
+use crate::system::celestial_body::traits::types::TideLockTarget;
+use crate::system::contents::elements::ChemicalComponent;
+use crate::system::contents::elements::ElementPresenceOccurrence;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 use std::fmt::Display;
 
 pub mod types;

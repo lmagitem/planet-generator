@@ -1,11 +1,23 @@
-use crate::internal::generator::get_major_moons;
-use crate::internal::types::MoonDistance;
-use crate::internal::*;
-use crate::prelude::types::*;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::generator::types::GenerationSettings;
 use crate::prelude::TelluricRotationDifference::Retrograde;
-use crate::prelude::*;
-use std::iter::Filter;
-use std::slice::Iter;
+use crate::system::celestial_body::moon::generator::get_major_moons;
+use crate::system::celestial_body::moon::types::MoonDistance;
+use crate::system::celestial_body::traits::types::TelluricAxialTiltDifference;
+use crate::system::celestial_body::traits::types::TelluricRotationDifference;
+use crate::system::celestial_body::traits::types::TideLockTarget;
+use crate::system::celestial_body::traits::CelestialBodySpecialTrait;
+use crate::system::celestial_body::types::CelestialBodySize;
+use crate::system::contents::types::GasGiantArrangement;
+use crate::system::orbital_point::types::AstronomicalObject;
+use crate::system::orbital_point::types::Orbit;
+use crate::system::orbital_point::OrbitalPoint;
+use crate::system::types::CataclysmSeverity;
+use crate::system::types::SystemPeculiarity;
+use crate::utils::conversion::ConversionUtils;
+use crate::utils::math::MathUtils;
+use seeded_dice_roller::SeededDiceRoller;
+use std::mem::discriminant;
 
 /// Calculates the orbital period between two bodies.
 ///
@@ -103,7 +115,7 @@ pub fn complete_orbit_with_rotation_and_axis(
     own_orbit: &Option<Orbit>,
     orbit_distance: f64,
     is_gas_giant: bool,
-    blackbody_temp: u32,
+    _blackbody_temp: u32,
     mass: f64,
     radius: f64,
     size: CelestialBodySize,
@@ -251,8 +263,7 @@ fn generate_inclination(
     } else {
         0
     };
-    let mut retrograde_modifier = if is_moon { 5 } else { 0 };
-    retrograde_modifier = if size == CelestialBodySize::Hypergiant
+    let mut retrograde_modifier = if size == CelestialBodySize::Hypergiant
         || size == CelestialBodySize::Supergiant
         || size == CelestialBodySize::Giant
     {
@@ -341,7 +352,7 @@ fn generate_axial_tilt(
         ),
     );
 
-    let mut modifier = if special_traits.contains(&CelestialBodySpecialTrait::UnusualAxialTilt(
+    let modifier = if special_traits.contains(&CelestialBodySpecialTrait::UnusualAxialTilt(
         TelluricAxialTiltDifference::Minimal,
     )) {
         -10
@@ -393,8 +404,9 @@ fn calculate_day_length(
     this_orbit: &Orbit,
 ) -> f32 {
     let sidereal_period: f32 = if is_moon {
-        orbited_object_orbital_period
-            .expect("The parent's orbital period should have been provided.")
+        // Callers always provide the parent's orbital period for moons; falling
+        // back to the body's own period is deterministic and unreachable.
+        orbited_object_orbital_period.unwrap_or(this_orbit.orbital_period)
     } else {
         this_orbit.orbital_period
     };
@@ -411,7 +423,7 @@ fn generate_rotation_period(
     system_index: u16,
     star_id: u32,
     orbital_point_id: u32,
-    mut this_orbit: &mut Orbit,
+    this_orbit: &mut Orbit,
     size: CelestialBodySize,
     is_gas_giant: bool,
     special_traits: &mut Vec<CelestialBodySpecialTrait>,
@@ -555,7 +567,7 @@ fn tide_lock_given_body(
                 .unwrap_or_default()
                 .average_distance
                 .partial_cmp(&b.own_orbit.clone().unwrap_or_default().average_distance)
-                .expect("Should have been able to compare two distances.")
+                .unwrap_or(std::cmp::Ordering::Equal)
         })
     };
     let moon_period;
@@ -673,7 +685,7 @@ pub fn calculate_planet_orbit_eccentricity(
             coord, system_index, star_id, orbital_point_id
         ),
     );
-    let mut eccentricity_modifier =
+    let eccentricity_modifier =
         if !is_moon && gas_giant_arrangement == GasGiantArrangement::ConventionalGasGiant {
             -6
         } else if is_gas_giant

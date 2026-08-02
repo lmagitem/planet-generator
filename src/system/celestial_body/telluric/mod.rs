@@ -1,5 +1,14 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::telluric::types::TelluricBodyComposition;
+use crate::system::celestial_body::traits::CelestialBodySpecialTrait;
+use crate::system::celestial_body::world::types::CelestialBodyCoreHeat;
+use crate::system::celestial_body::world::types::CelestialBodyWorldType;
+use crate::system::celestial_body::world::types::MagneticFieldStrength;
+use crate::system::celestial_body::world::types::TectonicActivity;
+use crate::system::celestial_body::world::types::VolcanicActivity;
+use crate::system::celestial_body::world::types::WorldClimateType;
+use crate::system::celestial_body::world::types::WorldTemperatureCategory;
+use crate::system::contents::elements::ChemicalComponent;
+use serde::{Deserialize, Serialize};
 pub mod generator;
 pub mod types;
 

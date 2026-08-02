@@ -1,5 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::fmt::Display;
 
 /// A list of settings used to configure the [Universe] generation.
 #[derive(Copy, Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
@@ -28,12 +29,12 @@ pub struct UniverseSettings {
 impl Display for UniverseSettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{{ fixed_era: {}, era_before: {}, era_after: {}, fixed_age: {}, age_before: {}, age_after: {}, use_ours: {} }}",
-        if self.fixed_era.is_some() { format!("{}", self.fixed_era.unwrap()) } else { "None".to_string() },
-        if self.era_before.is_some() { format!("{}", self.era_before.unwrap()) } else { "None".to_string() },
-        if self.era_after.is_some() { format!("{}", self.era_after.unwrap()) } else { "None".to_string() },
-        if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { "None".to_string() },
-        if self.age_before.is_some() { format!("{}", self.age_before.unwrap()) } else { "None".to_string() },
-        if self.age_after.is_some() { format!("{}", self.age_after.unwrap()) } else { "None".to_string() },
+        self.fixed_era.map_or_else(|| "None".to_string(), |era| format!("{era}")),
+        self.era_before.map_or_else(|| "None".to_string(), |era| format!("{era}")),
+        self.era_after.map_or_else(|| "None".to_string(), |era| format!("{era}")),
+        self.fixed_age.map_or_else(|| "None".to_string(), |age| format!("{age}")),
+        self.age_before.map_or_else(|| "None".to_string(), |age| format!("{age}")),
+        self.age_after.map_or_else(|| "None".to_string(), |age| format!("{age}")),
         self.use_ours)
     }
 }

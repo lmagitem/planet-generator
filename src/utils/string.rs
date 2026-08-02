@@ -1,8 +1,11 @@
-use crate::internal::*;
-use crate::prelude::*;
+#[cfg(test)]
+use crate::utils::math::MathUtils;
+#[cfg(test)]
+use std::rc::Rc;
 
 pub struct StringUtils {}
 impl StringUtils {
+    #[cfg(test)]
     pub fn get_difference_percentage_str(number: f64, compare_to: f64) -> Rc<str> {
         let result = MathUtils::get_difference_percentage(number, compare_to);
         format!(
@@ -37,7 +40,7 @@ impl StringUtils {
             for (i, c) in s.chars().enumerate() {
                 if c == '.' {
                     dot_index = Some(i);
-                } else if dot_index.is_some() {
+                } else if let Some(dot) = dot_index {
                     if c != '0' {
                         non_zero_count += 1;
                         last_non_zero_index = i;
@@ -48,11 +51,7 @@ impl StringUtils {
 
                     if non_zero_count == 2 || (non_zero_count >= 1 && zero_count >= 3) {
                         // Cut to the last non-zero number or keep two non-zero digits
-                        return format!(
-                            "{:.1$}",
-                            num,
-                            last_non_zero_index - dot_index.unwrap() + 1
-                        );
+                        return format!("{:.1$}", num, last_non_zero_index - dot + 1);
                     }
                 }
             }

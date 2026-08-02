@@ -1,5 +1,11 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::world::types::MagneticFieldStrength;
+use crate::system::star::types::StarPeculiarity;
+use seeded_dice_roller::SeededDiceRoller;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::fmt::Display;
+use strum::IntoEnumIterator;
+use strum_macros::EnumIter;
 
 #[derive(
     Copy,
@@ -165,8 +171,6 @@ impl ChemicalComponent {
             ChemicalComponent::HydrogenSulfide => 34.08,
             ChemicalComponent::SulfurDioxide => 64.066,
             ChemicalComponent::Hydroxyl => 17.007,
-            ChemicalComponent::NitricOxide => 30.006,
-            ChemicalComponent::NitrogenDioxide => 46.0055,
             ChemicalComponent::Formaldehyde => 30.03,
             ChemicalComponent::Methanol => 32.04,
             ChemicalComponent::Ethylene => 28.05,
@@ -236,8 +240,6 @@ impl ChemicalComponent {
             ChemicalComponent::HydrogenSulfide => Some((187.61, 0.0276)),
             ChemicalComponent::SulfurDioxide => Some((197.67, 0.0169)),
             ChemicalComponent::Hydroxyl => None, // Hydroxyl radical does not have a standard triple point
-            ChemicalComponent::NitricOxide => Some((109.5, 0.00015)),
-            ChemicalComponent::NitrogenDioxide => Some((261.93, 0.001)),
             ChemicalComponent::Formaldehyde => Some((155.2, 0.016)),
             ChemicalComponent::Methanol => Some((175.47, 0.08)),
             ChemicalComponent::Ethylene => Some((104.0, 0.00033)),
@@ -307,8 +309,6 @@ impl ChemicalComponent {
             ChemicalComponent::HydrogenSulfide => Some(212.9),
             ChemicalComponent::SulfurDioxide => Some(263.05),
             ChemicalComponent::Hydroxyl => None, // Hydroxyl radical does not have a standard boiling point
-            ChemicalComponent::NitricOxide => Some(121.36),
-            ChemicalComponent::NitrogenDioxide => None, // NO₂ decomposes before boiling
             ChemicalComponent::Formaldehyde => Some(252.2),
             ChemicalComponent::Methanol => Some(337.85),
             ChemicalComponent::Ethylene => Some(169.42),
@@ -378,8 +378,6 @@ impl ChemicalComponent {
             ChemicalComponent::HydrogenSulfide => temperature < 300 && pressure < 20.0,
             ChemicalComponent::SulfurDioxide => temperature < 300 && pressure < 20.0,
             ChemicalComponent::Hydroxyl => temperature < 100 && pressure < 10.0,
-            ChemicalComponent::NitricOxide => temperature < 300 && pressure < 20.0,
-            ChemicalComponent::NitrogenDioxide => temperature < 300 && pressure < 20.0,
             ChemicalComponent::Formaldehyde => temperature < 300 && pressure < 20.0,
             ChemicalComponent::Methanol => temperature < 300 && pressure < 20.0,
             ChemicalComponent::Ethylene => temperature < 300 && pressure < 20.0,
@@ -911,13 +909,13 @@ impl ChemicalComponent {
         let mut possible_liquids = Vec::new();
         let mut possible_lowest_pressure = None;
 
-        if (ChemicalComponent::Water.can_exist_as_liquid(temperature, pressure)) {
+        if ChemicalComponent::Water.can_exist_as_liquid(temperature, pressure) {
             possible_liquids.push(ChemicalComponent::Water);
         } else {
             for component in ChemicalComponent::iter() {
                 if component.can_exist_as_liquid(temperature, pressure) {
                     possible_liquids.push(component);
-                } else if let Some((triple_point_temp, triple_point_pressure)) =
+                } else if let Some((_triple_point_temp, triple_point_pressure)) =
                     component.triple_point()
                 {
                     if component.can_exist_as_liquid(temperature, triple_point_pressure as f32) {

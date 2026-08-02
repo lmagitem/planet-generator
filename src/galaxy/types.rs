@@ -1,5 +1,7 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::neighborhood::types::GalacticNeighborhoodDensity;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::fmt::Display;
 
 /// A list of settings used to configure the [Galaxy] generation.
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
@@ -28,23 +30,21 @@ pub struct GalaxySettings {
 
 impl Display for GalaxySettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{{ fixed_era: {}, era_before: {}, era_after: {}, fixed_age: {}, age_before: {}, age_after: {}, use_ours: {}, galactic_map_layers: {} layer(s) }}",
-        if self.fixed_neighborhood.is_some() { format!("{}", self.fixed_neighborhood.unwrap()) } else {
-            "None".to_string()
-        },
-        if self.fixed_category.is_some() { format!("{}", self.fixed_category.unwrap()) } else { "None".to_string()},
-        if self.fixed_sub_category.is_some() { format!("{}", self.fixed_sub_category.unwrap()) } else { "None".to_string() },
-        if self.fixed_special_traits.is_some() { format!("{}", self.fixed_special_traits.as_ref().unwrap()
+        write!(f, "{{ fixed_neighborhood: {}, fixed_category: {}, fixed_sub_category: {}, fixed_special_traits: {}, forbidden_special_traits: {}, fixed_age: {}, use_ours: {}, galactic_map_layers: {} layer(s) }}",
+        self.fixed_neighborhood.map_or_else(|| "None".to_string(), |neighborhood| format!("{neighborhood}")),
+        self.fixed_category.map_or_else(|| "None".to_string(), |category| format!("{category}")),
+        self.fixed_sub_category.map_or_else(|| "None".to_string(), |sub_category| format!("{sub_category}")),
+        self.fixed_special_traits.as_ref().map_or_else(|| "None".to_string(), |traits| traits
         .iter()
-        .map(|t| format!("{}", t))
+        .map(|t| format!("{t}"))
         .collect::<Vec<String>>()
-        .join(", ")) } else { "None".to_string() },
-        if self.forbidden_special_traits.is_some() { format!("{}", self.forbidden_special_traits.as_ref().unwrap()
+        .join(", ")),
+        self.forbidden_special_traits.as_ref().map_or_else(|| "None".to_string(), |traits| traits
         .iter()
-        .map(|t| format!("{}", t))
+        .map(|t| format!("{t}"))
         .collect::<Vec<String>>()
-        .join(", ")) } else { "None".to_string() },
-        if self.fixed_age.is_some() { format!("{}", self.fixed_age.unwrap()) } else { "None".to_string() },
+        .join(", ")),
+        self.fixed_age.map_or_else(|| "None".to_string(), |age| format!("{age}")),
         self.use_ours,
         self.galactic_map_layers.len())
     }

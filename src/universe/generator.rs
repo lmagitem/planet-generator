@@ -1,19 +1,44 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::types::{Diagnostics, GenerationWarning};
+use crate::generator::types::GenerationSettings;
+use crate::universe::types::StelliferousEra;
+#[cfg(test)]
+use crate::universe::types::UniverseSettings;
+use crate::universe::Universe;
+use log::debug;
+use seeded_dice_roller::{
+    CopyableRollToProcess, CopyableWeightedResult, RollMethod, SeededDiceRoller,
+};
+use std::rc::Rc;
 #[path = "./constants.rs"]
 mod constants;
-use constants::*;
+use constants::{
+    PossibleEra, MAX_END_STELLIFEROUS, MIN_ANCIENT_STELLIFEROUS, MIN_EARLY_STELLIFEROUS,
+    MIN_END_STELLIFEROUS, MIN_LATE_STELLIFEROUS, MIN_MIDDLE_STELLIFEROUS, OUR_UNIVERSES_AGE,
+    OUR_UNIVERSES_ERA, POSSIBLE_ERAS,
+};
 
 impl Universe {
     /// Generates a brand new [Universe] using the given seed and [GenerationSettings]. If an appropriate age or era cannot be generated from
-    /// the given settings, our own universe's age and/or era will be used.
-    pub fn generate(settings: &GenerationSettings) -> Self {
+    /// the given settings, our own universe's age and/or era will be used. Non-fatal issues (e.g. an
+    /// out-of-range requested age that gets clamped) are reported into the given [Diagnostics].
+    pub fn generate(settings: &GenerationSettings, diagnostics: &mut Diagnostics) -> Self {
         let seed = &settings.seed.clone();
         debug!(
             "generating new universe (seed: {}, settings: {})",
             seed, settings.universe
         );
-        let mut age = generate_age(settings, seed);
+        let requested_age = generate_age(settings, seed);
+        // Out-of-range ages (e.g. a fixed_age outside [0.4, 100000)) used to
+        // panic in `are_age_and_era_valid`; clamp them into the valid range
+        // instead and report the clamp. (A NaN age compares false everywhere,
+        // so it is not reported here — `GenerationSettings::validate` rejects it.)
+        let mut age = requested_age.clamp(MIN_ANCIENT_STELLIFEROUS, MAX_END_STELLIFEROUS - 0.1);
+        if requested_age < MIN_ANCIENT_STELLIFEROUS || requested_age > MAX_END_STELLIFEROUS - 0.1 {
+            diagnostics.push_warning(GenerationWarning::AgeOutOfRange {
+                requested: requested_age,
+                used: age,
+            });
+        }
         let mut era = get_era_from_age(age);
         if !are_age_and_era_valid(era, age) {
             age = OUR_UNIVERSES_AGE;
@@ -30,11 +55,8 @@ fn generate_age(settings: &GenerationSettings, seed: &Rc<str>) -> f32 {
     let age;
     if settings.universe.use_ours {
         age = OUR_UNIVERSES_AGE;
-    } else if settings.universe.fixed_age.is_some() {
-        age = settings
-            .universe
-            .fixed_age
-            .expect("Fixed age should have been set.");
+    } else if let Some(fixed_age) = settings.universe.fixed_age {
+        age = fixed_age;
     } else {
         age = calculate_age(settings, seed);
     }
@@ -167,10 +189,10 @@ fn generate_era(
     })
 }
 
-/// Checks if the given **age** and **era** match each other. Panics if the age isn't valid.
+/// Checks if the given **age** and **era** match each other. Ages outside the
+/// valid range simply do not match any era (callers clamp them beforehand).
 fn are_age_and_era_valid(era: StelliferousEra, age: f32) -> bool {
     let mut result = false;
-    assert!(age >= MIN_ANCIENT_STELLIFEROUS && age < MAX_END_STELLIFEROUS);
     match era {
         StelliferousEra::AncientStelliferous => {
             if age >= MIN_ANCIENT_STELLIFEROUS && age < MIN_EARLY_STELLIFEROUS {
@@ -222,10 +244,48 @@ fn get_era_from_age(age: f32) -> StelliferousEra {
 mod tests {
     use super::*;
 
+    /// Test shorthand: generates a universe, discarding the diagnostics.
+    fn generate_universe(settings: &GenerationSettings) -> Universe {
+        Universe::generate(settings, &mut Diagnostics::default())
+    }
+
+    #[test]
+    fn reports_an_age_out_of_range_warning_when_the_clamp_fires() {
+        let settings = GenerationSettings {
+            universe: UniverseSettings {
+                fixed_age: Some(200_000.0),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut diagnostics = Diagnostics::default();
+        let universe = Universe::generate(&settings, &mut diagnostics);
+        assert!(are_age_and_era_valid(universe.era, universe.age));
+        assert_eq!(
+            diagnostics.warnings,
+            vec![GenerationWarning::AgeOutOfRange {
+                requested: 200_000.0,
+                used: MAX_END_STELLIFEROUS - 0.1,
+            }]
+        );
+
+        // An in-range age clamps to nothing and reports nothing.
+        let settings = GenerationSettings {
+            universe: UniverseSettings {
+                fixed_age: Some(13.8),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut diagnostics = Diagnostics::default();
+        Universe::generate(&settings, &mut diagnostics);
+        assert!(diagnostics.is_empty());
+    }
+
     #[test]
     fn generate_a_universe() {
         for i in 0..10000 {
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 ..Default::default()
             });
@@ -238,7 +298,7 @@ mod tests {
     #[test]
     fn generate_our_universe() {
         for i in 0..100 {
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     use_ours: true,
@@ -263,7 +323,7 @@ mod tests {
                 3 => StelliferousEra::LateStelliferous,
                 _ => StelliferousEra::EndStelliferous,
             };
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     fixed_era: Some(era),
@@ -281,7 +341,7 @@ mod tests {
         for i in 0..100 {
             let age = SeededDiceRoller::new(&i.to_string(), "t").gen_f32() % 99999.6
                 + MIN_ANCIENT_STELLIFEROUS;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     fixed_age: Some(age),
@@ -300,7 +360,7 @@ mod tests {
             let era = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_after: Some(era),
@@ -315,7 +375,7 @@ mod tests {
             let era = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "t").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_before: Some(era),
@@ -334,7 +394,7 @@ mod tests {
                 + MIN_ANCIENT_STELLIFEROUS * 100.0)
                 .round()
                 / 100.0;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     age_after: Some(age),
@@ -351,7 +411,7 @@ mod tests {
                 + MIN_ANCIENT_STELLIFEROUS * 100.0)
                 .round()
                 / 100.0;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     age_before: Some(age),
@@ -377,7 +437,7 @@ mod tests {
                 + MIN_ANCIENT_STELLIFEROUS * 100.0)
                 .round()
                 / 100.0;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     age_before: Some(age_before),
@@ -400,7 +460,7 @@ mod tests {
             let era_before = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_after: Some(era_after),
@@ -429,7 +489,7 @@ mod tests {
             let era_before = POSSIBLE_ERAS
                 [SeededDiceRoller::new(&i.to_string(), "before").gen_usize() % POSSIBLE_ERAS.len()]
             .era;
-            let universe = Universe::generate(&GenerationSettings {
+            let universe = generate_universe(&GenerationSettings {
                 seed: Rc::from(i.to_string()),
                 universe: UniverseSettings {
                     era_after: Some(era_after),

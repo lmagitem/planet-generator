@@ -1,5 +1,5 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::traits::CelestialBodySpecialTrait;
+use serde::{Deserialize, Serialize};
 
 /// A list of settings used to configure the Gaseous Bodies (like gas giants) generation.
 #[derive(Clone, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]

@@ -1,44 +1,84 @@
-use crate::internal::*;
-use crate::prelude::*;
-#[path = "./constants.rs"]
-mod constants;
+#[cfg(test)]
+use crate::diagnostics::types::{Diagnostics, GenerationError};
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::hex::GalacticHex;
+#[cfg(test)]
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+#[cfg(test)]
+use crate::galaxy::types::GalaxySettings;
+#[cfg(test)]
+use crate::galaxy::Galaxy;
+use crate::generator::types::GenerationSettings;
 use crate::system::contents::elements::generate_random_common_element;
 use crate::system::contents::elements::generate_random_element;
 use crate::system::contents::elements::generate_random_non_metal_element;
 use crate::system::contents::elements::ChemicalComponent;
-use crate::system::contents::elements::ALL_ELEMENTS;
-use crate::system::contents::elements::MOST_COMMON_ELEMENTS;
-use constants::*;
+use crate::system::contents::elements::ElementPresenceOccurrence;
+use crate::system::neighborhood::types::StellarNeighborhoodAge;
+use crate::system::star::types::StarLuminosityClass;
+use crate::system::star::types::StarPeculiarity;
+use crate::system::star::types::StarSettings;
+use crate::system::star::types::StarSpectralType;
+use crate::system::star::Star;
+use crate::system::types::StellarEvolution;
+use crate::system::types::SystemGenContext;
+use crate::universe::types::StelliferousEra;
+#[cfg(test)]
+use crate::universe::types::UniverseSettings;
+use crate::universe::Universe;
+#[cfg(test)]
+use crate::utils::math::MathUtils;
+#[cfg(test)]
+use crate::utils::string::StringUtils;
+use seeded_dice_roller::{
+    CopyableRollToProcess, CopyableWeightedResult, RollMethod, SeededDiceRoller,
+};
+#[cfg(test)]
+use std::mem::discriminant;
+use std::rc::Rc;
+#[path = "./constants.rs"]
+mod constants;
+#[cfg(test)]
+use constants::get_test_stars;
+use constants::{
+    TemperatureAndLuminosity, BLUE_GIANT_MIN_MASS, BLUE_GIANT_POP_DWARF_MAX_MASS,
+    BLUE_GIANT_POP_HYPERDWARF_MAX_MASS, BLUE_GIANT_POP_PALEODWARF_MAX_MASS,
+    BLUE_GIANT_POP_SUBDWARF_MAX_MASS, BLUE_GIANT_POP_SUPERDWARF_MAX_MASS, BROWN_DWARF_MIN_MASS,
+    ORANGE_DWARF_MIN_MASS, RED_DWARF_POP_DWARF_MIN_MASS, RED_DWARF_POP_HYPERDWARF_MIN_MASS,
+    RED_DWARF_POP_PALEODWARF_MIN_MASS, RED_DWARF_POP_SUBDWARF_MIN_MASS, STAR_LIFECYCLE_DATASET,
+    TEMPERATURE_TO_SPECTRAL_TYPE_DATASET, WHITE_DWARF_MIN_MASS, WHITE_GIANT_MIN_MASS,
+    YELLOW_DWARF_MIN_MASS,
+};
 
 impl Star {
     /// Generates a new star.
     pub fn generate(
-        system_gen_try: u32,
+        ctx: &SystemGenContext,
         star_index: u16,
-        system_index: u16,
         system_name: Rc<str>,
-        coord: SpaceCoordinates,
         population: StellarEvolution,
-        hex: &GalacticHex,
-        galaxy: &Galaxy,
-        settings: &GenerationSettings,
     ) -> Self {
-        let seed: Rc<str> = format!("{}{}", system_gen_try, &galaxy.settings.seed).into();
-        let age = if settings.star.fixed_age.is_some() {
-            settings.star.fixed_age.unwrap() * 1000.0
+        let settings = ctx.settings;
+        // Try-seed: `format!("{}{}", system_gen_try, settings.seed)` — NOT the raw
+        // `settings.seed`; both are used by different rng sites below (§6.1).
+        let seed: &str = &ctx.seed;
+        let system_index = ctx.system_index;
+        let coord = ctx.coord;
+        let age = if let Some(fixed_age) = settings.star.fixed_age {
+            fixed_age * 1000.0
         } else {
             generate_age(
                 star_index,
                 system_index,
                 coord,
-                hex,
-                &*seed,
-                &galaxy.neighborhood.universe,
+                ctx.hex,
+                seed,
+                &ctx.universe,
             )
         };
 
-        let mut mass: f64 = if settings.star.fixed_mass.is_some() {
-            settings.star.fixed_mass.unwrap()
+        let mut mass: f64 = if let Some(fixed_mass) = settings.star.fixed_mass {
+            fixed_mass
         } else {
             let generated_mass: f64 =
                 generate_mass(star_index, system_index, coord, &*seed, &settings.star);
@@ -47,7 +87,7 @@ impl Star {
 
         // Main sequence estimations
         let ms_luminosity = calculate_main_sequence_luminosity(mass);
-        let ms_radius = calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, galaxy);
+        let ms_radius = calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, &settings.seed);
         let ms_temperature =
             calculate_temperature_using_luminosity(ms_luminosity, ms_radius as f64) as u32;
 
@@ -379,107 +419,115 @@ fn generate_mass(
         seed,
         &format!("star_{}_{}_{}_mass", coord, system_index, star_index),
     );
-    let range = rng
-        .get_result(&CopyableRollToProcess::new(
-            vec![
-                // Brown dwarf
-                CopyableWeightedResult {
-                    result: (
-                        BROWN_DWARF_MIN_MASS,
-                        RED_DWARF_POP_HYPERDWARF_MIN_MASS - 0.001,
-                    ),
-                    weight: settings.brown_dwarf_gen_chance,
-                },
-                // Red dwarf Pop 0
-                CopyableWeightedResult {
-                    result: (
-                        RED_DWARF_POP_HYPERDWARF_MIN_MASS,
-                        RED_DWARF_POP_DWARF_MIN_MASS - 0.001,
-                    ),
-                    weight: settings.red_dwarf_one_gen_chance,
-                },
-                // Red dwarf Pop I
-                CopyableWeightedResult {
-                    result: (
-                        RED_DWARF_POP_DWARF_MIN_MASS,
-                        RED_DWARF_POP_SUBDWARF_MIN_MASS - 0.001,
-                    ),
-                    weight: settings.red_dwarf_two_gen_chance,
-                },
-                // Red dwarf Pop II
-                CopyableWeightedResult {
-                    result: (RED_DWARF_POP_SUBDWARF_MIN_MASS, 0.25),
-                    weight: settings.red_dwarf_three_gen_chance,
-                },
-                CopyableWeightedResult {
-                    result: (0.251, RED_DWARF_POP_PALEODWARF_MIN_MASS - 0.001),
-                    weight: settings.red_dwarf_four_gen_chance,
-                },
-                // Red dwarf Pop III
-                CopyableWeightedResult {
-                    result: (
-                        RED_DWARF_POP_PALEODWARF_MIN_MASS,
-                        ORANGE_DWARF_MIN_MASS - 0.001,
-                    ),
-                    weight: settings.red_dwarf_five_gen_chance,
-                },
-                // Orange
-                CopyableWeightedResult {
-                    result: (ORANGE_DWARF_MIN_MASS, YELLOW_DWARF_MIN_MASS - 0.001),
-                    weight: settings.orange_dwarf_gen_chance,
-                },
-                // Yellow
-                CopyableWeightedResult {
-                    result: (YELLOW_DWARF_MIN_MASS, WHITE_DWARF_MIN_MASS - 0.001),
-                    weight: settings.yellow_dwarf_gen_chance,
-                },
-                // White
-                CopyableWeightedResult {
-                    result: (WHITE_DWARF_MIN_MASS, WHITE_GIANT_MIN_MASS - 0.001),
-                    weight: settings.white_star_gen_chance,
-                },
-                // Giants
-                CopyableWeightedResult {
-                    result: (WHITE_GIANT_MIN_MASS, BLUE_GIANT_MIN_MASS - 0.001),
-                    weight: settings.blue_star_one_gen_chance,
-                },
-                // Blue giants
-                CopyableWeightedResult {
-                    result: (BLUE_GIANT_MIN_MASS, 20.0),
-                    weight: settings.blue_star_two_gen_chance,
-                },
-                CopyableWeightedResult {
-                    result: (20.001, BLUE_GIANT_POP_HYPERDWARF_MAX_MASS),
-                    weight: settings.blue_star_three_gen_chance,
-                },
-                // Pop I
-                CopyableWeightedResult {
-                    result: (
-                        BLUE_GIANT_POP_HYPERDWARF_MAX_MASS + 0.001,
-                        BLUE_GIANT_POP_DWARF_MAX_MASS,
-                    ),
-                    weight: settings.violet_star_one_gen_chance,
-                },
-                // Pop II
-                CopyableWeightedResult {
-                    result: (
-                        BLUE_GIANT_POP_DWARF_MAX_MASS + 0.001,
-                        BLUE_GIANT_POP_SUBDWARF_MAX_MASS,
-                    ),
-                    weight: settings.violet_star_two_gen_chance,
-                },
-                // Pop III
-                CopyableWeightedResult {
-                    result: (
-                        BLUE_GIANT_POP_SUBDWARF_MAX_MASS + 0.001,
-                        BLUE_GIANT_POP_PALEODWARF_MAX_MASS,
-                    ),
-                    weight: settings.violet_star_three_gen_chance,
-                },
-            ],
-            RollMethod::SimpleRoll,
-        ))
-        .expect("Should return a range to generate a star's mass.");
+    let table = CopyableRollToProcess::new(
+        vec![
+            // Brown dwarf
+            CopyableWeightedResult {
+                result: (
+                    BROWN_DWARF_MIN_MASS,
+                    RED_DWARF_POP_HYPERDWARF_MIN_MASS - 0.001,
+                ),
+                weight: settings.brown_dwarf_gen_chance,
+            },
+            // Red dwarf Pop 0
+            CopyableWeightedResult {
+                result: (
+                    RED_DWARF_POP_HYPERDWARF_MIN_MASS,
+                    RED_DWARF_POP_DWARF_MIN_MASS - 0.001,
+                ),
+                weight: settings.red_dwarf_one_gen_chance,
+            },
+            // Red dwarf Pop I
+            CopyableWeightedResult {
+                result: (
+                    RED_DWARF_POP_DWARF_MIN_MASS,
+                    RED_DWARF_POP_SUBDWARF_MIN_MASS - 0.001,
+                ),
+                weight: settings.red_dwarf_two_gen_chance,
+            },
+            // Red dwarf Pop II
+            CopyableWeightedResult {
+                result: (RED_DWARF_POP_SUBDWARF_MIN_MASS, 0.25),
+                weight: settings.red_dwarf_three_gen_chance,
+            },
+            CopyableWeightedResult {
+                result: (0.251, RED_DWARF_POP_PALEODWARF_MIN_MASS - 0.001),
+                weight: settings.red_dwarf_four_gen_chance,
+            },
+            // Red dwarf Pop III
+            CopyableWeightedResult {
+                result: (
+                    RED_DWARF_POP_PALEODWARF_MIN_MASS,
+                    ORANGE_DWARF_MIN_MASS - 0.001,
+                ),
+                weight: settings.red_dwarf_five_gen_chance,
+            },
+            // Orange
+            CopyableWeightedResult {
+                result: (ORANGE_DWARF_MIN_MASS, YELLOW_DWARF_MIN_MASS - 0.001),
+                weight: settings.orange_dwarf_gen_chance,
+            },
+            // Yellow
+            CopyableWeightedResult {
+                result: (YELLOW_DWARF_MIN_MASS, WHITE_DWARF_MIN_MASS - 0.001),
+                weight: settings.yellow_dwarf_gen_chance,
+            },
+            // White
+            CopyableWeightedResult {
+                result: (WHITE_DWARF_MIN_MASS, WHITE_GIANT_MIN_MASS - 0.001),
+                weight: settings.white_star_gen_chance,
+            },
+            // Giants
+            CopyableWeightedResult {
+                result: (WHITE_GIANT_MIN_MASS, BLUE_GIANT_MIN_MASS - 0.001),
+                weight: settings.blue_star_one_gen_chance,
+            },
+            // Blue giants
+            CopyableWeightedResult {
+                result: (BLUE_GIANT_MIN_MASS, 20.0),
+                weight: settings.blue_star_two_gen_chance,
+            },
+            CopyableWeightedResult {
+                result: (20.001, BLUE_GIANT_POP_HYPERDWARF_MAX_MASS),
+                weight: settings.blue_star_three_gen_chance,
+            },
+            // Pop I
+            CopyableWeightedResult {
+                result: (
+                    BLUE_GIANT_POP_HYPERDWARF_MAX_MASS + 0.001,
+                    BLUE_GIANT_POP_DWARF_MAX_MASS,
+                ),
+                weight: settings.violet_star_one_gen_chance,
+            },
+            // Pop II
+            CopyableWeightedResult {
+                result: (
+                    BLUE_GIANT_POP_DWARF_MAX_MASS + 0.001,
+                    BLUE_GIANT_POP_SUBDWARF_MAX_MASS,
+                ),
+                weight: settings.violet_star_two_gen_chance,
+            },
+            // Pop III
+            CopyableWeightedResult {
+                result: (
+                    BLUE_GIANT_POP_SUBDWARF_MAX_MASS + 0.001,
+                    BLUE_GIANT_POP_PALEODWARF_MAX_MASS,
+                ),
+                weight: settings.violet_star_three_gen_chance,
+            },
+        ],
+        RollMethod::SimpleRoll,
+    );
+    // Every weight comes from the user-tunable gen chances: if they are all 0 the
+    // roller would divide by zero, so use the first entry directly (rejecting that
+    // combination is a `GenerationSettings::validate` concern). The unwrap_or
+    // fallback is otherwise unreachable.
+    let fallback = table.possible_results[0].result;
+    let range = if table.possible_results.iter().all(|r| r.weight == 0) {
+        fallback
+    } else {
+        rng.get_result(&table).unwrap_or(fallback)
+    };
     rng.gen_f64() % (range.1 - range.0) + range.0
 }
 
@@ -565,10 +613,10 @@ fn calculate_radius(
     star_index: u16,
     system_index: u16,
     coord: SpaceCoordinates,
-    galaxy: &Galaxy,
+    seed: &str, // RAW settings seed
 ) -> f64 {
     let mut rng = SeededDiceRoller::new(
-        &galaxy.settings.seed,
+        seed,
         &format!("star_{}_{}_{}_radius", coord, system_index, star_index),
     );
     let mut radius = mass.powf(0.8);
@@ -746,21 +794,29 @@ fn get_interpolated_temperature(
 }
 
 fn calculate_spectral_type(temperature: u32) -> StarSpectralType {
-    // Find the two temperatures in the dataset that the given temperature is between
+    // Find the two temperatures in the dataset that the given temperature is between.
+    // The dataset is descending and ends with a (0, _) entry, so the lower lookup
+    // can only fail for no input at all; the upper one only for u32::MAX. The
+    // fallbacks keep both defined (and equal) in those unreachable edge cases.
     let (lower_temp, lower_class) = TEMPERATURE_TO_SPECTRAL_TYPE_DATASET
         .iter()
         .find(|&(t, _)| *t <= temperature)
-        .unwrap();
+        .unwrap_or(&(0, 109));
     let (upper_temp, upper_class) = TEMPERATURE_TO_SPECTRAL_TYPE_DATASET
         .iter()
         .rev()
         .find(|&(t, _)| *t > temperature)
-        .unwrap();
+        .unwrap_or(&(u32::MAX, 0));
 
     // Interpolate the class value between the two nearest temperatures
-    let class_as_int: u32 = (*lower_class as f32
-        + (temperature as f32 - *lower_temp as f32) * (*upper_class as f32 - *lower_class as f32)
-            / (*upper_temp as f32 - *lower_temp as f32)) as u32;
+    let class_as_int: u32 = if upper_temp == lower_temp {
+        *lower_class
+    } else {
+        (*lower_class as f32
+            + (temperature as f32 - *lower_temp as f32)
+                * (*upper_class as f32 - *lower_class as f32)
+                / (*upper_temp as f32 - *lower_temp as f32)) as u32
+    };
 
     // Convert the class value to the spectral type
     let spectral_type = match class_as_int / 10 {
@@ -790,7 +846,7 @@ fn generate_white_dwarf_spectral_type(
         seed,
         &format!("star_{}_{}_{}_wd_st", coord, system_index, star_index),
     );
-    rng.get_result(&CopyableRollToProcess::new(
+    let table = CopyableRollToProcess::new(
         vec![
             CopyableWeightedResult {
                 result: StarSpectralType::DA,
@@ -822,8 +878,10 @@ fn generate_white_dwarf_spectral_type(
             },
         ],
         RollMethod::SimpleRoll,
-    ))
-    .expect("Should return a white dwarf spectral type.")
+    );
+    // Unreachable fallback (hardcoded non-empty table): first entry.
+    rng.get_result(&table)
+        .unwrap_or(table.possible_results[0].result)
 }
 
 fn calculate_luminosity_class(
@@ -960,15 +1018,11 @@ fn get_nearest_star_lifecycle_dataset_cells(
     age_range: f32,
     mass_range: f32,
 ) -> [TemperatureAndLuminosity; 4] {
-    if age_range < 0.0 || age_range > 6.0 || mass_range < 0.0 || mass_range > 7.0 {
-        panic!(
-            "{}",
-            format!(
-                "age_range ({}) or mass_range ({}) is out of bounds",
-                age_range, mass_range
-            )
-        );
-    }
+    // Out-of-range inputs (e.g. an extreme fixed_mass, or an age past the giant
+    // phase) used to panic; clamp to the dataset edges so the nearest edge cell
+    // is used instead. In-range inputs are untouched.
+    let age_range = age_range.clamp(0.0, 6.0);
+    let mass_range = mass_range.clamp(0.0, 7.0);
 
     let x = age_range as usize;
     let x1 = if age_range.fract() != 0.0 { x + 1 } else { x };
@@ -1030,7 +1084,8 @@ mod tests {
             if is_star_a_main_sequence_dwarf(star) {
                 let mass = star.mass;
                 let ms_luminosity = calculate_main_sequence_luminosity(mass);
-                let ms_radius = calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, galaxy);
+                let ms_radius =
+                    calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, &galaxy.settings.seed);
                 let ms_temperature =
                     calculate_temperature_using_luminosity(ms_luminosity, ms_radius as f64) as u32;
                 let main_lifespan = calculate_lifespan(mass, ms_luminosity);
@@ -1104,7 +1159,8 @@ mod tests {
 
                 // Main sequence estimations
                 let ms_luminosity = calculate_main_sequence_luminosity(mass);
-                let ms_radius = calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, galaxy);
+                let ms_radius =
+                    calculate_radius(mass, 0.0, 1.0, 0.0, 0.0, 0, 0, coord, &galaxy.settings.seed);
                 let ms_temperature =
                     calculate_temperature_using_luminosity(ms_luminosity, ms_radius as f64) as u32;
 
@@ -1276,17 +1332,18 @@ mod tests {
                     },
                     ..Default::default()
                 };
-                let mut generated_star = Star::generate(
+                let system_traits = Vec::new();
+                let ctx = SystemGenContext::new(
                     0,
-                    0,
-                    0,
-                    "Test".into(),
-                    coord,
-                    StellarEvolution::Dwarf,
-                    hex,
-                    galaxy,
                     &settings,
+                    coord,
+                    0,
+                    &system_traits,
+                    hex,
+                    galaxy.neighborhood.universe,
                 );
+                let mut generated_star =
+                    Star::generate(&ctx, 0, "Test".into(), StellarEvolution::Dwarf);
                 generated_star.name = star.name.clone();
 
                 print_real_to_generated_star_comparison(
@@ -1326,7 +1383,8 @@ mod tests {
     }
 
     #[test]
-    fn assert_that_generation_returns_proper_type_for_standard_mass() {
+    fn assert_that_generation_returns_proper_type_for_standard_mass() -> Result<(), GenerationError>
+    {
         let expected_values = vec![
             (0.1, 3100, 0.0012),
             (0.15, 3200, 0.0036),
@@ -1382,25 +1440,28 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             let mut galaxy = Galaxy::generate(neighborhood, 0, &settings);
             let coord = SpaceCoordinates::new(0, 0, 0);
             let hex = galaxy
-                .get_hex(coord.rel(galaxy.get_galactic_start()))
-                .expect("Should have generated a hex.");
+                .get_hex(coord.rel(galaxy.get_galactic_start()))?
+                .clone();
 
-            let generated_star = Star::generate(
+            let system_traits = Vec::new();
+            let ctx = SystemGenContext::new(
                 0,
-                0,
-                0,
-                "Test".into(),
-                coord,
-                StellarEvolution::Dwarf,
-                &hex,
-                &galaxy,
                 &settings,
+                coord,
+                0,
+                &system_traits,
+                &hex,
+                galaxy.neighborhood.universe,
             );
+            let generated_star = Star::generate(&ctx, 0, "Test".into(), StellarEvolution::Dwarf);
 
             generated.push(generated_star);
         }
@@ -1411,10 +1472,11 @@ mod tests {
                     && generated[i].temperature <= expected_values[i].1 + 1000
             );
         }
+        Ok(())
     }
 
     #[test]
-    fn calculate_proper_star_age() {
+    fn calculate_proper_star_age() -> Result<(), GenerationError> {
         for i in 0..1000 {
             let mut rng = SeededDiceRoller::new(&format!("{}", i), &"test_age");
             let settings = &GenerationSettings {
@@ -1424,8 +1486,11 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let gal_end = galaxy.get_galactic_end();
             let x = rng.gen_u32() as i64 % gal_end.x;
@@ -1437,12 +1502,13 @@ mod tests {
                 i as u16,
                 i as u16 + 1,
                 coord,
-                &GalacticHex::generate(coord, coord, &mut galaxy),
+                &GalacticHex::generate(coord, coord, &mut galaxy)?,
                 &galaxy.settings.seed,
                 &galaxy.neighborhood.universe,
             ) / 1000.0;
             assert!(age > 0.0 && age < galaxy.neighborhood.universe.age);
         }
+        Ok(())
     }
 
     #[test]

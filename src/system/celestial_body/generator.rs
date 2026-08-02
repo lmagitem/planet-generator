@@ -1,5 +1,8 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::types::CelestialBodyComposition;
+use crate::system::celestial_body::types::CelestialBodySize;
+use crate::system::celestial_body::world::types::CelestialBodyWorldType;
+use seeded_dice_roller::SeededDiceRoller;
+use std::rc::Rc;
 
 pub(crate) fn get_size_constraint(size: CelestialBodySize, rng: &mut SeededDiceRoller) -> f32 {
     let (min, max) = match size {
@@ -8,14 +11,16 @@ pub(crate) fn get_size_constraint(size: CelestialBodySize, rng: &mut SeededDiceR
         CelestialBodySize::Small => (0.024, 0.030),
         CelestialBodySize::Tiny => (0.004, 0.024),
         CelestialBodySize::Puny => (0.000003, 0.004),
-        _ => panic!("No giant or bigger planet should determine its size using this method"),
+        // Giant and bigger planets never reach this method (only telluric worlds
+        // do); the Large range is a deterministic, unreachable stand-in.
+        _ => (0.065, 0.0915),
     };
     rng.gen_range(min..max)
 }
 
 pub(crate) fn downsize_world_by(size: CelestialBodySize, number: u8) -> CelestialBodySize {
     let mut running_number = number;
-    let mut new_size = size;
+    let mut new_size;
     loop {
         if size == CelestialBodySize::Hypergiant {
             new_size = CelestialBodySize::Supergiant;
@@ -44,19 +49,19 @@ pub(crate) fn downsize_world_by(size: CelestialBodySize, number: u8) -> Celestia
 }
 
 pub(crate) fn generate_acceptable_telluric_parameters(
-    size_modifier: i32,
+    _size_modifier: i32,
     mut rng: &mut SeededDiceRoller,
     mut min_density: f64,
     mut max_density: f64,
     size: CelestialBodySize,
     blackbody_temp: u32,
-    planet_type: Rc<str>,
+    _planet_type: Rc<str>,
 ) -> (f32, CelestialBodySize, f64, f64) {
     let mut loop_number = 0;
-    let mut density = 0.0;
+    let mut density;
     let mut size = size;
-    let mut radius = 0.0;
-    let mut mass = 0.0;
+    let mut radius;
+    let mut mass;
     loop {
         if min_density > max_density {
             let temp = max_density;
@@ -83,8 +88,10 @@ pub(crate) fn generate_acceptable_telluric_parameters(
             size = downsize_world_by(size, 1);
         }
         if loop_number > 1000 {
-            panic!("Infinite loop! Last turn was density: {}, size_constraint: {}, temp: {}, radius: {}, mass: {}, modifier: {}, for a {} {} planet.",
-                   density, size_constraint, blackbody_temp, radius, mass, size_modifier, size, planet_type);
+            // Safety valve against an infinite loop: after 1000 tries (and ten
+            // downsizes, bottoming out at Puny) keep the last computed parameters
+            // instead of panicking. Only reachable for absurdly hot worlds.
+            break;
         }
     }
     (density, size, radius, mass)
@@ -112,7 +119,7 @@ pub(crate) fn get_world_type(
     blackbody_temperature: u32,
     primary_star_mass: f64,
     star_age: f32,
-    rng: &mut SeededDiceRoller,
+    _rng: &mut SeededDiceRoller,
 ) -> CelestialBodyWorldType {
     if blackbody_temperature > 1272
         // TODO: Add if special_trait == rogue planet, skip the following conditions, or on the contrary randomly set protoworld:
@@ -257,11 +264,15 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "No giant or bigger planet should determine its size using this method"
-    )]
     fn celestial_body_generator_get_size_constraint_invalid() {
+        // Giant and bigger planets never reach this method; they get the Large
+        // range as a deterministic stand-in instead of a panic.
         let mut rng = SeededDiceRoller::new("seed_for_invalid", "test");
-        get_size_constraint(CelestialBodySize::Giant, &mut rng);
+        let size = get_size_constraint(CelestialBodySize::Giant, &mut rng);
+        assert!(
+            size >= 0.065 && size < 0.092,
+            "Fallback size was not within Large constraints: {}",
+            size
+        );
     }
 }

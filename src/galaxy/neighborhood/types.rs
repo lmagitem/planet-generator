@@ -1,5 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::fmt::Display;
 
 /// Defines the density of a galactic neighborhood. The first associated number indicates how many major galaxies we find in that
 /// neighborhood, the second indicates how many galaxies are dominant ones. Major galaxies within 2 megaparsecs (or 5 to 10 megaparsecs for

@@ -1,5 +1,5 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use serde::{Deserialize, Serialize};
 pub mod generator;
 
 /// Data pertaining how space is divided on a galactic scale.

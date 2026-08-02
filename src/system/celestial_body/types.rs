@@ -1,6 +1,13 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_body::gaseous::types::GaseousBodySettings;
+use crate::system::celestial_body::gaseous::GaseousBodyDetails;
+use crate::system::celestial_body::icy::types::IcyBodySettings;
+use crate::system::celestial_body::icy::IcyBodyDetails;
+use crate::system::celestial_body::telluric::types::TelluricBodySettings;
+use crate::system::celestial_body::telluric::TelluricBodyDetails;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 use std::fmt;
+use std::fmt::Display;
 
 /// A list of settings used to configure the [CelestialBody] generation.
 #[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]

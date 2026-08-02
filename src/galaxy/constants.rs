@@ -1,6 +1,15 @@
 #![allow(dead_code)]
-use crate::internal::*;
-use crate::prelude::*;
+#[cfg(test)]
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+#[cfg(test)]
+use crate::galaxy::map::region_map::types::GalacticRegionMap;
+#[cfg(test)]
+use crate::galaxy::map::types::GalacticRegion;
+use crate::galaxy::types::GalaxyCategory;
+use crate::galaxy::types::GalaxySpecialTrait;
+use crate::galaxy::types::GalaxySubCategory;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 
 /// The current age of the Milky Way.
 pub const OUR_GALAXYS_AGE: f32 = 13.61;
@@ -625,7 +634,6 @@ pub(crate) fn default_layers_for(category: GalaxyCategory) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::galaxy::map::region_map::types::GalacticRegionMap;
 
     fn test_bounds() -> (SpaceCoordinates, SpaceCoordinates) {
         (

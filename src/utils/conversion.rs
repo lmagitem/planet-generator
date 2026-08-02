@@ -6,6 +6,7 @@ impl ConversionUtils {
     }
 
     /// Converts a value from Astronomical units to Solar radii.
+    #[cfg(test)]
     pub fn astronomical_units_to_solar_radii(au: f64) -> f64 {
         au * 214.9394693836
     }

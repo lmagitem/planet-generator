@@ -1,5 +1,5 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::universe::types::StelliferousEra;
+use serde::{Deserialize, Serialize};
 
 /// The stelliferous era we currently live in.
 pub const OUR_UNIVERSES_ERA: StelliferousEra = StelliferousEra::MiddleStelliferous;

@@ -1,6 +1,5 @@
-use crate::internal::*;
-use crate::prelude::*;
-pub mod generator;
+use crate::system::celestial_disk::belt::types::CelestialBeltType;
+use serde::{Deserialize, Serialize};
 pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]

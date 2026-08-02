@@ -1,5 +1,13 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::diagnostics::Diagnostics;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::hex::GalacticHex;
+use crate::generator::types::GenerationSettings;
+use crate::universe::Universe;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::cell::RefCell;
+use std::fmt::Display;
+use std::rc::Rc;
 
 /// A list of settings used to configure the [StarSystem] generation.
 #[derive(Clone, Copy, PartialEq, PartialOrd, Debug, Default, Serialize, Deserialize)]
@@ -157,4 +165,34 @@ impl Display for NebulaeApparentSize {
             NebulaeApparentSize::Dominant => write!(f, "Dominant"),
         }
     }
+}
+
+/// Everything constant for one full star-system generation try (star generation
+/// + system contents). Transient: deliberately NOT serialized.
+/// Constructed once per generation try in `StarSystem::generate`.
+pub struct SystemGenContext<'a> {
+    /// Borrowed from `galaxy.settings`; the pipeline never mutates the galaxy
+    /// (verified: every `&mut Galaxy` in scope is read-only).
+    pub settings: &'a GenerationSettings,
+    /// Copy type (24 bytes); owned.
+    pub coord: SpaceCoordinates,
+    pub system_index: u16,
+    /// The try-prefixed seed: `format!("{}{}", system_gen_try, settings.seed)`.
+    /// Owned because it is derived, not borrowable; `Rc` keeps clones O(1).
+    /// NOTE: distinct from `settings.seed` (raw) — both are used by different rng call sites.
+    pub seed: Rc<str>,
+    /// Currently always an empty Vec (TODO in `StarSystem::generate`); borrowed.
+    /// Kept as `&Vec` (not `&[]`) because the celestial-body leaf generators
+    /// take `&Vec<SystemPeculiarity>`.
+    pub system_traits: &'a Vec<SystemPeculiarity>,
+    /// Only `Star::generate` (via `generate_age`) needs it. Caller-owned,
+    /// outlives the `StarSystem::generate` call.
+    pub hex: &'a GalacticHex,
+    /// Only `generate_age` needs it. `Universe` is `Copy`; an owned copy avoids
+    /// borrowing `galaxy.neighborhood` for the whole pipeline.
+    pub universe: Universe,
+    /// `RefCell` so `&SystemGenContext` can push diagnostics (phase 6) without
+    /// forcing `&mut` through ~20 signatures. Single-threaded pipeline; the
+    /// crate is already `!Sync` (`Rc` everywhere).
+    pub diagnostics: RefCell<Diagnostics>,
 }

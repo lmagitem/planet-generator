@@ -131,7 +131,7 @@ impl OrbitalHarmonicsUtils {
 
 fn calculate_modifier(distance: usize) -> f64 {
     let mut modifier = 1.0;
-    for i in 0..(distance - 1) {
+    for _i in 0..(distance - 1) {
         modifier = modifier * (1.0 / 3.0) * 2.0;
     }
     modifier

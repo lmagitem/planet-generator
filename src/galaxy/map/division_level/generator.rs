@@ -1,5 +1,5 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::division_level::GalacticMapDivisionLevel;
+use crate::generator::types::GenerationSettings;
 
 impl GalacticMapDivisionLevel {
     /// Returns a list of [GalacticMapDivisionLevel], one for each level, using the given settings.

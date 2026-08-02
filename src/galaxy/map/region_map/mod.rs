@@ -1,6 +1,6 @@
 use crate::galaxy::map::constants::REGION_GRID_RESOLUTION;
-use crate::internal::*;
-use crate::prelude::*;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::types::GalacticRegion;
 pub mod generator;
 pub mod types;
 use types::GalacticRegionMap;

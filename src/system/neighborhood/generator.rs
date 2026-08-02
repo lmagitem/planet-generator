@@ -1,30 +1,58 @@
-use crate::internal::*;
-use crate::prelude::*;
+#[cfg(test)]
+use crate::diagnostics::types::Diagnostics;
+use crate::diagnostics::types::GenerationError;
+use crate::diagnostics::types::GenerationWarning;
+use crate::galaxy::map::hex::types::SpaceCoordinates;
+use crate::galaxy::map::types::GalacticRegion;
+#[cfg(test)]
+use crate::galaxy::neighborhood::GalacticNeighborhood;
+#[cfg(test)]
+use crate::galaxy::types::GalaxySettings;
+use crate::galaxy::Galaxy;
+#[cfg(test)]
+use crate::generator::types::GenerationSettings;
+use crate::system::neighborhood::types::StellarNeighborhoodAge;
+use crate::system::neighborhood::StellarNeighborhood;
+#[cfg(test)]
+use crate::universe::Universe;
+use seeded_dice_roller::{
+    CopyableRollToProcess, CopyableWeightedResult, PreparedRoll, RollMethod, SeededDiceRoller,
+};
+#[cfg(test)]
+use std::rc::Rc;
 
 impl StellarNeighborhood {
-    /// Generates a [StellarNeighborhood] using the given parameters.
-    pub fn generate(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> Self {
-        Self {
-            age: generate_age(coord, galaxy),
-        }
+    /// Generates a [`StellarNeighborhood`] using the given parameters.
+    ///
+    /// # Errors
+    /// Returns [`GenerationError::InvalidCoordinates`] if the coordinates are outside the galaxy.
+    pub fn generate(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> Result<Self, GenerationError> {
+        Ok(Self {
+            age: generate_age(coord, galaxy)?,
+        })
     }
 }
 
 /// Uses data about the [GalacticMapDivision]s a neighborhood belongs to to generate its age.
-fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighborhoodAge {
-    let divisions = galaxy
-        .get_divisions_for_coord(coord)
-        .expect("Should have returned divisions.");
+fn generate_age(
+    coord: SpaceCoordinates,
+    galaxy: &mut Galaxy,
+) -> Result<StellarNeighborhoodAge, GenerationError> {
+    let divisions = galaxy.get_divisions_for_coord(coord)?;
     let mut regions = Vec::new();
     divisions.iter().for_each(|div| {
         if regions.iter().find(|r| **r == div.region).is_none() {
             regions.push(div.region.clone());
         }
     });
-    let sub_sector = divisions
+    // Extracted before `divisions`'s borrow of `galaxy` ends, since the seed
+    // below needs `&galaxy.settings`. A level-1 division always exists:
+    // `get_divisions_for_coord` returns one division per level 0..=9.
+    let sub_sector_index = divisions
         .iter()
         .find(|div| div.level == 1)
-        .expect("Should have found a subsector.");
+        .ok_or(GenerationError::InvalidDivisionLevel(1))?
+        .index;
     let mut modifier = 0;
     regions.iter().for_each(|region| match region {
         GalacticRegion::GlobularCluster
@@ -43,37 +71,46 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
 
     let mut rng = SeededDiceRoller::new(
         &galaxy.settings.seed,
-        &format!("ste_nei_{}_age", sub_sector.index),
+        &format!("ste_nei_{sub_sector_index}_age"),
     );
-    let mut age = rng
-        .get_result(&CopyableRollToProcess {
-            possible_results: vec![
-                CopyableWeightedResult {
-                    result: StellarNeighborhoodAge::Young(0),
-                    weight: 1,
-                },
-                CopyableWeightedResult {
-                    result: StellarNeighborhoodAge::Mature,
-                    weight: 6,
-                },
-                CopyableWeightedResult {
-                    result: StellarNeighborhoodAge::Old(0),
-                    weight: 4,
-                },
-                CopyableWeightedResult {
-                    result: StellarNeighborhoodAge::Ancient(0),
-                    weight: 1,
-                },
-            ],
-            roll_method: RollMethod::PreparedRoll(PreparedRoll {
-                dice: 1,
-                die_type: 8,
-                modifier,
-            }),
-        })
-        .expect("Should return a proper neighborhood age.");
+    let table = CopyableRollToProcess {
+        possible_results: vec![
+            CopyableWeightedResult {
+                result: StellarNeighborhoodAge::Young(0),
+                weight: 1,
+            },
+            CopyableWeightedResult {
+                result: StellarNeighborhoodAge::Mature,
+                weight: 6,
+            },
+            CopyableWeightedResult {
+                result: StellarNeighborhoodAge::Old(0),
+                weight: 4,
+            },
+            CopyableWeightedResult {
+                result: StellarNeighborhoodAge::Ancient(0),
+                weight: 1,
+            },
+        ],
+        roll_method: RollMethod::PreparedRoll(PreparedRoll {
+            dice: 1,
+            die_type: 8,
+            modifier,
+        }),
+    };
+    // A region modifier outside (-8, 12) makes the prepared 1d8 roll land outside every
+    // weighted range (reachable with aggressively painted custom region maps): fall back
+    // to the first entry instead of panicking.
+    let mut age = rng.get_result(&table).unwrap_or_else(|| {
+        galaxy
+            .diagnostics
+            .push_warning(GenerationWarning::RngTableFallback(
+                "stellar neighborhood age",
+            ));
+        table.possible_results[0].result
+    });
 
-    let universe_age = (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200;
+    let universe_age = ((galaxy.neighborhood.universe.age * 1000.0) as u64).saturating_sub(200);
     match age {
         StellarNeighborhoodAge::Young(_) => {
             let mut years = 0;
@@ -100,21 +137,25 @@ fn generate_age(coord: SpaceCoordinates, galaxy: &mut Galaxy) -> StellarNeighbor
                 turn += 1;
             }
             age = StellarNeighborhoodAge::Old(
-                (universe_age - 200)
+                // No 1.max here: Old(0) is reachable output (universe age at the 0.4 Gyr
+                // floor), so only the potential underflow is made saturating.
+                universe_age
+                    .saturating_sub(200)
                     .min((galaxy.neighborhood.universe.age * 1000.0) as u64 / divide_by),
             );
         }
         StellarNeighborhoodAge::Ancient(_) => {
             age = StellarNeighborhoodAge::Ancient(
                 1.max(
-                    (universe_age - 200)
+                    universe_age
+                        .saturating_sub(200)
                         .min(universe_age.saturating_sub(rng.roll(1, 10, -1) as u64 * 1000)),
                 ),
             );
         }
     }
 
-    age
+    Ok(age)
 }
 
 #[cfg(test)]
@@ -122,7 +163,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn generate_star_neighborhood_with_proper_size() {
+    fn generate_star_neighborhood_with_proper_size() -> Result<(), GenerationError> {
         let mut rng = SeededDiceRoller::new("seed", "step");
         for i in 0..10000 {
             let settings = &GenerationSettings {
@@ -132,16 +173,19 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let neighborhood =
-                GalacticNeighborhood::generate(Universe::generate(&settings), &settings);
+            let neighborhood = GalacticNeighborhood::generate(
+                Universe::generate(&settings, &mut Diagnostics::default()),
+                &settings,
+                &mut Diagnostics::default(),
+            );
             let mut galaxy = Galaxy::generate(neighborhood, (i as u16) % 5, &settings);
             let gal_end = galaxy.get_galactic_end();
             let x = rng.gen_u32() as i64 % gal_end.x;
             let y = rng.gen_u32() as i64 % gal_end.y;
             let z = rng.gen_u32() as i64 % gal_end.z;
             let hex = galaxy
-                .get_hex(SpaceCoordinates::new(x, y, z).rel(galaxy.get_galactic_start()))
-                .expect("Should have generated a hex.");
+                .get_hex(SpaceCoordinates::new(x, y, z).rel(galaxy.get_galactic_start()))?
+                .clone();
             match hex.neighborhood.age {
                 StellarNeighborhoodAge::Young(a) => {
                     assert!(a >= 1 && a <= (galaxy.neighborhood.universe.age * 1000.0) as u64 - 200)
@@ -155,5 +199,6 @@ mod tests {
                 }
             }
         }
+        Ok(())
     }
 }

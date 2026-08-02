@@ -1,5 +1,11 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::contents::elements::ChemicalComponent;
+use crate::system::contents::elements::ElementPresenceOccurrence;
+use crate::system::contents::types::GasGiantArrangement;
+use crate::system::types::SystemGenContext;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
+use std::fmt::Display;
+use std::rc::Rc;
 
 /// A list of settings used to configure the [Star] generation.
 #[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]
@@ -483,4 +489,31 @@ impl Display for VariableStarInterval {
             VariableStarInterval::Centuries => write!(f, "Centuries"),
         }
     }
+}
+
+/// Per-star snapshot + borrow of the system context. Built once per star inside
+/// `generate_orbits_and_bodies`, AFTER `generate_gas_giant_arrangement` and AFTER
+/// `generate_number_of_bodies` has run, because the latter may mutate
+/// `star.special_traits` and the snapshot must see the final value.
+/// Star fields are OWNED clones — exactly the clones the code already makes at
+/// contents/generator.rs:99-106 — because the star lives inside
+/// `star_orbital_point`, which is borrowed mutably throughout the orbit loops;
+/// borrowing `&Star` here would not compile.
+pub struct StarGenContext<'a> {
+    pub system: &'a SystemGenContext<'a>,
+    /// WARNING: this is the OrbitalPoint id of the star (post binary-relations),
+    /// i.e. `star_orbital_point.id`. It differs from `star.orbital_point_id`
+    /// (the pre-relations star index) in multi-star systems. Body/moon/world rng
+    /// step strings use THIS id; several star-level helpers use
+    /// `star.orbital_point_id` and keep taking `&Star`.
+    pub star_id: u32,
+    pub star_name: Rc<str>,
+    pub star_age: f32,
+    pub star_mass: f64,
+    pub star_luminosity: f32,
+    pub star_type: StarSpectralType,     // Copy
+    pub star_class: StarLuminosityClass, // Copy
+    pub star_traits: Vec<StarPeculiarity>,
+    pub primary_star_mass: f64,
+    pub gas_giant_arrangement: GasGiantArrangement, // Copy
 }

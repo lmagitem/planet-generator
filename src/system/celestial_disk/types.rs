@@ -1,6 +1,9 @@
-use crate::internal::*;
-use crate::prelude::*;
+use crate::system::celestial_disk::belt::CelestialBeltDetails;
+use crate::system::celestial_disk::ring::CelestialRingDetails;
+use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 use std::fmt;
+use std::fmt::Display;
 
 /// A list of settings used to configure the [CelestialDisk] generation.
 #[derive(Clone, PartialEq, PartialOrd, Debug, SmartDefault, Serialize, Deserialize)]

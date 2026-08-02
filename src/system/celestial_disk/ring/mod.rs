@@ -1,6 +1,6 @@
-use crate::internal::*;
-use crate::prelude::*;
-pub mod generator;
+use crate::system::celestial_disk::ring::types::CelestialRingComposition;
+use crate::system::celestial_disk::ring::types::CelestialRingLevel;
+use serde::{Deserialize, Serialize};
 pub mod types;
 
 #[derive(Clone, PartialEq, PartialOrd, Debug, Serialize, Deserialize)]
