@@ -12,6 +12,48 @@ I've tried my best to use realistic formulas and up-to-date data when possible f
 
 An example of how to use this library can be found in [this project, a simple Actix server that serves generated results](https://github.com/lmagitem/galactic-scanner). A web app that displays the generation results using the previous project [is available here](https://galactic-explorer.n42c.dev/) - please note that it is also a work in progress, and not all library features are available in the web app yet.
 
+See [DOCUMENTATION.md](DOCUMENTATION.md) for a guided tour of the API with code examples.
+
+## Custom galaxy maps
+
+You can hand the generator an SVG to decide what a galaxy (or just a sector) looks like and how dense each part is. Paint zones with the documented palette colors, pass the file as a string, and the regions, densities and stellar populations follow:
+
+```rust
+let settings = GenerationSettings {
+    galaxy: GalaxySettings {
+        fixed_category: Some(GalaxyCategory::Irregular(500, 500, 100)),
+        galactic_map_layers: vec![include_str!("my_map.svg").to_string()],
+        ..Default::default()
+    },
+    ..Default::default()
+};
+```
+
+Several layers can be stacked to give the map some height, and built-in defaults exist for the usual galaxy shapes when you don't provide one. The palette and authoring rules live in [DOCUMENTATION.md](DOCUMENTATION.md).
+
+## Errors and warnings
+
+The library does not panic. Check your settings upfront, then handle errors like anywhere else in Rust:
+
+```rust
+settings.validate()?;
+let universe = Generator::generate(settings)?;
+```
+
+Smaller problems (an SVG that couldn't be parsed, an out-of-range age that was clamped...) don't stop generation; they're collected as typed warnings on the generated objects (`universe.diagnostics`, `galaxy.diagnostics`, `system.diagnostics`) so you can show or ignore them as you see fit.
+
+## Determinism
+
+The same seed always produces the same content, in debug and release builds alike. This is checked continuously by a golden test harness.
+
+## Development
+
+```bash
+cargo test          # unit, integration and golden determinism tests
+cargo bench         # criterion benchmarks on the generation hot paths
+BLESS_GOLDEN=1 cargo test --test determinism   # re-bless goldens after an intentional behavior change
+```
+
 ## Roadmap
 
 This is the current roadmap of the library:
@@ -25,12 +67,12 @@ This is the current roadmap of the library:
   - [x] Shape
   - [x] Peculiarities
   - [ ] Names
-  - [ ] Our local group galaxies
+  - [x] Our local group galaxies
 - [x] Sector and subsector generation
   - [x] Configurable divisions
   - [x] Hex and division calculations
-  - [ ] Temporary region mapping
-  - [ ] Proper region mapping
+  - [x] Temporary region mapping
+  - [x] Proper region mapping
   - [ ] Names
 - [ ] Star system generation
   - [x] Spawn chance according to density
@@ -43,11 +85,13 @@ This is the current roadmap of the library:
     - [x] Name generation
     - [ ] Configurable stars
     - [ ] Peculiarities
-    - [ ] Multiple star system orbit eccentricity and inclination
+    - [x] Multiple star system orbit eccentricity
+    - [ ] Multiple star system orbit inclination
   - [ ] Peculiarities
   - [x] Orbital zones
   - [x] Filling orbits
-  - [ ] Orbit eccentricity and inclination
+  - [x] Orbit eccentricity
+  - [ ] Orbit inclination
 - [x] Planet generation
   - [x] Orbit parameters
   - [x] Moons
@@ -75,4 +119,4 @@ I'd be happy to receive issues requesting new features or reporting bug fixes. F
 
 ##### License:
 
-Licensed under [MIT license](https://github.com/lmagitem/seeded-dice-roller/blob/master/LICENSE.md).
+Licensed under [MIT license](LICENSE.md).
