@@ -141,23 +141,29 @@ impl GenerationSettings {
         }
 
         let star = &self.star;
-        let total_star_chance = star.brown_dwarf_gen_chance
-            + star.red_dwarf_one_gen_chance
-            + star.red_dwarf_two_gen_chance
-            + star.red_dwarf_three_gen_chance
-            + star.red_dwarf_four_gen_chance
-            + star.red_dwarf_five_gen_chance
-            + star.orange_dwarf_gen_chance
-            + star.yellow_dwarf_gen_chance
-            + star.white_star_gen_chance
-            + star.blue_star_one_gen_chance
-            + star.blue_star_two_gen_chance
-            + star.blue_star_three_gen_chance
-            + star.violet_star_one_gen_chance
-            + star.violet_star_two_gen_chance
-            + star.violet_star_three_gen_chance;
-        if total_star_chance == 0 {
-            errors.push(SettingsError::AllStarChancesZero);
+        let total_star_chance = [
+            star.brown_dwarf_gen_chance,
+            star.red_dwarf_one_gen_chance,
+            star.red_dwarf_two_gen_chance,
+            star.red_dwarf_three_gen_chance,
+            star.red_dwarf_four_gen_chance,
+            star.red_dwarf_five_gen_chance,
+            star.orange_dwarf_gen_chance,
+            star.yellow_dwarf_gen_chance,
+            star.white_star_gen_chance,
+            star.blue_star_one_gen_chance,
+            star.blue_star_two_gen_chance,
+            star.blue_star_three_gen_chance,
+            star.violet_star_one_gen_chance,
+            star.violet_star_two_gen_chance,
+            star.violet_star_three_gen_chance,
+        ]
+        .into_iter()
+        .try_fold(0_u32, u32::checked_add);
+        match total_star_chance {
+            Some(0) => errors.push(SettingsError::AllStarChancesZero),
+            None => errors.push(SettingsError::StarChanceTotalOverflow),
+            Some(_) => {}
         }
 
         if errors.is_empty() {
@@ -586,6 +592,22 @@ mod tests {
         assert_eq!(
             settings.validate(),
             Err(vec![SettingsError::AllStarChancesZero])
+        );
+    }
+
+    #[test]
+    fn catches_star_chance_total_overflow() {
+        let settings = GenerationSettings {
+            star: StarSettings {
+                brown_dwarf_gen_chance: u32::MAX,
+                red_dwarf_one_gen_chance: 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert_eq!(
+            settings.validate(),
+            Err(vec![SettingsError::StarChanceTotalOverflow])
         );
     }
 }

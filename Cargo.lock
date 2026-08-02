@@ -478,7 +478,7 @@ checksum = "a89322df9ebe1c1578d689c92318e070967d1042b512afbe49518723f4e6d5cd"
 
 [[package]]
 name = "planet_generator"
-version = "0.0.7-pre-alpha"
+version = "0.0.8-pre-alpha"
 dependencies = [
  "criterion",
  "lazy_static",
@@ -724,9 +724,9 @@ dependencies = [
 
 [[package]]
 name = "seeded_dice_roller"
-version = "1.0.2"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "44df9d26c9caec663cdfa994dd9721061258e9bec704a40fda021052e3ea9110"
+checksum = "dbd32a75d960ec307c7a560be2c5070c8c3dd096f613487f89949b01825c873f"
 dependencies = [
  "log",
  "rand",

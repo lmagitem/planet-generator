@@ -108,14 +108,18 @@ fn generate_age(
     // A region modifier outside (-8, 12) makes the prepared 1d8 roll land outside every
     // weighted range (reachable with aggressively painted custom region maps): fall back
     // to the first entry instead of panicking.
-    let mut age = rng.get_result(&table).unwrap_or_else(|| {
-        galaxy
-            .diagnostics
-            .push_warning(GenerationWarning::RngTableFallback(
-                "stellar neighborhood age",
-            ));
-        table.possible_results[0].result
-    });
+    let mut age = rng
+        .try_get_result(&table)
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| {
+            galaxy
+                .diagnostics
+                .push_warning(GenerationWarning::RngTableFallback(
+                    "stellar neighborhood age",
+                ));
+            table.possible_results[0].result
+        });
 
     let universe_age = ((galaxy.neighborhood.universe.age * 1000.0) as u64).saturating_sub(200);
     match age {

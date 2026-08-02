@@ -127,6 +127,9 @@ impl Display for SettingsError {
                     "All star class generation chances are zero: at least one *_gen_chance must be positive."
                 )
             }
+            SettingsError::StarChanceTotalOverflow => {
+                write!(f, "The total star class generation chance exceeds u32::MAX.")
+            }
         }
     }
 }

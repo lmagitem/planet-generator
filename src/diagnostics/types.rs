@@ -95,4 +95,5 @@ pub enum SettingsError {
     /// Every `star.*_gen_chance` weight is 0: no star class can ever be rolled,
     /// which would divide by zero inside the roll tables.
     AllStarChancesZero,
+    StarChanceTotalOverflow,
 }

@@ -71,13 +71,12 @@ impl IcyBodyDetails {
         is_moon: bool,
         fixed_size: Option<CelestialBodySize>,
     ) -> (OrbitalPoint, Vec<OrbitalPoint>) {
-        let mut rng = ctx.system.with_step(|step| {
+        let mut rng = ctx.system.with_step(&ctx.system.settings.seed, |step| {
             let _ = write!(
                 step,
                 "sys_{}_{}_str_{}_bdy{}",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, body_id
             );
-            SeededDiceRoller::new(&ctx.system.settings.seed, step)
         });
         let rolled_size = rng.roll(1, 400, size_modifier);
         let mut moons: Vec<OrbitalPoint> = Vec::new();

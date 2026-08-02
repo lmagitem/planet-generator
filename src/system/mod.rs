@@ -8,6 +8,7 @@ use crate::system::types::SystemGenContext;
 use crate::system::types::SystemPeculiarity;
 use crate::universe::Universe;
 use log::debug;
+use seeded_dice_roller::SeededDiceRoller;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::cell::RefCell;
@@ -145,16 +146,17 @@ impl<'a> SystemGenContext<'a> {
         }
     }
 
-    /// Runs `f` with the cleared step-string scratch buffer. Fill it (e.g. via
-    /// `write!`) and consume it (e.g. pass it to `SeededDiceRoller::new`)
-    /// inside `f` — fill→construct stays confined to this one call, so a
-    /// `&str` into the buffer can never escape across another fill.
+    /// Builds a `SeededDiceRoller` from a step written into the reusable scratch buffer
+    /// and the supplied seed.
     /// `write!` into a `String` is infallible; callers use `let _ =` on the
     /// `Result` (no `unwrap`).
-    pub(crate) fn with_step<R>(&self, f: impl FnOnce(&mut String) -> R) -> R {
+    pub(crate) fn with_step(&self, seed: &str, f: impl FnOnce(&mut String)) -> SeededDiceRoller {
         let mut buf = self.step_scratch.borrow_mut();
         buf.clear();
-        f(&mut buf)
+        f(&mut buf);
+        buf.push('_');
+        buf.push_str(seed);
+        SeededDiceRoller::from_combined(&buf)
     }
 
     pub(crate) fn warn(&self, w: GenerationWarning) {

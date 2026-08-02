@@ -373,13 +373,12 @@ impl WorldGenerator {
 
         // TODO: Planetary imbalances
         {
-            let mut rng = ctx.system.with_step(|step| {
+            let mut rng = ctx.system.with_step(&settings.seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_str_{}_bdy{}_cmp",
                     coord, system_index, star_id, orbital_point_id
                 );
-                SeededDiceRoller::new(&settings.seed, step)
             });
             for special_trait in star_traits {
                 if let StarPeculiarity::UnusualElementPresence(component_and_occurrence) =
@@ -470,13 +469,12 @@ impl WorldGenerator {
                 Vec::new();
             let _final_composition: Vec<(f32, ChemicalComponent)> = Vec::new();
             if atmospheric_pressure > 0.0 {
-                let mut rng = ctx.system.with_step(|step| {
+                let mut rng = ctx.system.with_step(&settings.seed, |step| {
                     let _ = write!(
                         step,
                         "sys_{}_{}_str_{}_bdy{}_atcmp",
                         coord, system_index, star_id, orbital_point_id
                     );
-                    SeededDiceRoller::new(&settings.seed, step)
                 });
                 let mut carbon_system = false;
                 for special_trait in system_traits {
@@ -1539,13 +1537,12 @@ impl WorldGenerator {
 
                 // Flavor components
                 if add_other_flavor_components {
-                    let mut rng = ctx.system.with_step(|step| {
+                    let mut rng = ctx.system.with_step(&settings.seed, |step| {
                         let _ = write!(
                             step,
                             "sys_{}_{}_str_{}_bdy{}_atcmp_flavor",
                             coord, system_index, star_id, orbital_point_id
                         );
-                        SeededDiceRoller::new(&settings.seed, step)
                     });
                     let number_of_elements = rng.roll(1, 3, 0);
                     for _number_of_element in 0..number_of_elements {
@@ -1654,13 +1651,12 @@ impl WorldGenerator {
                 index += 1;
             }
 
-            let mut rng = ctx.system.with_step(|step| {
+            let mut rng = ctx.system.with_step(&settings.seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_str_{}_bdy{}_atcmp_perct",
                     coord, system_index, star_id, orbital_point_id
                 );
-                SeededDiceRoller::new(&settings.seed, step)
             });
 
             guess_composition.sort_by(|a, b| a.0.cmp(&b.0));

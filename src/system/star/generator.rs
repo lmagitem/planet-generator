@@ -206,13 +206,12 @@ impl Star {
 
         // TODO: Still have to take into account metallicity
         let elements_abundance: Vec<ChemicalComponent> = {
-            let mut rng = ctx.with_step(|step| {
+            let mut rng = ctx.with_step(&settings.seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_{}_elem_abnd",
                     coord, system_index, star_index
                 );
-                SeededDiceRoller::new(&settings.seed, step)
             });
             let mut elements = Vec::new();
             let mut roll = rng.gen_u8();
@@ -256,13 +255,12 @@ impl Star {
             elements
         };
         let elements_lack: Vec<ChemicalComponent> = {
-            let mut rng = ctx.with_step(|step| {
+            let mut rng = ctx.with_step(seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_{}_elem_lack",
                     coord, system_index, star_index
                 );
-                SeededDiceRoller::new(&*seed, step)
             });
             let mut elements = Vec::new();
             let mut roll = rng.gen_u8();
@@ -307,13 +305,12 @@ impl Star {
             }
             elements
         };
-        let mut rng = ctx.with_step(|step| {
+        let mut rng = ctx.with_step(seed, |step| {
             let _ = write!(
                 step,
                 "sys_{}_{}_{}_elem_comp",
                 coord, system_index, star_index
             );
-            SeededDiceRoller::new(&*seed, step)
         });
 
         elements_abundance.iter().for_each(|el| {
@@ -544,16 +541,12 @@ fn generate_mass(
         ],
         RollMethod::SimpleRoll,
     );
-    // Every weight comes from the user-tunable gen chances: if they are all 0 the
-    // roller would divide by zero, so use the first entry directly (rejecting that
-    // combination is a `GenerationSettings::validate` concern). The unwrap_or
-    // fallback is otherwise unreachable.
     let fallback = table.possible_results[0].result;
-    let range = if table.possible_results.iter().all(|r| r.weight == 0) {
-        fallback
-    } else {
-        rng.get_result(&table).unwrap_or(fallback)
-    };
+    let range = rng
+        .try_get_result(&table)
+        .ok()
+        .flatten()
+        .unwrap_or(fallback);
     rng.gen_f64() % (range.1 - range.0) + range.0
 }
 
@@ -1106,6 +1099,17 @@ fn mix_values(a: f64, b: f64, age: f32, main_lifespan: f32) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overflowing_mass_weights_use_fallback() {
+        let settings = StarSettings {
+            brown_dwarf_gen_chance: u32::MAX,
+            red_dwarf_one_gen_chance: 1,
+            ..Default::default()
+        };
+        let mass = generate_mass(0, 0, SpaceCoordinates::default(), "seed", &settings);
+        assert!((BROWN_DWARF_MIN_MASS..RED_DWARF_POP_HYPERDWARF_MIN_MASS).contains(&mass));
+    }
 
     #[test]
     fn generate_main_sequence_values_approaching_reality() {

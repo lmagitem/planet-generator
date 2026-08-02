@@ -132,13 +132,12 @@ impl MoonGenerator {
     ) {
         let _separate_inner_moonlets_and_major_moons = if ctx
             .system
-            .with_step(|step| {
+            .with_step(&ctx.system.settings.seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_str_{}_bdy{}_orbit",
                     ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
                 );
-                SeededDiceRoller::new(&ctx.system.settings.seed, step)
             })
             .roll(1, 10, 0)
             == 1
@@ -161,13 +160,12 @@ impl MoonGenerator {
             let moon_id = *next_id;
             *next_id += 1;
 
-            let mut rng = ctx.system.with_step(|step| {
+            let mut rng = ctx.system.with_step(&ctx.system.settings.seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_str_{}_bdy{}_type",
                     ctx.system.coord, ctx.system.system_index, ctx.star_id, moon_id
                 );
-                SeededDiceRoller::new(&ctx.system.settings.seed, step)
             });
 
             let orbit = Some(Orbit {
@@ -268,13 +266,12 @@ impl MoonGenerator {
 
             let (moon_mass, moon_density, moon_radius) = Self::moon_body_stats(&moon_stub);
 
-            let mut rng = ctx.system.with_step(|step| {
+            let mut rng = ctx.system.with_step(&ctx.system.settings.seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_str_{}_bdy{}_orbit",
                     ctx.system.coord, ctx.system.system_index, ctx.star_id, moon_id
                 );
-                SeededDiceRoller::new(&ctx.system.settings.seed, step)
             });
             let max_attempts = 50;
             let mut attempt_count = 0;
@@ -703,13 +700,12 @@ impl MoonGenerator {
         ctx: &StarGenContext,
         parent: &ParentBodyInfo,
     ) -> (i8, i8, i8, i8) {
-        let mut rng = ctx.system.with_step(|step| {
+        let mut rng = ctx.system.with_step(&ctx.system.settings.seed, |step| {
             let _ = write!(
                 step,
                 "sys_{}_{}_str_{}_bdy{}_moons",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
             );
-            SeededDiceRoller::new(&ctx.system.settings.seed, step)
         });
         let mut modifier = if parent.parent_orbit.average_distance < 0.5 {
             -6
@@ -742,13 +738,12 @@ impl MoonGenerator {
         ctx: &StarGenContext,
         parent: &ParentBodyInfo,
     ) -> (i8, i8, i8, i8) {
-        let mut rng = ctx.system.with_step(|step| {
+        let mut rng = ctx.system.with_step(&ctx.system.settings.seed, |step| {
             let _ = write!(
                 step,
                 "sys_{}_{}_str_{}_gas_bdy{}_moons",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
             );
-            SeededDiceRoller::new(&ctx.system.settings.seed, step)
         });
 
         let size_modifier = if parent.planet_size == CelestialBodySize::Hypergiant {
@@ -809,13 +804,12 @@ impl MoonGenerator {
         moons: &mut Vec<OrbitalPoint>,
         moonlets: i8,
     ) {
-        let mut rng = ctx.system.with_step(|step| {
+        let mut rng = ctx.system.with_step(&ctx.system.settings.seed, |step| {
             let _ = write!(
                 step,
                 "sys_{}_{}_str_{}_gas_bdy{}_ring",
                 ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
             );
-            SeededDiceRoller::new(&ctx.system.settings.seed, step)
         });
         let ring_composition = if moonlets < 4 {
             CelestialRingComposition::Dust
@@ -845,11 +839,14 @@ impl MoonGenerator {
                 RollMethod::SimpleRoll,
             );
             // Unreachable fallback (the weights above always sum to at least 6).
-            rng.get_result(&table).unwrap_or_else(|| {
-                ctx.system
-                    .warn(GenerationWarning::RngTableFallback("ring composition"));
-                table.possible_results[0].result
-            })
+            rng.try_get_result(&table)
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| {
+                    ctx.system
+                        .warn(GenerationWarning::RngTableFallback("ring composition"));
+                    table.possible_results[0].result
+                })
         };
 
         let ring_id = *next_id;
@@ -857,13 +854,12 @@ impl MoonGenerator {
         let ring_mass = (moonlets as f64) * 2.0 * 10.0f64.powf(-7.0);
 
         let ring_distance = MoonGenerator::generate_moon_orbit_distance(
-            &mut ctx.system.with_step(|step| {
+            &mut ctx.system.with_step(&ctx.system.settings.seed, |step| {
                 let _ = write!(
                     step,
                     "sys_{}_{}_str_{}_gas_bdy{}_ring",
                     ctx.system.coord, ctx.system.system_index, ctx.star_id, parent.planet_id
                 );
-                SeededDiceRoller::new(&ctx.system.settings.seed, step)
             }),
             ctx.star_mass as f64,
             parent.parent_orbit.average_distance,

@@ -257,13 +257,12 @@ fn generate_reference_orbit_radius(
     major_bodies_left: &mut i32,
     star: &Star,
 ) -> f64 {
-    let mut rng = ctx.with_step(|step| {
+    let mut rng = ctx.with_step(&ctx.settings.seed, |step| {
         let _ = write!(
             step,
             "sys_{}_{}_str_{}_bdy{}_loc",
             ctx.coord, ctx.system_index, star.orbital_point_id, major_bodies_left
         );
-        SeededDiceRoller::new(&ctx.settings.seed, step)
     });
     let reference_orbit_radius = star
         .zones
@@ -287,13 +286,12 @@ fn generate_orbits(
     star: &Star,
     reference_orbit_radius: &mut f64,
 ) -> Vec<Orbit> {
-    let mut rng = ctx.with_step(|step| {
+    let mut rng = ctx.with_step(&ctx.settings.seed, |step| {
         let _ = write!(
             step,
             "sys_{}_{}_str_{}_orbt_loc",
             ctx.coord, ctx.system_index, star.orbital_point_id
         );
-        SeededDiceRoller::new(&ctx.settings.seed, step)
     });
     let mut orbits = vec![];
     let mut last_orbit = &mut *reference_orbit_radius;
@@ -486,7 +484,7 @@ fn place_body_stubs(
         .enumerate()
         .for_each(|(possible_orbit_index, orbit)| {
             if orbit.id.is_none() {
-                let mut rng = ctx.system.with_step(|step| {
+                let mut rng = ctx.system.with_step(&ctx.settings().seed, |step| {
                     let _ = write!(
                         step,
                         "sys_{}_{}_str_{}_bdy{}_orbit{}_gen",
@@ -496,7 +494,6 @@ fn place_body_stubs(
                         major_bodies_left,
                         possible_orbit_index
                     );
-                    SeededDiceRoller::new(&ctx.settings().seed, step)
                 });
 
                 let inwards_gas_giant = orbit_contents
@@ -1122,13 +1119,12 @@ fn get_body_size_modifier(
     nearest_forbidden_distance: f64,
     zone_change_orbits_proximity: usize,
 ) -> i32 {
-    let mut rng = ctx.system.with_step(|step| {
+    let mut rng = ctx.system.with_step(&ctx.system.seed, |step| {
         let _ = write!(
             step,
             "sys_{}_{}_str_{}_bdy{}_orbit{}_rep",
             ctx.system.coord, ctx.system.system_index, ctx.star_id, major_bodies_left, orbit_index
         );
-        SeededDiceRoller::new(&ctx.system.seed, step)
     });
 
     let mut size_modifier = 0;
@@ -1336,13 +1332,12 @@ fn handle_proto_gas_giant_placement(
 }
 
 fn generate_number_of_bodies(ctx: &SystemGenContext, star: &mut Star) -> i32 {
-    let mut rng = ctx.with_step(|step| {
+    let mut rng = ctx.with_step(&ctx.seed, |step| {
         let _ = write!(
             step,
             "sys_{}_{}_str_{}_nbr_bdy",
             ctx.coord, ctx.system_index, star.orbital_point_id
         );
-        SeededDiceRoller::new(&ctx.seed, step)
     });
 
     let mut modifier = 0;
@@ -1385,10 +1380,12 @@ fn generate_number_of_bodies(ctx: &SystemGenContext, star: &mut Star) -> i32 {
 
     // Unreachable (the table above is non-empty): index 0 is a deterministic stand-in.
     let number_of_bodies_index = rng
-        .get_result_index(&RollToProcess::new(
+        .try_get_result_index(&RollToProcess::new(
             possible_results.clone(),
             RollMethod::PreparedRoll(PreparedRoll::new(2, 8, modifier)),
         ))
+        .ok()
+        .flatten()
         .unwrap_or_else(|| {
             ctx.warn(GenerationWarning::RngTableFallback("number of bodies"));
             0
@@ -1475,15 +1472,16 @@ fn generate_gas_giant_arrangement(
             RollMethod::SimpleRoll,
         );
         // Unreachable (the weights above always sum to at least 100): first entry.
-        ctx.with_step(|step| {
+        ctx.with_step(&ctx.settings.seed, |step| {
             let _ = write!(
                 step,
                 "sys_{}_{}_str_{}_gas_arr",
                 ctx.coord, ctx.system_index, star.orbital_point_id
             );
-            SeededDiceRoller::new(&ctx.settings.seed, step)
         })
-        .get_result(&table)
+        .try_get_result(&table)
+        .ok()
+        .flatten()
         .unwrap_or_else(|| {
             ctx.warn(GenerationWarning::RngTableFallback("gas giant arrangement"));
             table.possible_results[0].result
@@ -1784,13 +1782,12 @@ fn generate_proto_gas_giant_position(
     arrangement: &GasGiantArrangement,
     star: &Star,
 ) -> Option<f64> {
-    let mut rng = ctx.with_step(|step| {
+    let mut rng = ctx.with_step(&ctx.settings.seed, |step| {
         let _ = write!(
             step,
             "sys_{}_{}_str_{}_gas_pos",
             ctx.coord, ctx.system_index, star.orbital_point_id
         );
-        SeededDiceRoller::new(&ctx.settings.seed, step)
     });
 
     match arrangement {
@@ -1963,26 +1960,40 @@ pub(crate) fn generate_outer_body_type(
     roll_body_type(rng, &table)
 }
 
-/// Rolls a body type in the given table. If every body type was disabled via the
-/// `do_not_generate_*` settings the table's weights are all 0, which would make the
-/// dice roller divide by zero; the first entry is then used as-is. (Rejecting that
-/// settings combination is a `GenerationSettings::validate` concern.)
 fn roll_body_type(
     rng: &mut SeededDiceRoller,
     table: &CopyableRollToProcess<CelestialBodyComposition>,
 ) -> CelestialBodyComposition {
-    // Unreachable fallback otherwise (the table is hardcoded non-empty): first entry.
     let fallback = table.possible_results[0].result;
-    if table.possible_results.iter().all(|r| r.weight == 0) {
-        fallback
-    } else {
-        rng.get_result(table).unwrap_or(fallback)
-    }
+    rng.try_get_result(table).ok().flatten().unwrap_or(fallback)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn disabled_body_types_use_fallback() {
+        let settings = GenerationSettings {
+            celestial_body: crate::system::celestial_body::types::CelestialBodySettings {
+                do_not_generate_gaseous: true,
+                do_not_generate_icy: true,
+                do_not_generate_rocky: true,
+                do_not_generate_metallic: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut rng = SeededDiceRoller::new("seed", "step");
+        assert_eq!(
+            generate_inner_body_type(&mut rng, &settings),
+            CelestialBodyComposition::Metallic
+        );
+        assert_eq!(
+            generate_outer_body_type(&mut rng, &settings),
+            CelestialBodyComposition::Metallic
+        );
+    }
 
     fn body_point(id: u32, stub: bool, primary_body_id: u32) -> OrbitalPoint {
         let body = if stub {
